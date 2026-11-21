@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "cluster.text-editor",
+  "name": "Cluster BasicTextEditor",
+  "version": "2.6.0",
+  "description": "Workspace File menu uses writable directory picker for real disk delete support",
+  "entry": "index.html",
+  "apiVersion": "1.0.0",
+  "ui": {
+    "mode": "both",
+    "home": false
+  }
+}

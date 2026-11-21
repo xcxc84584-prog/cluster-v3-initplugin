@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cluster Explorer</title><link rel="stylesheet" href="styles/explorer.css">
+<script defer src="scripts/explorer.js"></script><script defer src="scripts/public-properties.js"></script></head><body>
+<div class="app">
+<header class="legacy-heading"><span>檔案總管</span><span class="heading-tools"><button id="refreshRoots" type="button" title="重新整理" aria-label="重新整理">↻</button><button id="collapseNotice" type="button" aria-label="收合檔案總管" title="收合檔案總管">×</button></span></header>
+<div class="legacy-actions" role="toolbar" aria-label="Explorer 文件操作">
+<button id="newFolder" title="建立新檔（資料夾）" aria-label="建立新檔（資料夾）">▣＋</button>
+<button id="newFile" title="建立新文件" aria-label="建立新文件">◇＋</button>
+<button id="importFolder" title="開啟舊檔（資料夾）" aria-label="開啟舊檔（資料夾）">▣↗</button>
+<button id="importFiles" title="開啟舊文件" aria-label="開啟舊文件">◇↗</button>
+</div>
+<div class="legacy-search"><input id="search" type="search" placeholder="搜尋文件" aria-label="搜尋文件"></div>
+<section class="folderbar" id="workspaceFolder"><span class="caret">▾</span><span class="foldername" id="workspaceName">WORKSPACE</span><span class="foldercount" id="fileCount" aria-label="文件數量">0</span></section>
+<main id="tree" class="tree" role="tree" aria-label="檔案清單"></main>
+<div class="empty" id="empty"><span>尚無文件</span></div>
+<span id="status" hidden aria-live="polite"></span>
+</div>
+<input id="filesInput" type="file" multiple hidden><input id="folderInput" type="file" webkitdirectory multiple hidden>
+<dialog id="deleteDialog" aria-labelledby="deleteTitle">
+  <h3 id="deleteTitle">確認刪除</h3>
+  <p><strong id="deleteTarget"></strong></p>
+  <p id="deleteDescription"></p>
+  <div class="delete-actions"><button id="deleteCancel" type="button">取消</button>
+  <button id="deleteConfirm" class="danger" type="button">刪除</button></div>
+</dialog>
+
+<div id="toast" class="toast" hidden role="status"></div>
+</body></html>

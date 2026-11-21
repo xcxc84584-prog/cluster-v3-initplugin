@@ -1,0 +1,168 @@
+:root{
+  color-scheme:dark;
+  --ui-background:#101115;--ui-panel:#191c23;--ui-control:#2a2e38;
+  --ui-text:#e5e9f3;--ui-muted:#929bab;--ui-accent:#7e9ef4;
+  --ui-border:#333944;--ui-hover:#343947;
+  --editor-monospace:Consolas,"Cascadia Code","Fira Code",monospace;
+  font-family:system-ui,"Microsoft JhengHei","Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ui-background);color:var(--ui-text)}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
+.editor-shell{width:100%;height:100%;min-width:240px;min-height:0;display:flex;flex-direction:column;background:var(--ui-background)}
+.menu-bar{height:42px;min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ui-panel);border-bottom:1px solid var(--ui-border);padding:0 12px}
+.left-menu,.right-menu{display:flex;align-items:center;gap:12px;min-width:0}
+.menu-button{min-width:57px;height:29px;padding:0 11px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--ui-text);font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.menu-button:hover,.menu-button[aria-expanded=true]{background:var(--ui-control);border-color:var(--ui-border)}
+.chevron{font-size:13px;color:var(--ui-muted)}
+.cluster-mark,.empty-cluster-mark{display:inline-block;width:15px;height:15px;flex:none;border:2px solid var(--ui-accent);transform:rotate(45deg);margin:0 5px;border-radius:1px}
+.empty-cluster-mark{height:26px;width:26px;border-width:2px;margin:10px 0 5px}
+.brand-title{font:600 13px system-ui,sans-serif;color:var(--ui-text);letter-spacing:.25px;white-space:nowrap}
+.brand-title span{color:var(--ui-muted);font:10px var(--editor-monospace);letter-spacing:.7px;margin-left:8px}
+.file-menu-group{position:relative;z-index:8}
+.file-menu{position:absolute;right:0;top:calc(100% + 5px);min-width:265px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel);padding:5px;box-shadow:0 14px 45px #0008}
+.file-menu[hidden]{display:none}
+.file-menu button{display:flex;justify-content:space-between;align-items:center;gap:25px;background:transparent;border:0;color:var(--ui-text);border-radius:5px;padding:9px 11px;width:100%;text-align:left;font-size:12px}
+.file-menu button:hover,.file-menu button:focus-visible{background:var(--ui-hover)}
+.file-menu kbd{font:10px var(--editor-monospace);color:var(--ui-muted);white-space:nowrap}
+.menu-separator{height:1px;background:var(--ui-border);margin:4px 7px}
+.file-state{font:11px var(--editor-monospace);color:var(--ui-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-button{width:26px;height:26px;display:grid;place-items:center;color:var(--ui-text);background:transparent;border:0;border-radius:5px;font-size:19px;line-height:1}
+.icon-button:hover{background:var(--ui-control)}
+.tabs{display:flex;align-items:stretch;flex:none;height:35px;min-height:35px;border-bottom:1px solid var(--ui-border);background:var(--ui-panel);overflow-x:auto;scrollbar-width:thin}
+.tab{border:0;border-right:1px solid var(--ui-border);border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);display:flex;align-items:center;gap:7px;min-width:100px;max-width:230px;padding:0 10px;flex:none;font-size:12px}
+.tab:hover{background:var(--ui-control)}
+.tab[aria-selected=true]{border-bottom-color:var(--ui-accent);background:var(--ui-background);color:var(--ui-text)}
+.tab-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.tab-dirty{color:var(--ui-accent);font-size:15px;width:9px;flex:none}
+.tab-close{border:0;color:var(--ui-muted);background:none;font-size:17px;line-height:1;width:21px;height:22px;border-radius:4px;flex:none}
+.tab-close:hover{background:var(--ui-hover);color:var(--ui-text)}
+.workspace{position:relative;min-height:0;flex:1;display:flex;overflow:hidden;background:var(--ui-background)}
+.line-gutter{flex:none;width:62px;padding:15px 12px 16px 4px;border-right:1px solid var(--ui-border);color:var(--ui-muted);background:var(--ui-background);font:13px/22px var(--editor-monospace);text-align:right;overflow:hidden;user-select:none;white-space:pre}
+.line-gutter div{position:relative;top:0}
+#editor{flex:1;width:100%;height:100%;min-width:0;min-height:0;resize:none;border:0;background:transparent;color:var(--ui-text);outline:none!important;padding:15px 18px;font:13px/22px var(--editor-monospace);white-space:pre;overflow:auto;tab-size:4;caret-color:var(--ui-accent)}
+#editor::selection{background:color-mix(in srgb,var(--ui-accent),transparent 70%)}
+#editor::placeholder{color:var(--ui-muted)}
+.empty-hint{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:20px;text-align:center;color:var(--ui-muted);padding:30px;background:var(--ui-background);font-size:13px;pointer-events:none}
+.empty-hint[hidden]{display:none}
+
+.status-bar{display:flex;align-items:center;gap:13px;min-height:26px;height:26px;padding:0 12px;border-top:1px solid var(--ui-border);color:var(--ui-muted);background:var(--ui-panel);font:10px var(--editor-monospace);white-space:nowrap;overflow:hidden}
+.connection-dot{width:6px;height:6px;flex:none;border-radius:50%;background:var(--ui-accent)}
+.status-message{min-width:0;max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.status-spacer{flex:1}
+.find-panel{position:absolute;top:10px;right:14px;display:flex;align-items:center;gap:6px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:8px;padding:7px 9px;box-shadow:0 9px 24px #0007}
+.find-panel[hidden]{display:none}
+.find-panel label{font-size:11px;color:var(--ui-muted)}
+.find-panel input{width:min(210px,34vw);background:var(--ui-control);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:5px;padding:5px 8px;font:12px var(--editor-monospace)}
+.find-panel button{border:0;border-radius:4px;background:none;color:var(--ui-text);font-size:15px;min-width:20px;min-height:23px}
+.find-panel button:hover{background:var(--ui-hover)}
+.find-count{font:10px var(--editor-monospace);color:var(--ui-muted)}
+.save-dialog{min-width:min(330px,calc(100vw - 30px));border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-panel);color:var(--ui-text);padding:21px;box-shadow:0 25px 55px #0008}
+.save-dialog::backdrop{background:#000a}
+.save-dialog form{display:grid;gap:12px}
+.save-dialog h2{margin:0;font-size:17px}
+.save-dialog label{font-size:12px;color:var(--ui-muted)}
+.save-dialog input{min-width:0;width:100%;padding:9px;border:1px solid var(--ui-border);border-radius:6px;background:var(--ui-control);color:var(--ui-text)}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.dialog-actions button{border:1px solid var(--ui-border);border-radius:6px;background:var(--ui-control);color:var(--ui-text);padding:8px 12px}
+.dialog-actions button.primary{border-color:var(--ui-accent)}
+.toast{position:absolute;bottom:43px;left:12px;max-width:min(560px,calc(100vw - 24px));border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);box-shadow:0 10px 30px #0009;padding:10px 14px;font-size:12px;color:var(--ui-text);z-index:20}
+.toast[hidden]{display:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media(max-width:550px){.brand-title{display:none}.line-gutter{width:41px;padding-right:7px}#editor{padding-left:10px}.status-bar{gap:8px}#fileType{display:none}}
+
+/* ClusterOpt2-style settings: local controls using shared palette tokens. */
+.settings-dialog{width:min(450px,calc(100vw - 28px));max-height:calc(100vh - 36px);overflow:auto;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel);color:var(--ui-text);padding:18px 20px;box-shadow:0 25px 60px #000a}
+.settings-dialog::backdrop{background:#000b}
+.settings-heading{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.settings-heading h2{margin:0;font-size:16px;font-weight:650}
+.settings-close{font-size:22px;background:transparent;color:var(--ui-muted);border:0;border-radius:5px;width:29px;height:29px}
+.settings-close:hover{background:var(--ui-control);color:var(--ui-text)}
+.settings-note{color:var(--ui-muted);font-size:12px;line-height:1.7;margin:12px 0 17px}
+.settings-dialog label{display:block;font-size:12px;color:var(--ui-text)}
+.settings-dialog select{width:100%;margin:9px 0 18px;background:var(--ui-control);border:1px solid var(--ui-border);color:var(--ui-text);padding:9px;border-radius:6px}
+.color-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.color-field{display:flex;align-items:center;gap:9px;min-width:0;padding:8px;background:var(--ui-background);border:1px solid var(--ui-border);border-radius:6px}
+.color-field input{width:37px;height:32px;padding:2px;background:transparent;border:0;cursor:pointer;flex:none}
+.color-field span{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-dialog .dialog-actions{margin-top:16px}
+@media(max-width:400px){.file-state{display:none}.color-grid{grid-template-columns:1fr}.brand-title span{display:none}.menu-bar{padding:0 8px}}
+
+/* Unified ClusterOpt2 appearance dialog. Global palette is derived from one RGB input. */
+.appearance-dialog{width:min(324px,calc(100vw - 24px));max-height:calc(100vh - 20px);overflow:auto;padding:0;border-radius:8px;border:1px solid #393d49;background:#202127;color:#e7e9f1;box-shadow:0 25px 70px #000b;font-family:system-ui,"Microsoft JhengHei",sans-serif;font-size:10px}
+.appearance-dialog::backdrop{background:#000a}
+.appearance-dialog button,.appearance-dialog input{font:inherit}
+.appearance-header{padding:13px 14px 11px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #393d49}
+.appearance-eyebrow{font:700 6px/1.7 Consolas,monospace;letter-spacing:1.3px;color:#9298a8}
+.appearance-header h2{font-size:12px;margin:4px 0 0;font-weight:700}
+.appearance-close{width:24px;height:24px;border:1px solid #414552;border-radius:5px;background:#343741;color:#d3d7e3;font-size:16px!important}
+.appearance-content{padding:13px 14px 14px}
+.palette-preview{height:112px;border:1px solid #3a3d47;border-radius:5px;overflow:hidden;background:#0c0d11}
+.palette-preview-toolbar{height:23px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;background:#101116;color:#d4d8e6;border-bottom:1px solid #3b3d48;font:bold 7px Consolas,monospace;letter-spacing:.35px}
+.palette-preview-toolbar span:last-child{font-size:6px;letter-spacing:1px;color:#a0a4b5}
+.preview-diamond{display:inline-block;width:6px;height:6px;border:1px solid #7e9ef4;transform:rotate(45deg);margin-right:6px}
+.palette-preview-body{display:flex;height:calc(100% - 23px)}
+.palette-preview-sidebar{width:30%;border-right:1px solid #393c47;background:#101116}
+.palette-preview-editor{flex:1;padding:10px 11px;background:#050609}
+.preview-line{height:3px;margin-bottom:6px;background:#a5a9b5;border-radius:2px;width:78%}
+.preview-line.short{width:35%}.preview-line.medium{width:59%}
+.appearance-field-title{display:flex;justify-content:space-between;align-items:center;margin:11px 0 7px;font-size:10px}
+.appearance-field-title span{font:700 8px Consolas,monospace;color:#a8acba}
+.base-picker-row{display:flex;align-items:center;gap:9px;margin:0 0 6px}
+.base-picker-row input{width:49px;height:29px;border:2px solid #a1a4b0;border-radius:4px;padding:2px;background:#292d38;cursor:pointer;flex:none}
+.base-picker-row span{font-size:9px;line-height:1.5;color:#c3c6d0}
+.appearance-hex-label{display:block;color:#b6bac8;font:700 8px Consolas,monospace;margin:6px 0 3px}
+#baseHexInput,.appearance-rgb-fields input{height:24px;border:1px solid #3c404b;border-radius:4px;background:#343741;color:#e6e9f3;padding:0 9px;font:10px Consolas,monospace}
+#baseHexInput{width:85px}
+.appearance-rgb-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+.appearance-rgb-fields label{font:700 8px Consolas,monospace;display:grid;gap:5px;color:#d4d7df}
+.appearance-rgb-fields input{width:100%;min-width:0;appearance:textfield}
+.appearance-rgb-fields input::-webkit-inner-spin-button,.appearance-rgb-fields input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.appearance-type-title{margin-top:14px}
+.appearance-type-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.appearance-type-switch button{height:27px;border-radius:4px;border:1px solid #434756;background:#363943;color:#f0f1f6;font-weight:700}
+.appearance-type-switch button[aria-pressed=true]{border-color:#7e9ef4;box-shadow:inset 0 -2px #7e9ef4}
+.appearance-footer{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #393d49;color:#8d929f;font-size:9px}
+.appearance-footer button{background:#343741;border:1px solid #434755;color:#f2f3f8;border-radius:4px;padding:6px 10px;font-weight:700}
+@media(max-height:460px){.appearance-dialog{max-height:calc(100vh - 12px)}}
+
+/* v1.4.0: ClusterOpt2 × VS Code shell. Existing palette tokens stay authoritative. */
+:root{--ui-background:#111318;--ui-panel:#191c22;--ui-control:#252932;--ui-border:#313640;--ui-hover:#303642;--ui-muted:#9099a8;--ui-accent:#80a5ec}
+.menu-bar{height:43px;min-height:43px;background:var(--ui-panel);padding:0 15px}
+.brand-title{letter-spacing:.95px;font-size:12px}
+.brand-title span{font-size:10px;letter-spacing:1.1px}
+.editor-workspace-tag{border-left:1px solid var(--ui-border);padding-left:14px;color:var(--ui-muted);font:10px Consolas,monospace;letter-spacing:1px}
+.editor-breadcrumb{display:flex;align-items:center;gap:9px;height:27px;min-height:27px;padding:0 15px;background:var(--ui-background);border-bottom:1px solid var(--ui-border);font:10px Consolas,monospace;color:var(--ui-muted);white-space:nowrap;overflow:hidden}
+.breadcrumb-root{letter-spacing:1px}.breadcrumb-sep{font-size:17px;color:var(--ui-accent)}.breadcrumb-spacer{flex:1}
+.breadcrumb-lang{opacity:.6}
+.tabs{height:37px;min-height:37px;background:var(--ui-panel)}
+.tab{border-bottom-width:2px;min-width:130px;padding:0 13px}
+.tab[aria-selected=true]{background:var(--ui-background)}
+.workspace{background:var(--ui-background)}
+.line-gutter{border-right:0;padding-top:19px;color:var(--ui-muted)}
+#editor{padding-top:19px;line-height:22px}
+.status-bar{background:#202a38;border:0;color:#ccd6e9;min-height:27px;height:27px}
+.connection-dot{background:#83c69c}
+.file-menu{border-radius:5px;box-shadow:0 15px 45px #0009}
+@media(max-width:600px){.editor-workspace-tag{display:none}.breadcrumb-root{display:none}}
+
+/* Embedded in unified Cluster Editor workbench */
+.menu-bar{height:36px;min-height:36px}.brand-title,.cluster-mark,.editor-workspace-tag{display:none}
+
+/* Cluster Opt legacy dark workstation skin. Designed for unified Editor mounting. */
+:root {--background:#0c0d10;--panel:#17191e;--edge:#2c3038;--accent:#6f9be3;--text:#e6e8ec;--muted:#959da9;--ui-background:#0c0d10;--ui-panel:#17191e;--ui-control:#252831;--ui-text:#e6e8ec;--ui-muted:#959da9;--ui-accent:#6f9be3;--ui-border:#2c3038;--ui-hover:#292e39;--bg:#0c0d10;--raised:#252831;--line:#2c3038;--hover:#292e39}
+button, .tool {transition:background-color .12s ease,color .12s ease}
+button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3);outline-offset:1px}
+
+/* Cluster Opt2 legacy editor; main workbench owns brand/title. */
+.menu-bar{height:46px;min-height:46px;background:#111216!important;border-bottom:1px solid #343640}
+.menu-bar .brand-title,.menu-bar .cluster-mark,.editor-workspace-tag{display:none!important}
+.menu-bar .left-menu{display:none!important}.menu-bar .right-menu{margin-left:auto}
+.tabs{background:#202127!important}.tab[aria-selected="true"]{background:#000!important}
+.editor-shell{background:#000!important}.workspace{background:#000!important}
+
+/* Shared PRMU governs all UI surfaces, including editor and gutter. */
+:root{--ui-background:#000000;--ui-editor:var(--ui-background);--ui-gutter:var(--ui-background)}
+.editor-shell,.workspace,.empty-hint{background:var(--ui-editor)!important}.line-gutter{background:var(--ui-gutter)!important}.menu-bar,.status-bar,.tabs{background:var(--ui-surface)!important;color:var(--ui-text)}.file-menu,.appearance-dialog,.settings-dialog{background:var(--ui-panel)!important;color:var(--ui-text)}

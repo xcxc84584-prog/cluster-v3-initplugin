@@ -1,18 +1,18 @@
 # Cluster-v3 Initial Plugins
 
-This repository contains two independently installable Cluster-v3 plugin ZIP archives:
+This repository is a **folder-format Cluster-v3 plugin project** (not a ZIP-only repository).
 
-- `Cluster-v3-Explorer-v2.1.0-Real-Delete.zip` — Explorer (`cluster.explorer`).
-- `Cluster-v3-BasicTextEditor-v2.6.0-Real-Delete.zip` — BasicTextEditor (`cluster.text-editor`).
+- `plugins/cluster.explorer/` — Explorer v2.1.0 (`manifest.json` at its package root)
+- `plugins/cluster.text-editor/` — BasicTextEditor v2.6.0 (`manifest.json` at its package root)
 
-## Load from GitHub
+## Direct GitHub import
 
-In Cluster-v3, open **Project Repository → Connect GitHub Repository** and enter:
+In Cluster-v3 open **Project Repository → Connect GitHub Repository**, then enter:
 
 `https://github.com/xcxc84584-prog/cluster-v3-initplugin`
 
-The Cluster-v3 GitHub importer recognizes each `.zip` file as an independent plugin package, validates its root `manifest.json`, and loads the two plugins. Do not unzip the Editor archive into the repository: it includes an internal module manifest which is not a separate plugin.
+The project loader discovers the two `plugins/<id>/manifest.json` files. The editor's nested `modules/editor/manifest.json` was omitted from this folder distribution because it describes an embedded module (with the same plugin ID) and would otherwise be mistaken for a third plugin.
 
 ## Safety
 
-Actual on-disk deletion requires a compatible secure browser context and an explicitly granted writable directory handle. Unloading a root is not the same as deleting it. Test with a disposable directory first.
+On-disk deletion is available only for entries under a writable directory selected and explicitly authorized by the user in a compatible secure browser. Deletion may be permanent and recursive. Use a disposable folder for first tests. This repository has not been verified through end-to-end Host GitHub import.

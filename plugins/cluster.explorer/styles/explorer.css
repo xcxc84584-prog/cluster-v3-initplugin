@@ -1,0 +1,106 @@
+:root{color-scheme:dark;--bg:#111318;--panel:#191c22;--raised:#252932;--line:#303641;--text:#e4e9f2;--muted:#8995a6;--accent:#80a5ec;--hover:#282e39;font-family:system-ui,"Microsoft JhengHei",sans-serif}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--text);overflow:hidden}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.app{display:flex;flex-direction:column;height:100%;min-width:210px}
+.titlebar{height:43px;min-height:43px;display:flex;align-items:center;gap:11px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel);font-size:12px;letter-spacing:.8px}.diamond{height:12px;width:12px;border:2px solid var(--accent);transform:rotate(45deg);margin:0 3px}.product{font:10px Consolas,monospace;color:var(--muted);letter-spacing:1px}.grow{flex:1}.live{font:9px Consolas,monospace;letter-spacing:.5px;color:#88c7a2}
+.toolbar{display:flex;align-items:center;gap:4px;padding:10px 11px 7px}.heading{font:700 11px Consolas,monospace;letter-spacing:1.2px;color:#c7cfdb}.toolbar button{width:27px;height:27px;background:transparent;border:0;border-radius:4px;color:var(--muted);font-size:19px;display:grid;place-items:center}.toolbar button:hover{background:var(--hover);color:var(--text)}
+.search{height:32px;min-height:32px;margin:5px 12px 12px;border:1px solid var(--line);background:var(--raised);border-radius:5px;display:flex;align-items:center;gap:8px;padding:0 10px}.search:focus-within{border-color:var(--accent)}.search span{color:var(--muted);font-size:20px}.search input{min-width:0;flex:1;border:0;outline:none;background:none;color:var(--text);font-size:12px}.search input::placeholder{color:var(--muted)}.search kbd{font:9px Consolas,monospace;color:#778395}
+.folderbar{height:32px;min-height:32px;display:flex;align-items:center;gap:9px;padding:0 14px;background:#1c2028;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.foldername{font:700 11px Consolas,monospace;letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.foldercount{margin-left:auto;font:10px Consolas,monospace;color:var(--muted)}.caret{font-size:16px;color:var(--muted)}
+.tree{overflow:auto;flex:1;min-height:0;padding:6px 0;scrollbar-width:thin;scrollbar-color:#444b56 transparent}.node{display:flex;align-items:center;min-height:29px;padding-right:8px;gap:6px;cursor:pointer;font-size:12px;white-space:nowrap;min-width:0}.node:hover{background:var(--hover)}.node.selected{background:#293a54;box-shadow:inset 2px 0 var(--accent)}.twisty{width:12px;flex:none;color:var(--muted);font-size:12px}.file-icon{width:17px;flex:none;color:#9cadd0;text-align:center;font:12px Consolas,monospace}.file-icon.folder{color:#d1b978}.node-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}.node-extra{display:none;color:var(--muted);border:0;background:transparent;padding:2px 5px;border-radius:3px;font-size:15px}.node:hover .node-extra,.node.selected .node-extra{display:block}.node-extra:hover{background:#515866;color:white}
+.empty{position:absolute;left:0;right:0;top:48%;transform:translateY(-50%);pointer-events:none;display:flex;align-items:center;flex-direction:column;gap:11px;color:var(--muted);font-size:11px;text-align:center}.empty[hidden]{display:none}.empty-symbol{font-size:43px;color:#607ea7}.empty strong{font-size:13px;color:var(--text)}.empty button{pointer-events:auto;border:1px solid #46556b;background:#253248;color:#e2eaf8;border-radius:5px;padding:7px 12px;font-size:11px}
+.footer{height:26px;min-height:26px;background:#202a38;display:flex;align-items:center;gap:8px;padding:0 12px;font:10px Consolas,monospace;color:#d2ddef}.dot{width:6px;height:6px;border-radius:50%;background:#84c49e}#mode{color:#9dafcc}
+dialog{width:min(380px,calc(100vw - 30px));border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text);padding:19px}dialog::backdrop{background:#000a}dialog form{display:grid;gap:12px}dialog h3{margin:0;font-size:15px}dialog label{font-size:12px;color:var(--muted)}dialog input{background:var(--raised);color:var(--text);border:1px solid var(--line);padding:9px 10px;border-radius:4px;min-width:0}.actions{display:flex;justify-content:flex-end;gap:9px}.actions button{border:1px solid var(--line);border-radius:4px;background:var(--raised);color:var(--text);padding:7px 12px}.actions .primary{border-color:var(--accent)}.toast{position:absolute;left:10px;right:10px;bottom:37px;padding:10px;background:#283142;border:1px solid #50607b;border-radius:6px;font-size:12px;box-shadow:0 10px 25px #0008}.toast[hidden]{display:none}
+
+/* Cluster Opt legacy dark workstation skin. Designed for unified Editor mounting. */
+:root {--background:#0c0d10;--panel:#17191e;--edge:#2c3038;--accent:#6f9be3;--text:#e6e8ec;--muted:#959da9;--ui-background:#0c0d10;--ui-panel:#17191e;--ui-control:#252831;--ui-text:#e6e8ec;--ui-muted:#959da9;--ui-accent:#6f9be3;--ui-border:#2c3038;--ui-hover:#292e39;--bg:#0c0d10;--raised:#252831;--line:#2c3038;--hover:#292e39}
+button, .tool {transition:background-color .12s ease,color .12s ease}
+button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3);outline-offset:1px}
+
+:root{--bg:var(--ui-panel,#111216);--panel:var(--ui-surface,#202127);--raised:var(--ui-control,#343640);--line:var(--ui-border,#3c3e49);--text:var(--ui-text,#f1f2f5);--muted:var(--ui-muted,#a5a8b5);--accent:var(--ui-accent,#728cfb);--hover:var(--ui-hover,#474a58)}
+
+/* Cluster Opt2 panel look; the combined workspace owns the global titlebar. */
+:root{--ui-background:#000;--ui-panel:#111216;--ui-surface:#202127;--ui-control:#343640;--ui-border:#3c3e49;--ui-hover:#474a58;--ui-accent:#728cfb;--ui-text:#f1f2f5;--ui-muted:#a5a8b5}
+.titlebar{display:none!important}.app{background:var(--ui-panel,#111216)!important}
+.toolbar{min-height:46px;background:#111216!important;border-bottom:1px solid #30333d}
+.toolbar button{border-radius:6px!important}.folderbar{background:#191b20!important}
+.node{min-height:30px}.node.is-active{background:#343640!important}.node.is-open .node-name{color:#fff}
+.opened-indicator{margin-left:auto;color:var(--ui-accent);font-size:14px;padding-right:7px}
+.node.is-dirty .opened-indicator{color:#e1b975}
+.node .close-editor{opacity:.65;flex-shrink:0}.node:hover .close-editor{opacity:1}
+
+/* ClusterOpt2 legacy file explorer. All colors originate in PRMU tokens. */
+:root{--bg:var(--ui-panel,#111216);--panel:var(--ui-surface,#202127);--raised:var(--ui-control,#343640);--line:var(--ui-border,#3c3e49);--hover:var(--ui-hover,#474a58);--text:var(--ui-text,#f1f2f5);--muted:var(--ui-muted,#a5a8b5);--accent:var(--ui-accent,#728cfb)}
+.app{background:var(--ui-panel);font-size:12px}.legacy-heading{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--ui-border);background:var(--ui-panel);font-weight:600}
+.legacy-heading button{border:0;background:var(--ui-control);color:var(--ui-text);padding:4px 10px;border-radius:9px}
+.legacy-actions{display:grid;grid-template-columns:1fr 1fr 35px;gap:4px;padding:9px 10px 4px;background:var(--ui-panel)}
+.legacy-actions button{min-width:0;height:31px;white-space:nowrap;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-control);color:var(--ui-text);font-size:11px;padding:0 4px}
+.legacy-actions button:hover,.legacy-heading button:hover{background:var(--ui-hover)}
+.legacy-search{padding:4px 10px 8px;background:var(--ui-panel)}.legacy-search input{width:100%;height:35px;padding:0 11px;border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-control);color:var(--ui-text);font-size:12px;outline:none}.legacy-search input:focus{border-color:var(--ui-accent)}
+.folderbar{height:31px;min-height:31px;border-top:1px solid var(--ui-border);border-bottom:0;background:var(--ui-panel)!important;padding:0 12px;cursor:pointer}.folderbar .foldername{font:600 11px system-ui,sans-serif;letter-spacing:0}.folderbar .caret{color:var(--ui-text)}.folderbar .foldercount{margin-left:0;font-size:10px}.folderbar button{border:0;background:transparent;color:var(--ui-muted);font-size:14px;cursor:pointer}.folderbar button:hover{color:var(--ui-text)}
+.tree{padding:3px 0;background:var(--ui-panel);scrollbar-color:var(--ui-border) transparent}.node{min-height:32px;gap:5px;color:var(--ui-text)}.node.selected,.node.is-active{background:var(--ui-control)!important;box-shadow:inset 2px 0 var(--ui-accent)}.node:hover{background:var(--ui-hover)}.file-icon,.file-icon.folder{color:var(--ui-accent)}.twisty{color:var(--ui-text)}.node-name{font-size:12px}.opened-indicator{color:var(--ui-accent)}.footer{background:var(--ui-surface);color:var(--ui-text)}.empty{top:52%;color:var(--ui-muted)}.empty strong{color:var(--ui-text)}.empty button{background:var(--ui-control);color:var(--ui-text);border-color:var(--ui-border)}
+
+/* PRMU colors, including safe foreground for light and tinted base RGB. */
+html,body,.app,.tree,.folderbar,.legacy-heading,.legacy-actions,.legacy-search{background:var(--ui-panel)!important;color:var(--ui-on-panel,var(--ui-text))!important}
+.node,.folderbar .foldername,.heading,.empty strong,.legacy-heading{color:var(--ui-on-panel,var(--ui-text))!important}
+.toolbar,.search,.legacy-search input,.legacy-actions button,.legacy-heading button,
+.node.selected,.node.is-active,.actions button,.empty button,dialog input{background:var(--ui-control)!important;color:var(--ui-on-control,var(--ui-text))!important;border-color:var(--ui-border)!important}
+.toolbar button:hover,.node:hover,.legacy-actions button:hover,.legacy-heading button:hover{background:var(--ui-hover)!important;color:var(--ui-on-hover,var(--ui-text))!important}
+.node.selected .node-name,.node.is-active .node-name,.node.is-open .node-name{color:var(--ui-on-control,var(--ui-text))!important}
+.search input,.legacy-search input{color:var(--ui-on-control,var(--ui-text))!important}
+.search input::placeholder,.legacy-search input::placeholder{color:var(--ui-muted-on-control,var(--ui-muted))!important}
+.footer{background:var(--ui-surface)!important;color:var(--ui-on-surface,var(--ui-text))!important}
+.node-extra,.twisty,.caret,.foldercount{color:var(--ui-muted-on-panel,var(--ui-muted))!important}
+dialog,.toast{background:var(--ui-surface)!important;color:var(--ui-on-surface,var(--ui-text))!important}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ui-accent)!important;outline-offset:1px}
+
+/* ClusterOpt2 Explorer: only title, four file actions, search and tree. */
+.app{background:var(--ui-panel)!important}
+.legacy-heading{height:45px!important;min-height:45px!important;padding:0 14px!important}
+.legacy-actions{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;
+ padding:8px 10px 4px!important}
+.legacy-actions button{height:30px!important;font-size:13px!important;border-radius:7px!important;
+ font-weight:600;white-space:nowrap}
+.legacy-search{padding:5px 10px 7px!important}
+.legacy-search input{height:33px!important;border-radius:7px!important}
+.folderbar{height:28px!important;min-height:28px!important;gap:8px!important}
+.foldercount{margin-left:auto!important}
+.tree{padding:4px 0!important}
+.node{min-height:29px!important;gap:5px!important;padding-right:5px!important}
+.node-actions{display:none;align-items:center;gap:0;margin-left:auto;flex:none;
+ background:var(--ui-control);border:1px solid var(--ui-border);border-radius:4px}
+.node:hover .node-actions,.node:focus-within .node-actions{display:flex}
+.row-action{width:21px;height:23px;display:grid;place-items:center;flex:none;
+ border:0;border-radius:3px;color:var(--ui-on-control,var(--ui-text));background:transparent;
+ padding:0;line-height:1;font-size:12px;cursor:pointer}
+.row-action:hover{background:var(--ui-hover);color:var(--ui-on-hover,var(--ui-text))}
+.row-action:disabled{opacity:.3;cursor:default}
+.node.dragging{opacity:.62;background:var(--ui-control)!important}
+.node.drop-target{outline:1px solid var(--ui-accent);outline-offset:-2px}
+.node-name{flex:1;min-width:0}
+.node.is-open .node-name{color:var(--ui-on-panel,var(--ui-text))!important}
+.empty{top:45%!important;font-size:12px}
+/* Light and tinted palettes retain readable text on every surface. */
+.node.selected,.node.is-active{color:var(--ui-on-control,var(--ui-text))!important}
+.legacy-actions button{color:var(--ui-on-control,var(--ui-text))!important}
+
+/* Explorer v1.9 — inline tree edits, real context menu, distinct close/delete. */
+.heading-tools{display:flex;align-items:center;gap:6px}
+.heading-tools button{width:25px;height:25px;display:grid;place-items:center;padding:0;border-radius:6px}
+.inline-anchor{flex:1;min-width:0;display:flex;align-items:center}
+.inline-name{width:100%;height:25px;min-width:0;border:1px solid var(--ui-accent);border-radius:3px;
+ padding:2px 5px;background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));font:12px system-ui,sans-serif}
+.create-node{background:var(--ui-hover);padding-right:10px}
+ flex-direction:column;gap:1px;padding:5px;border:1px solid var(--ui-border);border-radius:6px;
+ background:var(--ui-surface);box-shadow:0 10px 25px #0007}
+ background:transparent;color:var(--ui-on-surface,var(--ui-text));font-size:12px}
+#deleteDialog{border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-surface);
+ color:var(--ui-on-surface,var(--ui-text));max-width:min(340px,90vw);padding:19px}
+#deleteDialog::backdrop{background:#0009}
+#deleteDialog h3{margin:0 0 13px;font-size:15px}
+#deleteDialog p{font-size:12px;margin:10px 0;overflow-wrap:anywhere}
+#deleteDescription{color:var(--ui-muted-on-surface,var(--ui-muted))}
+.delete-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:19px}
+.delete-actions button{padding:7px 13px;border:1px solid var(--ui-border);border-radius:5px;
+ background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));cursor:pointer}
+.delete-actions .danger{border-color:var(--ui-accent)}
+.node-actions{position:relative;z-index:1}
+.row-action{width:19px;height:22px;font-size:12px}
+.node:focus-within{background:var(--ui-hover)}

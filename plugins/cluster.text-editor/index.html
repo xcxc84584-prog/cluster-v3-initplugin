@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>Cluster / Editor</title><link href="styles/workspace.css" rel="stylesheet"/><script defer="" src="scripts/workspace.js"></script><script defer="" src="scripts/public-properties.js"></script></head><body>
+<main class="workbench"><header class="workbench-header"><div class="header-brand"><span class="mark"></span><strong>CLUSTER</strong><span class="secondary">EDITOR</span></div><button aria-expanded="true" class="tool" id="toggleExplorer" title="切換 Explorer (Ctrl+B)">☰ Explorer</button><div class="global-file-group" id="globalFileGroup">
+<button aria-controls="globalFileMenu" aria-expanded="false" aria-haspopup="true" class="tool file-button" id="globalFileButton" type="button">File ▾</button>
+<div class="global-file-menu" hidden="" id="globalFileMenu" role="menu">
+<button data-file-action="new" role="menuitem" type="button">建立新文件</button>
+<button data-file-action="new-folder" role="menuitem" type="button">建立新檔（資料夾）</button>
+<button data-file-action="open" role="menuitem" type="button">開啟舊文件</button>
+<button data-file-action="open-folder" role="menuitem" type="button">開啟舊檔（資料夾）</button>
+<div class="file-separator"></div>
+<button data-file-action="save" role="menuitem" type="button">儲存</button>
+<button data-file-action="save-as" role="menuitem" type="button">另存新檔</button>
+<button data-file-action="close" role="menuitem" type="button">關閉文件</button>
+<div class="file-separator"></div>
+<button data-file-action="palette" role="menuitem" type="button">介面調色盤</button>
+<button data-file-action="language" role="menuitem" type="button" aria-expanded="false" aria-controls="workspaceLanguageMenu">語言 / Language ▸</button>
+<div id="workspaceLanguageMenu" class="language-menu" hidden role="group" aria-label="Language"><button type="button" data-locale="zh-TW">繁體中文</button><button type="button" data-locale="en">English</button><button type="button" data-locale="fr">Français</button><button type="button" data-locale="ja">日本語</button><button type="button" data-locale="es">Español</button><button type="button" data-locale="hi">हिन्दी</button></div>
+</div></div><span hidden="True" id="registryState"></span></header>
+<section class="workbench-main"><aside aria-label="Explorer" class="sidebar" id="sidebar"><div class="connect-panel" id="connectPanel"><strong>EXPLORER</strong><p id="connectMessage">正在透過公共庫查詢 Explorer 插件…</p><button id="retryDiscovery" type="button">重新偵測</button></div><iframe hidden="" id="explorerFrame" title="Explorer plugin"></iframe></aside><div aria-label="調整側欄寬度" aria-orientation="vertical" id="divider" role="separator" tabindex="0"></div><section aria-label="BasicTextEditor" class="editor-pane"><iframe id="editorFrame" srcdoc="&lt;!DOCTYPE html&gt;
+
+&lt;html lang=&quot;zh-TW&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;/&gt;
+&lt;meta content=&quot;width=device-width,initial-scale=1&quot; name=&quot;viewport&quot;/&gt;
+&lt;title&gt;Cluster Text Editor&lt;/title&gt;
+&lt;style&gt;:root{
+  color-scheme:dark;
+  --ui-background:#101115;--ui-panel:#191c23;--ui-control:#2a2e38;
+  --ui-text:#e5e9f3;--ui-muted:#929bab;--ui-accent:#7e9ef4;
+  --ui-border:#333944;--ui-hover:#343947;
+  --editor-monospace:Consolas,&quot;Cascadia Code&quot;,&quot;Fira Code&quot;,monospace;
+  font-family:system-ui,&quot;Microsoft JhengHei&quot;,&quot;Noto Sans TC&quot;,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ui-background);color:var(--ui-text)}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
+.editor-shell{width:100%;height:100%;min-width:240px;min-height:0;display:flex;flex-direction:column;background:var(--ui-background)}
+.menu-bar{height:42px;min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ui-panel);border-bottom:1px solid var(--ui-border);padding:0 12px}
+.left-menu,.right-menu{display:flex;align-items:center;gap:12px;min-width:0}
+.menu-button{min-width:57px;height:29px;padding:0 11px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--ui-text);font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.menu-button:hover,.menu-button[aria-expanded=true]{background:var(--ui-control);border-color:var(--ui-border)}
+.chevron{font-size:13px;color:var(--ui-muted)}
+.cluster-mark,.empty-cluster-mark{display:inline-block;width:15px;height:15px;flex:none;border:2px solid var(--ui-accent);transform:rotate(45deg);margin:0 5px;border-radius:1px}
+.empty-cluster-mark{height:26px;width:26px;border-width:2px;margin:10px 0 5px}
+.brand-title{font:600 13px system-ui,sans-serif;color:var(--ui-text);letter-spacing:.25px;white-space:nowrap}
+.brand-title span{color:var(--ui-muted);font:10px var(--editor-monospace);letter-spacing:.7px;margin-left:8px}
+.file-menu-group{position:relative;z-index:8}
+.file-menu{position:absolute;right:0;top:calc(100% + 5px);min-width:265px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel);padding:5px;box-shadow:0 14px 45px #0008}
+.file-menu[hidden]{display:none}
+.file-menu button{display:flex;justify-content:space-between;align-items:center;gap:25px;background:transparent;border:0;color:var(--ui-text);border-radius:5px;padding:9px 11px;width:100%;text-align:left;font-size:12px}
+.file-menu button:hover,.file-menu button:focus-visible{background:var(--ui-hover)}
+.file-menu kbd{font:10px var(--editor-monospace);color:var(--ui-muted);white-space:nowrap}
+.menu-separator{height:1px;background:var(--ui-border);margin:4px 7px}
+.file-state{font:11px var(--editor-monospace);color:var(--ui-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-button{width:26px;height:26px;display:grid;place-items:center;color:var(--ui-text);background:transparent;border:0;border-radius:5px;font-size:19px;line-height:1}
+.icon-button:hover{background:var(--ui-control)}
+.tabs{display:flex;align-items:stretch;flex:none;height:35px;min-height:35px;border-bottom:1px solid var(--ui-border);background:var(--ui-panel);overflow-x:auto;scrollbar-width:thin}
+.tab{border:0;border-right:1px solid var(--ui-border);border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);display:flex;align-items:center;gap:7px;min-width:100px;max-width:230px;padding:0 10px;flex:none;font-size:12px}
+.tab:hover{background:var(--ui-control)}
+.tab[aria-selected=true]{border-bottom-color:var(--ui-accent);background:var(--ui-background);color:var(--ui-text)}
+.tab-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.tab-dirty{color:var(--ui-accent);font-size:15px;width:9px;flex:none}
+.tab-close{border:0;color:var(--ui-muted);background:none;font-size:17px;line-height:1;width:21px;height:22px;border-radius:4px;flex:none}
+.tab-close:hover{background:var(--ui-hover);color:var(--ui-text)}
+.workspace{position:relative;min-height:0;flex:1;display:flex;overflow:hidden;background:var(--ui-background)}
+.line-gutter{flex:none;width:62px;padding:15px 12px 16px 4px;border-right:1px solid var(--ui-border);color:var(--ui-muted);background:var(--ui-background);font:13px/22px var(--editor-monospace);text-align:right;overflow:hidden;user-select:none;white-space:pre}
+.line-gutter div{position:relative;top:0}
+#editor{flex:1;width:100%;height:100%;min-width:0;min-height:0;resize:none;border:0;background:transparent;color:var(--ui-text);outline:none!important;padding:15px 18px;font:13px/22px var(--editor-monospace);white-space:pre;overflow:auto;tab-size:4;caret-color:var(--ui-accent)}
+#editor::selection{background:color-mix(in srgb,var(--ui-accent),transparent 70%)}
+#editor::placeholder{color:var(--ui-muted)}
+.empty-hint{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:20px;text-align:center;color:var(--ui-muted);padding:30px;background:var(--ui-background);font-size:13px;pointer-events:none}
+.empty-hint[hidden]{display:none}
+
+.status-bar{display:flex;align-items:center;gap:13px;min-height:26px;height:26px;padding:0 12px;border-top:1px solid var(--ui-border);color:var(--ui-muted);background:var(--ui-panel);font:10px var(--editor-monospace);white-space:nowrap;overflow:hidden}
+.connection-dot{width:6px;height:6px;flex:none;border-radius:50%;background:var(--ui-accent)}
+.status-message{min-width:0;max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.status-spacer{flex:1}
+.find-panel{position:absolute;top:10px;right:14px;display:flex;align-items:center;gap:6px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:8px;padding:7px 9px;box-shadow:0 9px 24px #0007}
+.find-panel[hidden]{display:none}
+.find-panel label{font-size:11px;color:var(--ui-muted)}
+.find-panel input{width:min(210px,34vw);background:var(--ui-control);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:5px;padding:5px 8px;font:12px var(--editor-monospace)}
+.find-panel button{border:0;border-radius:4px;background:none;color:var(--ui-text);font-size:15px;min-width:20px;min-height:23px}
+.find-panel button:hover{background:var(--ui-hover)}
+.find-count{font:10px var(--editor-monospace);color:var(--ui-muted)}
+.save-dialog{min-width:min(330px,calc(100vw - 30px));border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-panel);color:var(--ui-text);padding:21px;box-shadow:0 25px 55px #0008}
+.save-dialog::backdrop{background:#000a}
+.save-dialog form{display:grid;gap:12px}
+.save-dialog h2{margin:0;font-size:17px}
+.save-dialog label{font-size:12px;color:var(--ui-muted)}
+.save-dialog input{min-width:0;width:100%;padding:9px;border:1px solid var(--ui-border);border-radius:6px;background:var(--ui-control);color:var(--ui-text)}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.dialog-actions button{border:1px solid var(--ui-border);border-radius:6px;background:var(--ui-control);color:var(--ui-text);padding:8px 12px}
+.dialog-actions button.primary{border-color:var(--ui-accent)}
+.toast{position:absolute;bottom:43px;left:12px;max-width:min(560px,calc(100vw - 24px));border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);box-shadow:0 10px 30px #0009;padding:10px 14px;font-size:12px;color:var(--ui-text);z-index:20}
+.toast[hidden]{display:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media(max-width:550px){.brand-title{display:none}.line-gutter{width:41px;padding-right:7px}#editor{padding-left:10px}.status-bar{gap:8px}#fileType{display:none}}
+
+/* ClusterOpt2-style settings: local controls using shared palette tokens. */
+.settings-dialog{width:min(450px,calc(100vw - 28px));max-height:calc(100vh - 36px);overflow:auto;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel);color:var(--ui-text);padding:18px 20px;box-shadow:0 25px 60px #000a}
+.settings-dialog::backdrop{background:#000b}
+.settings-heading{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.settings-heading h2{margin:0;font-size:16px;font-weight:650}
+.settings-close{font-size:22px;background:transparent;color:var(--ui-muted);border:0;border-radius:5px;width:29px;height:29px}
+.settings-close:hover{background:var(--ui-control);color:var(--ui-text)}
+.settings-note{color:var(--ui-muted);font-size:12px;line-height:1.7;margin:12px 0 17px}
+.settings-dialog label{display:block;font-size:12px;color:var(--ui-text)}
+.settings-dialog select{width:100%;margin:9px 0 18px;background:var(--ui-control);border:1px solid var(--ui-border);color:var(--ui-text);padding:9px;border-radius:6px}
+.color-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.color-field{display:flex;align-items:center;gap:9px;min-width:0;padding:8px;background:var(--ui-background);border:1px solid var(--ui-border);border-radius:6px}
+.color-field input{width:37px;height:32px;padding:2px;background:transparent;border:0;cursor:pointer;flex:none}
+.color-field span{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-dialog .dialog-actions{margin-top:16px}
+@media(max-width:400px){.file-state{display:none}.color-grid{grid-template-columns:1fr}.brand-title span{display:none}.menu-bar{padding:0 8px}}
+
+/* Unified ClusterOpt2 appearance dialog. Global palette is derived from one RGB input. */
+.appearance-dialog{width:min(324px,calc(100vw - 24px));max-height:calc(100vh - 20px);overflow:auto;padding:0;border-radius:8px;border:1px solid #393d49;background:#202127;color:#e7e9f1;box-shadow:0 25px 70px #000b;font-family:system-ui,&quot;Microsoft JhengHei&quot;,sans-serif;font-size:10px}
+.appearance-dialog::backdrop{background:#000a}
+.appearance-dialog button,.appearance-dialog input{font:inherit}
+.appearance-header{padding:13px 14px 11px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #393d49}
+.appearance-eyebrow{font:700 6px/1.7 Consolas,monospace;letter-spacing:1.3px;color:#9298a8}
+.appearance-header h2{font-size:12px;margin:4px 0 0;font-weight:700}
+.appearance-close{width:24px;height:24px;border:1px solid #414552;border-radius:5px;background:#343741;color:#d3d7e3;font-size:16px!important}
+.appearance-content{padding:13px 14px 14px}
+.palette-preview{height:112px;border:1px solid #3a3d47;border-radius:5px;overflow:hidden;background:#0c0d11}
+.palette-preview-toolbar{height:23px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;background:#101116;color:#d4d8e6;border-bottom:1px solid #3b3d48;font:bold 7px Consolas,monospace;letter-spacing:.35px}
+.palette-preview-toolbar span:last-child{font-size:6px;letter-spacing:1px;color:#a0a4b5}
+.preview-diamond{display:inline-block;width:6px;height:6px;border:1px solid #7e9ef4;transform:rotate(45deg);margin-right:6px}
+.palette-preview-body{display:flex;height:calc(100% - 23px)}
+.palette-preview-sidebar{width:30%;border-right:1px solid #393c47;background:#101116}
+.palette-preview-editor{flex:1;padding:10px 11px;background:#050609}
+.preview-line{height:3px;margin-bottom:6px;background:#a5a9b5;border-radius:2px;width:78%}
+.preview-line.short{width:35%}.preview-line.medium{width:59%}
+.appearance-field-title{display:flex;justify-content:space-between;align-items:center;margin:11px 0 7px;font-size:10px}
+.appearance-field-title span{font:700 8px Consolas,monospace;color:#a8acba}
+.base-picker-row{display:flex;align-items:center;gap:9px;margin:0 0 6px}
+.base-picker-row input{width:49px;height:29px;border:2px solid #a1a4b0;border-radius:4px;padding:2px;background:#292d38;cursor:pointer;flex:none}
+.base-picker-row span{font-size:9px;line-height:1.5;color:#c3c6d0}
+.appearance-hex-label{display:block;color:#b6bac8;font:700 8px Consolas,monospace;margin:6px 0 3px}
+#baseHexInput,.appearance-rgb-fields input{height:24px;border:1px solid #3c404b;border-radius:4px;background:#343741;color:#e6e9f3;padding:0 9px;font:10px Consolas,monospace}
+#baseHexInput{width:85px}
+.appearance-rgb-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+.appearance-rgb-fields label{font:700 8px Consolas,monospace;display:grid;gap:5px;color:#d4d7df}
+.appearance-rgb-fields input{width:100%;min-width:0;appearance:textfield}
+.appearance-rgb-fields input::-webkit-inner-spin-button,.appearance-rgb-fields input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.appearance-type-title{margin-top:14px}
+.appearance-type-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.appearance-type-switch button{height:27px;border-radius:4px;border:1px solid #434756;background:#363943;color:#f0f1f6;font-weight:700}
+.appearance-type-switch button[aria-pressed=true]{border-color:#7e9ef4;box-shadow:inset 0 -2px #7e9ef4}
+.appearance-footer{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #393d49;color:#8d929f;font-size:9px}
+.appearance-footer button{background:#343741;border:1px solid #434755;color:#f2f3f8;border-radius:4px;padding:6px 10px;font-weight:700}
+@media(max-height:460px){.appearance-dialog{max-height:calc(100vh - 12px)}}
+
+/* v1.4.0: ClusterOpt2 × VS Code shell. Existing palette tokens stay authoritative. */
+:root{--ui-background:#111318;--ui-panel:#191c22;--ui-control:#252932;--ui-border:#313640;--ui-hover:#303642;--ui-muted:#9099a8;--ui-accent:#80a5ec}
+.menu-bar{height:43px;min-height:43px;background:var(--ui-panel);padding:0 15px}
+.brand-title{letter-spacing:.95px;font-size:12px}
+.brand-title span{font-size:10px;letter-spacing:1.1px}
+.editor-workspace-tag{border-left:1px solid var(--ui-border);padding-left:14px;color:var(--ui-muted);font:10px Consolas,monospace;letter-spacing:1px}
+.editor-breadcrumb{display:flex;align-items:center;gap:9px;height:27px;min-height:27px;padding:0 15px;background:var(--ui-background);border-bottom:1px solid var(--ui-border);font:10px Consolas,monospace;color:var(--ui-muted);white-space:nowrap;overflow:hidden}
+.breadcrumb-root{letter-spacing:1px}.breadcrumb-sep{font-size:17px;color:var(--ui-accent)}.breadcrumb-spacer{flex:1}
+.breadcrumb-lang{opacity:.6}
+.tabs{height:37px;min-height:37px;background:var(--ui-panel)}
+.tab{border-bottom-width:2px;min-width:130px;padding:0 13px}
+.tab[aria-selected=true]{background:var(--ui-background)}
+.workspace{background:var(--ui-background)}
+.line-gutter{border-right:0;padding-top:19px;color:var(--ui-muted)}
+#editor{padding-top:19px;line-height:22px}
+.status-bar{background:#202a38;border:0;color:#ccd6e9;min-height:27px;height:27px}
+.connection-dot{background:#83c69c}
+.file-menu{border-radius:5px;box-shadow:0 15px 45px #0009}
+@media(max-width:600px){.editor-workspace-tag{display:none}.breadcrumb-root{display:none}}
+
+/* Embedded in unified Cluster Editor workbench */
+.menu-bar{height:36px;min-height:36px}.brand-title,.cluster-mark,.editor-workspace-tag{display:none}
+
+/* Cluster Opt legacy dark workstation skin. Designed for unified Editor mounting. */
+:root {--background:#0c0d10;--panel:#17191e;--edge:#2c3038;--accent:#6f9be3;--text:#e6e8ec;--muted:#959da9;--ui-background:#0c0d10;--ui-panel:#17191e;--ui-control:#252831;--ui-text:#e6e8ec;--ui-muted:#959da9;--ui-accent:#6f9be3;--ui-border:#2c3038;--ui-hover:#292e39;--bg:#0c0d10;--raised:#252831;--line:#2c3038;--hover:#292e39}
+button, .tool {transition:background-color .12s ease,color .12s ease}
+button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3);outline-offset:1px}
+
+/* Cluster Opt2 legacy editor; main workbench owns brand/title. */
+.menu-bar{height:46px;min-height:46px;background:#111216!important;border-bottom:1px solid #343640}
+.menu-bar .brand-title,.menu-bar .cluster-mark,.editor-workspace-tag{display:none!important}
+.menu-bar .left-menu{display:none!important}.menu-bar .right-menu{margin-left:auto}
+.tabs{background:#202127!important}.tab[aria-selected=&quot;true&quot;]{background:#000!important}
+.editor-shell{background:#000!important}.workspace{background:#000!important}
+
+/* Shared PRMU governs all UI surfaces, including editor and gutter. */
+:root{--ui-background:#000000;--ui-editor:var(--ui-background);--ui-gutter:var(--ui-background)}
+.editor-shell,.workspace,.empty-hint{background:var(--ui-editor)!important}.line-gutter{background:var(--ui-gutter)!important}.menu-bar,.status-bar,.tabs{background:var(--ui-surface)!important;color:var(--ui-text)}.file-menu,.appearance-dialog,.settings-dialog{background:var(--ui-panel)!important;color:var(--ui-text)}
+&lt;/style&gt;
+&lt;style&gt;
+/* PRMU owns every color; WCAG-safe foreground is derived ONLY from Host swatches. */
+:root{--ui-on-background:var(--ui-text);--ui-on-panel:var(--ui-text);
+ --ui-on-control:var(--ui-text);--ui-on-surface:var(--ui-text);
+ --ui-on-editor:var(--ui-text);--ui-on-hover:var(--ui-text)}
+html,body,.editor-shell,.workspace,.empty-hint{background:var(--ui-editor)!important;color:var(--ui-on-editor)!important}
+.menu-bar,.tabs,.status-bar,.file-menu,.find-panel,.toast,
+.save-dialog,.settings-dialog{background:var(--ui-panel)!important;color:var(--ui-on-panel)!important;border-color:var(--ui-border)!important}
+.menu-button,.file-menu button,.icon-button,.tab[aria-selected=true],
+.find-panel button{color:var(--ui-on-panel)!important}
+.menu-button:hover,.file-menu button:hover,.icon-button:hover,
+.tab:hover,.tab-close:hover{background:var(--ui-hover)!important;color:var(--ui-on-hover)!important}
+#editor,.line-gutter{color:var(--ui-on-editor)!important;background:var(--ui-editor)!important}
+.file-state,.status-bar,.find-count,.tab,.file-menu kbd{color:var(--ui-muted-on-panel,var(--ui-muted))!important}
+input,select,.save-dialog input,.find-panel input{background:var(--ui-control)!important;color:var(--ui-on-control)!important;border-color:var(--ui-border)!important}
+.tab[aria-selected=true]{background:var(--ui-editor)!important;color:var(--ui-on-editor)!important}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ui-accent)!important;outline-offset:1px}
+::selection{background:var(--ui-accent);color:var(--ui-on-accent)}
+&lt;/style&gt;&lt;style&gt;
+/* Shell owns the Cluster logo and File button; tabs occupy exactly one row. */
+.menu-bar{display:none!important}
+.editor-shell{min-width:0}
+.tabs{height:42px!important;min-height:42px!important;max-height:42px!important;
+ background:var(--ui-surface)!important;padding:0 10px;gap:4px}
+.tab{height:34px;align-self:end;border:1px solid var(--ui-border);
+ border-radius:6px 6px 0 0;min-width:110px;max-width:225px;
+ background:var(--ui-panel);color:var(--ui-text)}
+.tab[aria-selected=true]{border-bottom-color:var(--ui-editor)!important;
+ background:var(--ui-editor)!important;color:var(--ui-on-editor,var(--ui-text))}
+.status-bar{background:var(--ui-surface)!important;color:var(--ui-on-surface,var(--ui-text))}
+&lt;/style&gt;&lt;/head&gt;
+&lt;body&gt;
+&lt;main class=&quot;editor-shell&quot;&gt;
+&lt;header class=&quot;menu-bar&quot;&gt;
+&lt;div class=&quot;left-menu&quot;&gt;
+&lt;span aria-hidden=&quot;true&quot; class=&quot;cluster-mark&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;brand-title&quot;&gt;CLUSTER &lt;span&gt;TEXT EDITOR&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;editor-workspace-tag&quot;&gt;WORKSPACE&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class=&quot;right-menu&quot;&gt;
+&lt;span class=&quot;file-state&quot; data-i18n=&quot;ready&quot; id=&quot;fileState&quot;&gt;就緒&lt;/span&gt;
+&lt;button aria-label=&quot;New file&quot; class=&quot;icon-button new-button&quot; id=&quot;newButton&quot; title=&quot;New file&quot; type=&quot;button&quot;&gt;＋&lt;/button&gt;
+&lt;div class=&quot;file-menu-group&quot; id=&quot;fileMenuGroup&quot;&gt;
+&lt;button aria-controls=&quot;fileMenu&quot; aria-expanded=&quot;false&quot; aria-haspopup=&quot;true&quot; class=&quot;menu-button&quot; id=&quot;fileMenuButton&quot; type=&quot;button&quot;&gt;File &lt;span class=&quot;chevron&quot;&gt;⌄&lt;/span&gt;&lt;/button&gt;
+&lt;div class=&quot;file-menu&quot; hidden=&quot;&quot; id=&quot;fileMenu&quot; role=&quot;menu&quot;&gt;
+&lt;button data-command=&quot;new&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;new&quot;&gt;新增檔案&lt;/span&gt;&lt;kbd&gt;Ctrl+N&lt;/kbd&gt;&lt;/button&gt;
+&lt;button data-command=&quot;open&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;open&quot;&gt;開啟檔案…&lt;/span&gt;&lt;kbd&gt;Ctrl+O&lt;/kbd&gt;&lt;/button&gt;
+&lt;div class=&quot;menu-separator&quot;&gt;&lt;/div&gt;
+&lt;button data-command=&quot;save&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;save&quot;&gt;儲存&lt;/span&gt;&lt;kbd&gt;Ctrl+S&lt;/kbd&gt;&lt;/button&gt;
+&lt;button data-command=&quot;save-as&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;saveAs&quot;&gt;另存新檔…&lt;/span&gt;&lt;kbd&gt;Ctrl+Shift+S&lt;/kbd&gt;&lt;/button&gt;
+&lt;button data-command=&quot;copy&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;copyAll&quot;&gt;複製全部文字&lt;/span&gt;&lt;/button&gt;
+&lt;div class=&quot;menu-separator&quot;&gt;&lt;/div&gt;
+&lt;button data-command=&quot;close&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;close&quot;&gt;關閉目前分頁&lt;/span&gt;&lt;kbd&gt;Ctrl+W&lt;/kbd&gt;&lt;/button&gt;
+&lt;div class=&quot;menu-separator&quot;&gt;&lt;/div&gt;
+&lt;button data-command=&quot;palette&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;palette&quot;&gt;介面著色盤&lt;/span&gt;&lt;kbd&gt;◧&lt;/kbd&gt;&lt;/button&gt;
+&lt;button data-command=&quot;language&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;language&quot;&gt;語言&lt;/span&gt;&lt;kbd&gt;文/A&lt;/kbd&gt;&lt;/button&gt;
+&lt;button data-command=&quot;plugins&quot; role=&quot;menuitem&quot; type=&quot;button&quot;&gt;&lt;span data-i18n=&quot;plugins&quot;&gt;插件&lt;/span&gt;&lt;kbd&gt;↗&lt;/kbd&gt;&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/header&gt;
+&lt;nav aria-label=&quot;Open files&quot; class=&quot;tabs&quot; id=&quot;tabs&quot; role=&quot;tablist&quot;&gt;&lt;/nav&gt;
+&lt;section class=&quot;workspace&quot;&gt;
+&lt;aside aria-hidden=&quot;true&quot; class=&quot;line-gutter&quot;&gt;&lt;div id=&quot;lineNumbers&quot;&gt;1&lt;/div&gt;&lt;/aside&gt;
+&lt;label class=&quot;sr-only&quot; for=&quot;editor&quot;&gt;Text Editor&lt;/label&gt;
+&lt;textarea aria-label=&quot;Text Editor&quot; autocapitalize=&quot;off&quot; autocomplete=&quot;off&quot; autocorrect=&quot;off&quot; id=&quot;editor&quot; placeholder=&quot;&quot; spellcheck=&quot;false&quot; wrap=&quot;off&quot;&gt;&lt;/textarea&gt;
+&lt;div class=&quot;find-panel&quot; hidden=&quot;&quot; id=&quot;findPanel&quot;&gt;
+&lt;label data-i18n=&quot;find&quot; for=&quot;findText&quot;&gt;尋找&lt;/label&gt;
+&lt;input autocomplete=&quot;off&quot; id=&quot;findText&quot; placeholder=&quot;Find in file&quot; type=&quot;search&quot;/&gt;
+&lt;button id=&quot;findNext&quot; title=&quot;Next match&quot; type=&quot;button&quot;&gt;↓&lt;/button&gt;
+&lt;button id=&quot;closeFind&quot; title=&quot;Close find&quot; type=&quot;button&quot;&gt;×&lt;/button&gt;
+&lt;span class=&quot;find-count&quot; id=&quot;findCount&quot;&gt;&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class=&quot;empty-hint&quot; hidden=&quot;&quot; id=&quot;emptyHint&quot;&gt;&lt;span aria-hidden=&quot;true&quot; class=&quot;empty-cluster-mark&quot;&gt;&lt;/span&gt;&lt;span data-i18n=&quot;empty&quot;&gt;從右上角 File 開啟文字檔案，或建立新檔案。&lt;/span&gt;&lt;/div&gt;
+&lt;/section&gt;
+&lt;footer class=&quot;status-bar&quot;&gt;
+&lt;span aria-hidden=&quot;true&quot; class=&quot;connection-dot&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;status-message&quot; data-i18n=&quot;ready&quot; id=&quot;statusMessage&quot;&gt;就緒&lt;/span&gt;
+&lt;span class=&quot;status-spacer&quot;&gt;&lt;/span&gt;
+&lt;span id=&quot;cursorStatus&quot;&gt;Ln 1, Col 1&lt;/span&gt;
+&lt;span id=&quot;lineCount&quot;&gt;1 lines&lt;/span&gt;
+&lt;span id=&quot;encoding&quot;&gt;UTF-8&lt;/span&gt;
+&lt;span id=&quot;fileType&quot;&gt;Plain Text&lt;/span&gt;
+&lt;/footer&gt;
+&lt;/main&gt;
+&lt;input accept=&quot;.txt,.md,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.c,.h,.cpp,.hpp,.java,.rs,.go,.xml,.yaml,.yml,.csv,.log,.ini,.sh,.ps1,text/*&quot; hidden=&quot;&quot; id=&quot;openFileInput&quot; multiple=&quot;&quot; type=&quot;file&quot;/&gt;
+&lt;dialog aria-labelledby=&quot;saveDialogTitle&quot; class=&quot;save-dialog&quot; id=&quot;saveDialog&quot;&gt;
+&lt;form method=&quot;dialog&quot;&gt;
+&lt;h2 data-i18n=&quot;saveAs&quot; id=&quot;saveDialogTitle&quot;&gt;另存新檔&lt;/h2&gt;
+&lt;label data-i18n=&quot;fileName&quot; for=&quot;saveName&quot;&gt;檔案名稱&lt;/label&gt;
+&lt;input autocomplete=&quot;off&quot; id=&quot;saveName&quot; maxlength=&quot;180&quot; required=&quot;&quot; type=&quot;text&quot;/&gt;
+&lt;div class=&quot;dialog-actions&quot;&gt;
+&lt;button data-i18n=&quot;cancel&quot; value=&quot;cancel&quot;&gt;取消&lt;/button&gt;
+&lt;button class=&quot;primary&quot; data-i18n=&quot;download&quot; id=&quot;confirmSave&quot; value=&quot;save&quot;&gt;匯出檔案&lt;/button&gt;
+&lt;/div&gt;
+&lt;/form&gt;
+&lt;/dialog&gt;
+&lt;dialog aria-labelledby=&quot;languageTitle&quot; class=&quot;settings-dialog&quot; id=&quot;languageDialog&quot;&gt;
+&lt;div class=&quot;settings-heading&quot;&gt;&lt;h2 data-i18n=&quot;language&quot; id=&quot;languageTitle&quot;&gt;語言&lt;/h2&gt;&lt;button aria-label=&quot;Close&quot; class=&quot;settings-close&quot; data-close-dialog=&quot;languageDialog&quot; type=&quot;button&quot;&gt;×&lt;/button&gt;&lt;/div&gt;
+&lt;p class=&quot;settings-note&quot; data-i18n=&quot;localLanguage&quot;&gt;選擇編輯器顯示語言；Host 共用語言更新時將自動同步。&lt;/p&gt;
+&lt;label data-i18n=&quot;language&quot; for=&quot;languageSelect&quot;&gt;語言&lt;/label&gt;
+&lt;select id=&quot;languageSelect&quot;&gt;
+&lt;option value=&quot;zh-TW&quot;&gt;繁體中文&lt;/option&gt;&lt;option value=&quot;en&quot;&gt;English&lt;/option&gt;
+&lt;option value=&quot;fr&quot;&gt;Français&lt;/option&gt;&lt;option value=&quot;ja&quot;&gt;日本語&lt;/option&gt;
+&lt;option value=&quot;es&quot;&gt;Español&lt;/option&gt;&lt;option value=&quot;hi&quot;&gt;हिन्दी&lt;/option&gt;
+&lt;/select&gt;
+&lt;div class=&quot;dialog-actions&quot;&gt;&lt;button class=&quot;primary&quot; data-close-dialog=&quot;languageDialog&quot; data-i18n=&quot;done&quot; type=&quot;button&quot;&gt;完成&lt;/button&gt;&lt;/div&gt;
+&lt;/dialog&gt;
+&lt;div aria-live=&quot;polite&quot; class=&quot;toast&quot; hidden=&quot;&quot; id=&quot;toast&quot; role=&quot;status&quot;&gt;&lt;/div&gt;
+&lt;script&gt;/* Cluster-v3 public Router bridge. No Host imports or direct frame access. */
+(() =&gt; {
+  'use strict';
+  const protocol = 'cluster.plugin.v1';
+  const pending = new Map();
+  const handlers = new Map();
+  let sequence = 0;
+  const request = (method, ...args) =&gt; new Promise((resolve, reject) =&gt; {
+    const requestId = 'editor-api-' + (++sequence);
+    const timer = setTimeout(() =&gt; {
+      pending.delete(requestId);
+      reject(new Error('Host request timeout: ' + method));
+    }, 12000);
+    pending.set(requestId, { resolve, timer });
+    parent.postMessage({ protocol, type: 'request', requestId, method, args }, '*');
+  });
+  window.addEventListener('message', async event =&gt; {
+    if (event.source !== parent || event.data?.protocol !== protocol) return;
+    const message = event.data;
+    if (message.type === 'response') {
+      const entry = pending.get(message.requestId);
+      if (!entry) return;
+      clearTimeout(entry.timer);
+      pending.delete(message.requestId);
+      entry.resolve(message);
+    } else if (message.type === 'invoke') {
+      const fn = handlers.get(message.action);
+      try {
+        if (!fn) throw new Error('Unregistered action: ' + message.action);
+        const data = await fn(message.payload, message.trace);
+        parent.postMessage({ protocol, type: 'invoke-result',
+          requestId: message.requestId, ok: true, data }, '*');
+      } catch (error) {
+        parent.postMessage({ protocol, type: 'invoke-result',
+          requestId: message.requestId, ok: false,
+          error: { code: error.code || 'EDITOR_REQUEST_FAILED',
+            message: String(error.message || error) } }, '*');
+      }
+    }
+  });
+  window.Cluster = Object.freeze({
+    request,
+    Router: Object.freeze({
+      async register(action, handler, options = {}) {
+        const result = await request('Router.register', action, 'runtime-callback', options);
+        if (result.ok) handlers.set(action, handler);
+        return result;
+      },
+      async unregister(action) {
+        const result = await request('Router.unregister', action);
+        if (result.ok) handlers.delete(action);
+        return result;
+      }
+    })
+  });
+  parent.postMessage({ protocol, type: 'hello' }, '*');
+})();
+&lt;/script&gt;&lt;script&gt;/* Cluster Text Editor v1 — autonomous plugin, no Host/internal API imports. */
+(() =&gt; {
+  'use strict';
+
+  const $ = id =&gt; document.getElementById(id);
+  const editor = $('editor');
+  const tabs = new Map();
+  const languages = {
+    'zh-TW': {
+      new:'新增檔案',open:'開啟檔案…',save:'儲存',saveAs:'另存新檔…',
+      copyAll:'複製全部文字',close:'關閉目前分頁',ready:'就緒',
+      empty:'從右上角 File 開啟文字檔案，或建立新檔案。',
+      find:'尋找',fileName:'檔案名稱',download:'匯出檔案',cancel:'取消',
+      unsaved:'內容尚未儲存，確定要繼續？',newFile:'未命名',
+      opened:'已開啟',saved:'已儲存',exported:'已嘗試匯出',
+      sandbox:'Cluster 沙箱可能攔截下載。若未出現檔案，請使用「複製全部文字」或獨立頁面。',
+      unsupported:'此環境不支援直接覆寫檔案；將使用下載方式匯出。',
+      copied:'已複製全部文字',copyFailed:'無法複製，請手動全選文字。',
+      cancelled:'操作已取消',failed:'操作失敗',tooLarge:'檔案超過 10 MiB 限制',
+      invalid:'不支援的文字編碼；請使用 UTF-8 或 UTF-16 LE。',
+      found:'找到',notFound:'沒有符合結果',savedWithName:'已儲存檔案',palette:'介面著色盤',language:'語言',plugins:'插件',done:'完成',resetPalette:'恢復預設',localPalette:'設定目前編輯器配色；Host 共用調色盤更新時將同步覆蓋對應顏色。',localLanguage:'選擇編輯器顯示語言；Host 共用語言更新時將自動同步。',navigationBlocked:'無法直接切換 Host 頁面，請在 Cluster 網址開啟 /plugin。'
+    },
+    en: {
+      new:'New File',open:'Open File…',save:'Save',saveAs:'Save As…',
+      copyAll:'Copy All Text',close:'Close Tab',ready:'Ready',
+      empty:'Open a text file from File, or create a new one.',
+      find:'Find',fileName:'File name',download:'Export file',cancel:'Cancel',
+      unsaved:'You have unsaved changes. Continue?',newFile:'Untitled',
+      opened:'Opened',saved:'Saved',exported:'Export requested',
+      sandbox:'Cluster sandbox may block downloads. If nothing appears, use Copy All Text or the standalone page.',
+      unsupported:'Direct file overwriting unavailable; exporting a download instead.',
+      copied:'Text copied',copyFailed:'Copy not available; select and copy manually.',
+      cancelled:'Cancelled',failed:'Operation failed',tooLarge:'File exceeds the 10 MiB limit',
+      invalid:'Unsupported text encoding. Use UTF-8 or UTF-16 LE.',
+      found:'Match',notFound:'No matches',savedWithName:'Saved file',palette:'Interface Palette',language:'Language',plugins:'Plugins',done:'Done',resetPalette:'Reset colors',localPalette:'Customize editor colors. Shared Host palette updates take precedence.',localLanguage:'Choose editor language. Shared Host language updates take precedence.',navigationBlocked:'Host navigation is blocked. Open /plugin from the Cluster address.'
+    }
+  };
+  const paletteTranslations = {
+    'zh-TW':{baseRGB:'介面全局 RGB',pickDescription:'選擇單一顏色即可調整整個介面，文字對比自動適應。',textColorMode:'字體對比自動調整',darkBaseline:'黑色基準',lightBaseline:'白色基準',autoSave:'設定自動儲存'},
+    en:{baseRGB:'Global interface RGB',pickDescription:'One color updates the entire UI; text contrast adapts automatically.',textColorMode:'Automatic text contrast',darkBaseline:'Dark baseline',lightBaseline:'Light baseline',autoSave:'Settings auto-saved'},
+    fr:{baseRGB:'RGB global',pickDescription:'Une couleur pour toute l’interface ; contraste automatique.',textColorMode:'Contraste automatique',darkBaseline:'Base sombre',lightBaseline:'Base claire',autoSave:'Enregistrement automatique'},
+    ja:{baseRGB:'全体 RGB',pickDescription:'1色で全体を変更し、文字のコントラストを自動調整します。',textColorMode:'文字コントラスト自動調整',darkBaseline:'ダーク基準',lightBaseline:'ライト基準',autoSave:'設定は自動保存'},
+    es:{baseRGB:'RGB global',pickDescription:'Un color ajusta toda la interfaz y el contraste.',textColorMode:'Contraste automático',darkBaseline:'Base oscura',lightBaseline:'Base clara',autoSave:'Guardado automático'},
+    hi:{baseRGB:'ग्लोबल RGB',pickDescription:'एक रंग से पूरा इंटरफ़ेस बदलेगा।',textColorMode:'स्वचालित टेक्स्ट कंट्रास्ट',darkBaseline:'डार्क आधार',lightBaseline:'लाइट आधार',autoSave:'सेटिंग स्वतः सहेजी गई'}
+  };
+  const otherLocales = {
+    fr:{new:'Nouveau',open:'Ouvrir…',save:'Enregistrer',saveAs:'Enregistrer sous…',copyAll:'Tout copier',close:'Fermer',find:'Chercher',fileName:'Nom du fichier',download:'Exporter',cancel:'Annuler',ready:'Prêt',palette:'Palette',language:'Langue',plugins:'Plugins',done:'Terminé',resetPalette:'Réinitialiser'},
+    ja:{new:'新規',open:'開く…',save:'保存',saveAs:'名前を付けて保存…',copyAll:'すべてコピー',close:'タブを閉じる',find:'検索',fileName:'ファイル名',download:'エクスポート',cancel:'キャンセル',ready:'準備完了',palette:'配色',language:'言語',plugins:'プラグイン',done:'完了',resetPalette:'初期化'},
+    es:{new:'Nuevo',open:'Abrir…',save:'Guardar',saveAs:'Guardar como…',copyAll:'Copiar todo',close:'Cerrar',find:'Buscar',fileName:'Nombre del archivo',download:'Exportar',cancel:'Cancelar',ready:'Listo',palette:'Paleta',language:'Idioma',plugins:'Complementos',done:'Listo',resetPalette:'Restablecer'},
+    hi:{new:'नया',open:'खोलें…',save:'सहेजें',saveAs:'इस रूप में सहेजें…',copyAll:'सब कॉपी करें',close:'बंद करें',find:'खोजें',fileName:'फ़ाइल नाम',download:'निर्यात',cancel:'रद्द करें',ready:'तैयार',palette:'रंग',language:'भाषा',plugins:'प्लगइन',done:'पूर्ण',resetPalette:'रीसेट'}
+  };
+  let locale = 'zh-TW';
+  let nextId = 1;
+  let untitled = 1;
+  let activeId = null;
+  let toastTimer;
+  let showingFind = false;
+  let internalUpdate = false;
+  const maxFileBytes = 10 * 1024 * 1024;
+  // Public Repository location is supplied by the Host context, never imported.
+  let pluginSiteUrl = null;
+  const EDITOR_PROTOCOL = 'cluster.editor.v1';
+  const EDITOR_API_VERSION = '1.0.0';
+  const MAX_REQUEST_ID = 128;
+  const MAX_DOCUMENT_PATH = 1024;
+  let nextRevision = 1;
+  const VALID_PLUGIN_SITE = url =&gt; {
+    try {
+      const candidate = new URL(url);
+      if (candidate.protocol !== 'https:' &amp;&amp; candidate.hostname !== 'localhost') return null;
+      if (candidate.username || candidate.password) return null;
+      return candidate.href;
+    } catch { return null; }
+  };
+  function getPluginSiteUrl() {
+    // The Host publicRepository.getPluginSiteUrl() publishes this through context.
+    // In standalone mode, discover the owning site from the referrer instead.
+    if (pluginSiteUrl) return pluginSiteUrl;
+    try {
+      const host = new URL(document.referrer);
+      if (host.protocol !== 'https:' &amp;&amp; host.hostname !== 'localhost') return null;
+      const root = host.pathname.split('/plugin/')[0].replace(/\/$/, '');
+      return VALID_PLUGIN_SITE(new URL(root + '/plugin/?view=home', host.origin).href);
+    } catch { return null; }
+  }
+  function emitEditorEvent(name, data = {}) {
+    if (window.parent === window) return;
+    window.parent.postMessage({protocol:EDITOR_PROTOCOL, type:'event',
+      version:EDITOR_API_VERSION, sourcePlugin:'cluster.text-editor',
+      event:name, data}, '*');
+  }
+  function tabMetadata(tab) {
+    return {id:String(tab.id), name:tab.name, path:tab.path || null,
+      dirty:tab.dirty, revision:tab.revision, active:tab.id === activeId,
+      length:tab.text.length};
+  }
+
+
+  function t(key) {
+    return paletteTranslations[locale]?.[key] || otherLocales[locale]?.[key] || languages[locale]?.[key] ||
+      languages.en[key] || languages['zh-TW'][key] || key;
+  }
+
+  function setStatus(text) {
+    $('statusMessage').textContent = text;
+    $('fileState').textContent = text;
+  }
+  function toast(text, timeout = 4100) {
+    clearTimeout(toastTimer);
+    $('toast').textContent = text;
+    $('toast').hidden = false;
+    toastTimer = setTimeout(() =&gt; { $('toast').hidden = true; }, timeout);
+  }
+  function applyLocale(value) {
+    if (!value || !['zh-TW','en','fr','ja','es','hi'].includes(value)) return;
+    locale = value;
+    document.documentElement.lang = locale;
+    $('languageSelect').value = locale;
+    for (const element of document.querySelectorAll('[data-i18n]'))
+      element.textContent = t(element.dataset.i18n);
+    const target = current();
+    if (!target) setStatus(t('ready'));
+    renderTabs();
+  }
+  function receiveContext(message) {
+    if (typeof message?.language === 'string') applyLocale(message.language);
+    // Published read-only by the Host Public Repository (getPluginSiteUrl()).
+    if (typeof message?.pluginSiteUrl === 'string')
+      pluginSiteUrl = VALID_PLUGIN_SITE(message.pluginSiteUrl);
+    for (const [key, color] of Object.entries(message?.palette || {})) {
+      if (/^[a-zA-Z][a-zA-Z-]*$/.test(key) &amp;&amp; /^#[0-9a-fA-F]{6}$/.test(color))
+        document.documentElement.style.setProperty('--ui-' + key, color);
+    }
+    if (message?.palette?.background &amp;&amp; hexValid.test(message.palette.background)) {
+      baseColor = message.palette.background.toLowerCase();
+      fontBaseline = message.palette.text?.toLowerCase() === '#000000' ? 'light' : 'dark';
+    }
+    syncPaletteFields();
+  }
+  window.addEventListener('message', event =&gt; {
+    if (event.source !== parent) return;
+    if (event.data?.protocol === EDITOR_PROTOCOL) {
+      if (event.data.type === 'req') void handleEditorRequest(event);
+      return;
+    }
+    if (!event.data || !['cluster.plugin.v1','cluster.settings.context.v1']
+      .includes(event.data.protocol)) return;
+    if (event.data.protocol === 'cluster.plugin.v1' &amp;&amp; event.data.type !== 'context') return;
+    receiveContext(event.data);
+  });
+
+  function current() { return tabs.get(activeId) || null; }
+  function makeTab(name, text = '', handle = null, path = null) {
+    const id = nextId++;
+    const data = { id, name, text, lastSaved: text, handle, path, revision:nextRevision++, dirty:false,
+      selectionStart:0, selectionEnd:0, scrollTop:0 };
+    tabs.set(id, data);
+    selectTab(id);
+    emitEditorEvent('document.opened', {document:tabMetadata(data), content:text});
+    return data;
+  }
+  function newFile() { makeTab(`${t('newFile')}-${untitled++}.txt`); editor.focus(); }
+  function captureTab() {
+    const tab = current();
+    if (!tab) return;
+    tab.text = editor.value;
+    tab.selectionStart = editor.selectionStart;
+    tab.selectionEnd = editor.selectionEnd;
+    tab.scrollTop = editor.scrollTop;
+    tab.dirty = tab.text !== tab.lastSaved;
+  }
+  function selectTab(id) {
+    if (!tabs.has(id)) return;
+    if (activeId !== id) captureTab();
+    activeId = id;
+    const tab = current();
+    internalUpdate = true;
+    editor.value = tab.text;
+    editor.readOnly = false;
+    editor.selectionStart = Math.min(tab.selectionStart, tab.text.length);
+    editor.selectionEnd = Math.min(tab.selectionEnd, tab.text.length);
+    editor.scrollTop = tab.scrollTop;
+    internalUpdate = false;
+    $('emptyHint').hidden = true;
+    renderTabs();
+    renderLines();
+    renderCursor();
+    setStatus(tab.name + (tab.dirty ? ' •' : ''));
+    emitEditorEvent('tab.activated', {document:tabMetadata(tab)});
+  }
+  function renderTabs() {
+    const crumb = document.getElementById('breadcrumbName');
+    if (crumb) crumb.textContent = current()?.path || current()?.name || 'EDITOR';
+    const nav = $('tabs');
+    nav.replaceChildren();
+    for (const tab of tabs.values()) {
+      const button = document.createElement('button');
+      button.className = 'tab';
+      button.type = 'button';
+      button.dataset.tabId = String(tab.id);
+      button.setAttribute('role','tab');
+      button.setAttribute('aria-selected',String(tab.id === activeId));
+      const name = document.createElement('span');
+      name.className = 'tab-name';
+      name.textContent = tab.name;
+      const dirty = document.createElement('span');
+      dirty.className = 'tab-dirty';
+      dirty.textContent = tab.dirty ? '●' : '';
+      const close = document.createElement('span');
+      close.className = 'tab-close';
+      close.setAttribute('aria-hidden','true');
+      close.textContent = '×';
+      button.append(name,dirty,close);
+      button.addEventListener('click', e =&gt; {
+        if (e.target === close) closeTab(tab.id);
+        else selectTab(tab.id);
+      });
+      button.addEventListener('auxclick', e =&gt; {
+        if (e.button === 1) { e.preventDefault();closeTab(tab.id); }
+      });
+      nav.append(button);
+    }
+  }
+  function closeTab(id = activeId) {
+    const tab = tabs.get(id);
+    if (!tab) return false;
+    if (id === activeId) captureTab();
+    // Close is not delete: no confirmation; changes in this memory tab are discarded.
+    const order = [...tabs.keys()];
+    const index = order.indexOf(id);
+    tabs.delete(id);
+    emitEditorEvent('document.closed', {id:String(id), path:tab.path || null});
+    if (activeId === id) {
+      const candidate = order[index + 1] || order[index - 1];
+      activeId = null;
+      if (candidate &amp;&amp; tabs.has(candidate)) selectTab(candidate);
+      else {
+        editor.value = '';
+        editor.readOnly = true;
+        $('emptyHint').hidden = false;
+        setStatus(t('ready'));
+        renderTabs();
+        renderLines();
+        renderCursor();
+      }
+    } else renderTabs();
+    return true;
+  }
+
+  // Host Router / Explorer bridge v1.0. Requests must be forwarded by the Host.
+  // This is an in-memory document API. Saving to a filesystem is NOT authorized.
+  async function handleEditorRequest(event) {
+    const request = event.data;
+    const requestId = request?.requestId;
+    if (typeof requestId !== 'string' || !requestId ||
+        requestId.length &gt; MAX_REQUEST_ID) return;
+    const reply = (status, data = null, error = null) =&gt; event.source?.postMessage({
+      protocol:EDITOR_PROTOCOL, type:'rep', version:EDITOR_API_VERSION,
+      sourcePlugin:'cluster.text-editor', requestId, status,
+      ok:status === 200, data, error
+    }, '*');
+    try {
+      if (request.version !== EDITOR_API_VERSION) {
+        reply(400,null,{code:'UNSUPPORTED_VERSION', message:'Expected '+EDITOR_API_VERSION});return;
+      }
+      const action = request.action;
+      const args = request.params &amp;&amp; typeof request.params === 'object' ? request.params : {};
+      if (action === 'editor.capabilities') {
+        reply(200,{version:EDITOR_API_VERSION, actions:[
+          'editor.capabilities','tabs.list','tabs.activate','document.open',
+          'document.get','document.update','document.close'],
+          eventNames:['document.opened','document.changed','document.saved',
+            'document.closed','tab.activated'],
+          persistence:'memory-only',maxFileBytes});return;
+      }
+      if (action === 'workspace.snapshot') {
+        captureTab();
+        reply(200,{activeId:activeId == null ? null : String(activeId),
+          documents:[...tabs.values()].map(tab =&gt; ({...tabMetadata(tab), content:tab.text}))});
+        return;
+      }
+      if (action === 'tabs.list') {
+        captureTab(); reply(200,{activeId:activeId === null ? null : String(activeId),
+          tabs:[...tabs.values()].map(tabMetadata)});return;
+      }
+      if (action === 'document.open') {
+        if (typeof args.name !== 'string' || !args.name.trim() || args.name.length &gt; 255 ||
+            typeof args.content !== 'string' ||
+            new Blob([args.content]).size &gt; maxFileBytes ||
+            (args.path != null &amp;&amp; (typeof args.path !== 'string' ||
+              args.path.length &gt; MAX_DOCUMENT_PATH))) {
+          reply(400,null,{code:'INVALID_DOCUMENT',message:'Invalid name, path or content'});return;
+        }
+        const existing = args.path &amp;&amp; [...tabs.values()].find(tab=&gt;tab.path===args.path);
+        if (existing) {
+          selectTab(existing.id);
+          reply(200,{document:tabMetadata(existing), reused:true});return;
+        }
+        const tab=makeTab(args.name,args.content,null,args.path || null);
+        reply(200,{document:tabMetadata(tab)});return;
+      }
+      const tab = tabs.get(Number(args.id));
+      if (!tab || String(tab.id)!==String(args.id)) {
+        reply(404,null,{code:'DOCUMENT_NOT_FOUND',message:'Unknown document ID'});return;
+      }
+      if (action === 'tabs.activate') {
+        selectTab(tab.id);reply(200,{document:tabMetadata(tab)});return;
+      }
+      if (action === 'document.get') {
+        if (tab.id === activeId) captureTab();
+        reply(200,{document:tabMetadata(tab),content:tab.text});return;
+      }
+      if (action === 'document.update') {
+        if (typeof args.content !== 'string' ||
+            new Blob([args.content]).size &gt; maxFileBytes) {
+          reply(400,null,{code:'INVALID_CONTENT',message:'Invalid content'});return;
+        }
+        if (!Number.isInteger(args.expectedRevision) ||
+            args.expectedRevision !== tab.revision) {
+          reply(409,{document:tabMetadata(tab)},
+            {code:'REVISION_CONFLICT',message:'Read latest revision before writing'});return;
+        }
+        if (tab.id === activeId) captureTab();
+        tab.text=args.content;tab.dirty=tab.text!==tab.lastSaved;
+        tab.revision=nextRevision++;
+        if (tab.id===activeId) selectTab(tab.id);
+        else renderTabs();
+        emitEditorEvent('document.changed',{document:tabMetadata(tab),content:tab.text});
+        reply(200,{document:tabMetadata(tab)});return;
+      }
+      if (action === 'document.rename') {
+        if(typeof args.name!=='string' || !args.name.trim() || args.name.length&gt;255 ||
+           typeof args.path!=='string' || args.path.length&gt;MAX_DOCUMENT_PATH){
+          reply(400,null,{code:'INVALID_RENAME',message:'Invalid new document name/path'});return;
+        }
+        tab.name=args.name;tab.path=args.path;tab.revision=nextRevision++;
+        renderTabs();
+        emitEditorEvent('document.renamed',{document:tabMetadata(tab)});
+        reply(200,{document:tabMetadata(tab)});return;
+      }
+      if (action === 'document.close') {
+        if (tab.dirty &amp;&amp; args.prompt === true) {
+          if (!window.confirm(t('unsaved'))) {
+            reply(409,{document:tabMetadata(tab)},
+              {code:'CLOSE_CANCELLED',message:'Close was cancelled'});return;
+          }
+          args.discardChanges = true;
+        }
+        if (tab.dirty &amp;&amp; args.discardChanges!==true) {
+          reply(409,{document:tabMetadata(tab)},
+            {code:'UNSAVED_CHANGES',message:'Explicit discardChanges is required'});return;
+        }
+        // closeTab normally prompts; only bypass prompt after explicit discard.
+        if (tab.dirty &amp;&amp; args.discardChanges === true) tab.dirty=false;
+        if (!closeTab(tab.id)) {
+          reply(409,{document:tabMetadata(tab)},
+            {code:'CLOSE_CANCELLED',message:'Close was cancelled'});return;
+        }
+        reply(200,{id:String(tab.id)});return;
+      }
+      reply(400,null,{code:'UNKNOWN_ACTION',message:'Unsupported action'});
+    } catch (error) {
+      reply(500,null,{code:'EDITOR_REQUEST_FAILED',message:String(error?.message||error)});
+    }
+  }
+
+  // Register actual callable services in the Host's live Router registry.
+  // A postMessage endpoint alone does not populate Plugin Manager / API List.
+  const documentId = { type:'string', minLength:1 };
+  const schemas = [
+    ['editor.capabilities', 'Discover editor actions, events and limits', {}, []],
+    ['tabs.list', 'List open tabs and active document', {}, []],
+    ['tabs.activate', 'Switch active editor tab', {id:documentId}, ['id']],
+    ['document.open', 'Open a text document supplied by Explorer', {
+      name:{type:'string'}, content:{type:'string'}, path:{type:'string'}
+    }, ['name','content']],
+    ['document.get', 'Read document contents and revision', {id:documentId}, ['id']],
+    ['document.update', 'Update an in-memory document with MVCC revision', {
+      id:documentId, content:{type:'string'}, expectedRevision:{type:'integer'}
+    }, ['id','content','expectedRevision']],
+    ['document.close', 'Close a tab with explicit unsaved-change protection', {
+      id:documentId, discardChanges:{type:'boolean'}
+    }, ['id']]
+  ];
+  async function executeRegisteredAction(action, params) {
+    let message = null;
+    const requestId = 'router-' + String(++nextRevision);
+    await handleEditorRequest({
+      data:{version:EDITOR_API_VERSION,requestId,action,params:params || {}},
+      source:{postMessage: response =&gt; { message = response; }}
+    });
+    if (!message) throw new Error('Editor did not return a response');
+    if (!message.ok) {
+      const error = new Error(message.error?.message || 'Editor action failed');
+      error.code = message.error?.code || 'EDITOR_REQUEST_FAILED';
+      throw error;
+    }
+    return message.data;
+  }
+  async function registerEditorServices() {
+    if (!window.Cluster?.Router?.register || window.parent === window) return;
+    for (const [action, description, properties, required] of schemas) {
+      try {
+        const response = await Cluster.Router.register(
+          action, params =&gt; executeRegisteredAction(action, params), {
+            contract:{version:EDITOR_API_VERSION,description,
+              request:{type:'object',properties,required,additionalProperties:false},
+              response:{type:'object'}}
+          });
+        if (!response.ok) throw new Error(response.error?.message || String(response.status));
+      } catch (error) {
+        console.warn('Cluster Editor API registration failed:', action, error);
+        emitEditorEvent('editor.registration.error', {action,
+          message:String(error?.message || error)});
+      }
+    }
+  }
+  void registerEditorServices();
+
+  function linePosition(text, offset) {
+    const before = text.slice(0, offset);
+    const lastNewline = before.lastIndexOf('\n');
+    return { line:before.split('\n').length, col:before.length - lastNewline };
+  }
+  function renderCursor() {
+    const tab = current();
+    if (!tab) {
+      $('cursorStatus').textContent = 'Ln 1, Col 1';
+      return;
+    }
+    const pos = linePosition(editor.value, editor.selectionStart);
+    $('cursorStatus').textContent = `Ln ${pos.line}, Col ${pos.col}`;
+  }
+  function renderLines() {
+    const total = (editor.value.match(/\n/g) || []).length + 1;
+    $('lineCount').textContent = `${total} lines`;
+    const maxRendered = Math.min(total, 50000);
+    $('lineNumbers').textContent = Array.from({length:maxRendered}, (_,i)=&gt;i+1).join('\n') +
+      (total &gt; maxRendered ? '\n…' : '');
+    $('lineNumbers').style.transform = `translateY(-${editor.scrollTop}px)`;
+  }
+  function markChanged() {
+    if (internalUpdate) return;
+    const tab = current();
+    if (!tab) return;
+    tab.text = editor.value;
+    tab.dirty = tab.text !== tab.lastSaved;
+    tab.revision = nextRevision++;
+    emitEditorEvent('document.changed', {document:tabMetadata(tab), content:tab.text});
+    renderTabs();
+    renderLines();
+    renderCursor();
+    setStatus(tab.name + (tab.dirty ? ' •' : ''));
+  }
+
+  function decodeText(buffer) {
+    const data = new Uint8Array(buffer);
+    if (data.length &gt;= 2 &amp;&amp; data[0] === 0xff &amp;&amp; data[1] === 0xfe)
+      return new TextDecoder('utf-16le', {fatal:true}).decode(data.subarray(2));
+    const offset = data.length &gt;= 3 &amp;&amp; data[0] === 0xef &amp;&amp; data[1] === 0xbb &amp;&amp;
+      data[2] === 0xbf ? 3 : 0;
+    return new TextDecoder('utf-8',{fatal:true}).decode(data.subarray(offset));
+  }
+  async function openFiles(files, handles = []) {
+    for (let i = 0; i &lt; files.length; i++) {
+      const file = files[i];
+      try {
+        if (file.size &gt; maxFileBytes) { toast(t('tooLarge')+': '+file.name); continue; }
+        const text = decodeText(await file.arrayBuffer());
+        makeTab(file.name, text, handles[i] || null);
+        setStatus(t('opened')+': '+file.name);
+      } catch (error) {
+        toast(t('invalid')+' '+file.name+' ('+String(error?.message||error)+')');
+      }
+    }
+  }
+  function fallbackOpen() { $('openFileInput').click(); }
+  async function open() {
+    closeMenu();
+    // Only user-gesture file handles may grant direct overwrite rights.
+    if (typeof window.showOpenFilePicker === 'function') {
+      try {
+        const handles = await window.showOpenFilePicker({multiple:true});
+        const files = await Promise.all(handles.map(h=&gt;h.getFile()));
+        await openFiles(files, handles);
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // SecurityError is expected inside Cluster's opaque-origin iframe.
+      }
+    }
+    fallbackOpen();
+  }
+  function canDirectSave() {
+    return typeof window.showSaveFilePicker === 'function';
+  }
+  function updateSaved(tab) {
+    tab.lastSaved = tab.text;
+    tab.dirty = false;
+    tab.revision = nextRevision++;
+    emitEditorEvent('document.saved', {document:tabMetadata(tab), content:tab.text, persistence:'file-handle'});
+    renderTabs();
+    setStatus(t('savedWithName')+': '+tab.name);
+  }
+  async function saveToHandle(tab, handle) {
+    const stream = await handle.createWritable();
+    await stream.write(new Blob([tab.text],{type:'text/plain;charset=utf-8'}));
+    await stream.close();
+    tab.handle = handle;
+    tab.name = handle.name || tab.name;
+    updateSaved(tab);
+  }
+  async function save() {
+    closeMenu();
+    captureTab();
+    const tab = current();
+    if (!tab) return;
+    if (tab.handle) {
+      try {
+        await saveToHandle(tab,tab.handle);
+        return;
+      } catch (error) {
+        toast(t('failed')+': '+String(error?.message||error));
+      }
+    }
+    await saveAs();
+  }
+  async function saveAs() {
+    closeMenu();
+    captureTab();
+    const tab = current();
+    if (!tab) return;
+    if (canDirectSave()) {
+      try {
+        const handle = await window.showSaveFilePicker({suggestedName:tab.name,
+          types:[{description:'Text / source file',accept:{'text/plain':['.txt','.md','.json','.js','.ts','.html','.css','.py','.cpp','.h','.log','.csv']}}]});
+        await saveToHandle(tab,handle);
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        toast(t('unsupported')+' ('+String(error?.name||error)+')');
+      }
+    }
+    $('saveName').value = tab.name;
+    $('saveDialog').dataset.tabId = String(tab.id);
+    $('saveDialog').showModal();
+    $('saveName').focus();
+    $('saveName').select();
+  }
+  function exportDownload(id, name) {
+    const tab = tabs.get(id);
+    if (!tab) return;
+    const safeName = name.replace(/[\\/:*?&quot;&lt;&gt;|\x00-\x1f]/g,'_').trim() || 'untitled.txt';
+    const blob = new Blob([tab.text], {type:'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() =&gt; URL.revokeObjectURL(url), 5000);
+    // A sandboxed iframe without allow-downloads is blocked by Chrome.
+    // Never claim the data was saved; only report that export was attempted.
+    setStatus(t('exported')+': '+safeName);
+    if (window.self !== window.top) toast(t('sandbox'), 8000);
+    else toast(t('exported')+': '+safeName);
+    // Deliberately leave the dirty marker: download success cannot be detected.
+  }
+  function copyAll() {
+    closeMenu();
+    const tab = current();
+    if (!tab) return;
+    editor.focus();
+    editor.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); }
+    catch { /* browser denied clipboard */ }
+    if (copied) toast(t('copied'));
+    else toast(t('copyFailed'),6500);
+  }
+  function setMenu(opened) {
+    $('fileMenu').hidden = !opened;
+    $('fileMenuButton').setAttribute('aria-expanded',String(opened));
+  }
+  function closeMenu() { setMenu(false); }
+  // Public palette comes exclusively from PRMU context forwarded by Host.
+  const hexValid = /^#[0-9a-f]{6}$/i;
+  let baseColor = '#000000';
+  let fontBaseline = 'dark';
+  function syncPaletteFields() { /* Host-owned palette controls only. */ }
+  function initPaletteControls() { /* No local palette dialog. */ }
+  async function openHostPalette() {
+    try {
+      // Route via the owning editor shell to the Host RPC bridge.
+      const result=await new Promise((resolve,reject)=&gt;{
+        const requestId='palette-ui-'+Math.random().toString(36).slice(2);
+        const timeout=setTimeout(()=&gt;{window.removeEventListener('message',reply);reject(Error('RPC timeout'));},9000);
+        function reply(e){if(e.source!==parent||e.data?.protocol!=='cluster.plugin.v1'||
+          e.data?.type!=='response'||e.data.requestId!==requestId)return;
+          clearTimeout(timeout);window.removeEventListener('message',reply);resolve(e.data);}
+        window.addEventListener('message',reply);
+        parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId,
+          method:'PRMU.openUIColorPalette',args:[]},'*');
+      });
+      if(!result.ok)throw Error(result.error?.message||'Palette unavailable');
+    }catch(error){toast('公共庫調色盤無法開啟：'+String(error.message||error));}
+  }
+  function openPlugins() {
+    // Never hardcode a Host location in an isolated plugin.
+    const url = getPluginSiteUrl();
+    if (!url) { toast(t('navigationBlocked'), 9000); return; }
+    try {
+      if (window.top === window.self) { location.assign(url); return; }
+      window.top.location.assign(url);
+      return;
+    } catch { /* top-level navigation can be blocked by iframe sandbox */ }
+    try {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (opened) return;
+    } catch { /* popups can also be blocked by iframe sandbox */ }
+    toast(t('navigationBlocked') + ' ' + url, 9000);
+  }
+  window.addEventListener('message', event =&gt; {
+    if(event.source!==parent || event.data?.protocol!=='cluster.workspace.file.v1' ||
+       event.data.type!=='command')return;
+    const cmd=event.data.action;
+    if(['new','open','save','save-as','copy','close','palette','language'].includes(cmd))
+      runCommand(cmd);
+  });
+  function runCommand(command) {
+    const actions = {
+      new:newFile, open, save, 'save-as':saveAs, copy:copyAll,
+      close:()=&gt;closeTab(),
+      palette:openHostPalette,
+      language:()=&gt;$('languageDialog').showModal(),
+      plugins:openPlugins
+    };
+    closeMenu();
+    if (actions[command]) void actions[command]();
+  }
+  function showFind() {
+    showingFind = true;
+    $('findPanel').hidden = false;
+    $('findText').focus();
+    $('findText').select();
+  }
+  function hideFind() {
+    showingFind = false;
+    $('findPanel').hidden = true;
+    editor.focus();
+  }
+  function findNext() {
+    const term = $('findText').value;
+    if (!term) { $('findCount').textContent = '';return; }
+    const haystack = editor.value.toLocaleLowerCase();
+    const needle = term.toLocaleLowerCase();
+    let idx = haystack.indexOf(needle, editor.selectionEnd);
+    if (idx === -1) idx = haystack.indexOf(needle);
+    if (idx &lt; 0) { $('findCount').textContent = t('notFound');return; }
+    editor.focus();
+    editor.setSelectionRange(idx,idx+term.length);
+    const count = haystack.split(needle).length - 1;
+    $('findCount').textContent = t('found')+': '+count;
+    renderCursor();
+  }
+
+  initPaletteControls();
+  $('languageSelect').addEventListener('change', event =&gt; applyLocale(event.target.value));
+  document.querySelectorAll('[data-close-dialog]').forEach(button =&gt; {
+    button.addEventListener('click', () =&gt; $(button.dataset.closeDialog).close());
+  });
+  $('fileMenuButton').addEventListener('click',()=&gt;setMenu($('fileMenu').hidden));
+  $('fileMenu').addEventListener('click',event=&gt;{
+    const command = event.target.closest('[data-command]')?.dataset.command;
+    if (command) runCommand(command);
+  });
+  document.addEventListener('pointerdown', event =&gt; {
+    if (!$('fileMenuGroup').contains(event.target)) closeMenu();
+  });
+  $('newButton').addEventListener('click',newFile);
+  $('openFileInput').addEventListener('change',event=&gt;{
+    const files = [...event.target.files];
+    event.target.value = '';
+    void openFiles(files);
+  });
+  $('saveDialog').addEventListener('close',()=&gt;{
+    if ($('saveDialog').returnValue === 'save') {
+      const id = Number($('saveDialog').dataset.tabId);
+      exportDownload(id, $('saveName').value);
+    }
+  });
+  $('findNext').addEventListener('click',findNext);
+  $('findText').addEventListener('keydown',event=&gt;{
+    if (event.key === 'Enter') {event.preventDefault();findNext();}
+    if (event.key === 'Escape') hideFind();
+  });
+  $('closeFind').addEventListener('click',hideFind);
+  editor.addEventListener('input',markChanged);
+  editor.addEventListener('scroll',renderLines);
+  editor.addEventListener('click',renderCursor);
+  editor.addEventListener('keyup',renderCursor);
+  editor.addEventListener('keydown',event=&gt;{
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const a = editor.selectionStart, b = editor.selectionEnd;
+      editor.setRangeText('    ',a,b,'end');
+      markChanged();
+    }
+  });
+  document.addEventListener('keydown',event=&gt;{
+    const mod = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (mod &amp;&amp; ['s','o','n','w','f'].includes(key)) {
+      event.preventDefault();
+      if (key === 's') void (event.shiftKey ? saveAs() : save());
+      if (key === 'o') void open();
+      if (key === 'n') newFile();
+      if (key === 'w') closeTab();
+      if (key === 'f') showFind();
+    } else if (key === 'escape') {
+      closeMenu();
+      if (showingFind) hideFind();
+    }
+  });
+  document.addEventListener('dragover',event=&gt;event.preventDefault());
+  document.addEventListener('drop',event=&gt;{
+    event.preventDefault();
+    if (event.dataTransfer?.files?.length) void openFiles([...event.dataTransfer.files]);
+  });
+  window.addEventListener('beforeunload',event=&gt;{
+    captureTab();
+    if ([...tabs.values()].some(tab=&gt;tab.dirty)) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+  newFile();
+})();
+&lt;/script&gt;&lt;script&gt;/* Shared properties sent by the Cluster-v3 Public Repository. */
+(()=&gt;{'use strict';
+  const keys=['background','surface','panel','control','hover','border',
+    'text','muted','accent','editor','gutter'];
+  const apply=(data)=&gt;{
+    const palette=data?.palette||data?.data?.palette;
+    if(!palette || typeof palette!=='object')return;
+    for(const key of keys){
+      const value=palette[key];
+      if(typeof value==='string' &amp;&amp; /^#[0-9a-f]{6}$/i.test(value)){
+        document.documentElement.style.setProperty('--ui-'+key,value);
+      }
+    }
+    document.documentElement.dispatchEvent(new CustomEvent('cluster-public-properties',
+      {detail:{language:data?.language||data?.data?.language,palette}}));
+  };
+  window.addEventListener('message',event=&gt;{
+    if(event.source!==parent)return;
+    const msg=event.data;
+    if (msg?.protocol === 'cluster.plugin.v1' &amp;&amp; msg.type === 'context') apply(msg);
+    if (msg?.protocol === 'cluster.settings.context.v1') apply(msg);
+    if(msg?.protocol==='cluster.public.v1' &amp;&amp;
+       (msg.type==='snapshot'||msg.type==='properties.changed'))apply(msg);
+  });
+  if(parent!==window)parent.postMessage({protocol:'cluster.public.v1',
+    type:'subscribe',properties:['palette','language']},'*');
+})();
+&lt;/script&gt;&lt;script&gt;/* Host PRMU is the ONLY palette authority. No local palette persistence. */
+(()=&gt;{'use strict';
+  const keys=['background','surface','panel','control','hover','border',
+    'text','muted','accent','editor','gutter'];
+  const root=document.documentElement;
+  const hex=/^#[0-9a-f]{6}$/i;
+  const contrast=(a,b)=&gt;{
+    const rgb=x=&gt;[1,3,5].map(i=&gt;parseInt(x.slice(i,i+2),16)/255)
+      .map(v=&gt;v&lt;=0.04045?v/12.92:((v+0.055)/1.055)**2.4);
+    const lum=x=&gt;rgb(x).reduce((n,v,i)=&gt;n+v*[0.2126,0.7152,0.0722][i],0);
+    const l1=lum(a),l2=lum(b);return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05);
+  };
+  const safe=(preferred,bg,min=4.5)=&gt;{
+    if(contrast(preferred,bg)&gt;=min)return preferred;
+    return contrast('#000000',bg)&gt;=contrast('#ffffff',bg)?'#000000':'#ffffff';
+  };
+  function apply(data){
+    const palette=data?.palette||data?.data?.palette;
+    if(!palette||typeof palette!=='object')return;
+    const colors={};
+    for(const k of keys)if(hex.test(palette[k]||'')){
+      colors[k]=palette[k].toLowerCase();
+      root.style.setProperty('--ui-'+k,colors[k]);
+    }
+    if(!colors.text || !colors.background)return;
+    for(const surface of ['background','surface','panel','control','hover','editor','gutter']){
+      const bg=colors[surface]||colors.background;
+      root.style.setProperty('--ui-on-'+surface,safe(colors.text,bg));
+      root.style.setProperty('--ui-muted-on-'+surface,safe(colors.muted||colors.text,bg));
+    }
+    root.style.setProperty('--ui-on-accent',safe(colors.text,colors.accent||colors.background));
+    const light=contrast('#000000',colors.background)&gt;contrast('#ffffff',colors.background);
+    root.style.colorScheme=light?'light':'dark';
+    root.dispatchEvent(new CustomEvent('cluster-public-properties',{
+      detail:{language:data?.language||data?.data?.language,palette:colors}
+    }));
+  }
+  window.addEventListener('message',ev=&gt;{
+    if(ev.source!==parent)return;
+    const m=ev.data;
+    if(m?.protocol==='cluster.plugin.v1'&amp;&amp;m.type==='context')apply(m);
+    if(m?.protocol==='cluster.settings.context.v1')apply(m);
+    if(m?.protocol==='cluster.public.v1'&amp;&amp;
+      (m.type==='snapshot'||m.type==='properties.changed'))apply(m);
+  });
+  if(parent!==window)parent.postMessage({protocol:'cluster.public.v1',
+    type:'subscribe',properties:['palette','language']},'*');
+})();
+&lt;/script&gt;&lt;/body&gt;
+&lt;/html&gt;
+" title="BasicTextEditor"></iframe></section></section></main>
+<input hidden="" id="workspaceOpenFiles" multiple="" type="file"/><input hidden="" id="workspaceOpenFolder" multiple="" type="file" webkitdirectory=""/></body></html>

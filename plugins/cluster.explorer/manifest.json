@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "cluster.explorer",
+  "name": "Cluster Explorer",
+  "version": "2.1.0",
+  "description": "Explorer with permission-gated physical disk deletion for authorized folders",
+  "entry": "index.html",
+  "apiVersion": "1.0.0",
+  "ui": {
+    "mode": "both",
+    "home": false
+  }
+}

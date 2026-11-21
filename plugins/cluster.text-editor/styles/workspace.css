@@ -1,0 +1,60 @@
+:root{color-scheme:dark;--background:#101115;--panel:#191c23;--edge:#333944;--accent:#7e9ef4;--text:#e5e9f3;--muted:#929bab;font-family:system-ui,"Microsoft JhengHei",sans-serif}*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:var(--background);overflow:hidden;color:var(--text)}button{font:inherit}.workbench{height:100%;display:flex;flex-direction:column}.workbench-header{height:39px;flex:none;background:var(--panel);border-bottom:1px solid var(--edge);display:flex;align-items:center;gap:14px;padding:0 13px}.header-brand{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.4px}.secondary{font:10px Consolas,monospace;color:var(--muted)}.mark{width:12px;height:12px;border:2px solid var(--accent);transform:rotate(45deg);margin:0 4px}.header-center{flex:1;text-align:center;font:10px Consolas,monospace;color:var(--muted);letter-spacing:1.5px}.tool{padding:5px 10px;background:transparent;border:1px solid transparent;border-radius:5px;color:var(--muted);cursor:pointer;font-size:11px}.tool:hover,.tool:focus-visible{background:#2a2e38;color:var(--text)}.workbench-main{flex:1;min-height:0;display:flex}.sidebar{flex:none;width:var(--sidebar-width,280px);min-width:180px;max-width:52%;overflow:hidden;background:var(--panel)}.editor-pane{min-width:0;flex:1;overflow:hidden}iframe{display:block;width:100%;height:100%;border:0;background:var(--background)}#divider{width:5px;flex:none;background:var(--edge);cursor:col-resize;touch-action:none}#divider:hover,#divider.dragging{background:var(--accent)}.sidebar.collapsed,#divider.collapsed{display:none}@media(max-width:600px){.sidebar{width:225px;max-width:65%}.header-center{display:none}.workbench-header{justify-content:space-between}}
+/* Cluster Opt legacy dark workstation skin. Designed for unified Editor mounting. */
+:root {--background:#0c0d10;--panel:#17191e;--edge:#2c3038;--accent:#6f9be3;--text:#e6e8ec;--muted:#959da9;--ui-background:#0c0d10;--ui-panel:#17191e;--ui-control:#252831;--ui-text:#e6e8ec;--ui-muted:#959da9;--ui-accent:#6f9be3;--ui-border:#2c3038;--ui-hover:#292e39;--bg:#0c0d10;--raised:#252831;--line:#2c3038;--hover:#292e39}
+button, .tool {transition:background-color .12s ease,color .12s ease}
+button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3);outline-offset:1px}
+
+.workbench-header{height:38px;background:#17191e}.sidebar{background:#15171b}.tool{border-radius:4px}.header-center{letter-spacing:1px}
+.connect-panel{padding:25px 16px;color:var(--muted);font-size:12px;line-height:1.8}.connect-panel strong{color:var(--text);letter-spacing:1px}.connect-panel button,.actions button{background:#272b34;color:var(--text);border:1px solid var(--edge);border-radius:4px;padding:8px 13px;cursor:pointer}.connect-panel[hidden],iframe[hidden]{display:none}
+#explorerDialog{width:min(480px,calc(100vw - 28px));background:var(--panel);color:var(--text);border:1px solid var(--edge);border-radius:7px;padding:21px}#explorerDialog::backdrop{background:#000a}#explorerDialog form{display:grid;gap:11px}#explorerDialog h2{margin:0;font-size:16px}#explorerDialog p{font-size:12px;color:var(--muted);line-height:1.6;margin:0}#explorerDialog label{font-size:12px}#explorerDialog input{width:100%;min-width:0;background:#252831;border:1px solid var(--edge);color:var(--text);padding:10px}#explorerDialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}#urlError{color:#ff9d9d!important}
+
+.registry-state{font:10px Consolas,monospace;color:var(--ui-muted,#a5a8b5)}
+:root{--background:var(--ui-background,#000000);--panel:var(--ui-panel,#111216);--edge:var(--ui-border,#3c3e49);--accent:var(--ui-accent,#728cfb);--text:var(--ui-text,#f1f2f5);--muted:var(--ui-muted,#a5a8b5)}
+
+/* Cluster Opt2 legacy layout: one global toolbar, no duplicated product titles. */
+.workbench-header{height:47px;min-height:47px;padding:0 18px;background:#202127;gap:12px;border-bottom:1px solid #373944}
+.header-brand{font-size:19px;letter-spacing:0;gap:11px}.header-brand strong{font-weight:600}
+.header-brand .secondary{font-size:10px;color:#a8b3d3}
+.header-center{display:none}.tool{background:#343640;color:#f1f2f5;border:1px solid #3c3e49;padding:8px 14px;border-radius:7px;font-size:12px}
+.tool:hover{background:#474a58}.sidebar{background:#111216}.editor-pane{background:#000}
+#divider{width:2px;background:#383b45}.registry-state{margin-left:auto;font-size:10px}
+
+/* No local palette overrides: Host PRMU theme tokens are authoritative. */
+.workbench-header{background:var(--ui-surface)!important;border-color:var(--ui-border)}.sidebar{background:var(--ui-panel)!important}.tool{background:var(--ui-control)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important}.tool:hover{background:var(--ui-hover)!important}.editor-pane{background:var(--ui-editor)!important}#divider{background:var(--ui-border)!important}
+
+/* Public library tokens are the single source of UI colors. */
+.workbench,.workbench-main,.sidebar{background:var(--ui-panel)!important;color:var(--ui-on-panel,var(--ui-text))!important}
+.workbench-header{background:var(--ui-surface)!important;color:var(--ui-on-surface,var(--ui-text))!important}
+.header-brand strong,.tool{color:var(--ui-on-control,var(--ui-text))!important}
+.tool{background:var(--ui-control)!important;border-color:var(--ui-border)!important}
+.tool:hover{background:var(--ui-hover)!important;color:var(--ui-on-hover,var(--ui-text))!important}
+.connect-panel,.registry-state,.secondary{color:var(--ui-muted-on-panel,var(--ui-muted))!important}
+.connect-panel button{background:var(--ui-control)!important;color:var(--ui-on-control,var(--ui-text))!important}
+
+/* Compact ClusterOpt2 workbench: logo and File share the header row. */
+.workbench-header{height:55px!important;min-height:55px!important;display:flex;gap:10px;
+ background:var(--ui-surface)!important;padding:0 14px!important}
+.header-brand{font-size:21px!important;display:flex;align-items:center;gap:10px}
+.header-brand .secondary{display:none}
+#toggleExplorer{order:1;font-size:12px;border-radius:7px}
+.global-file-group{order:2;position:relative;margin-left:auto;z-index:30}
+.global-file-menu[hidden]{display:none!important}
+.global-file-menu{position:absolute;top:calc(100% + 5px);right:0;width:222px;display:grid;
+ background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;
+ box-shadow:0 14px 40px #0008;padding:5px;z-index:30}
+.global-file-menu button{text-align:left;background:transparent;color:var(--ui-on-panel,var(--ui-text));
+ border:0;border-radius:4px;padding:9px 11px;cursor:pointer;font-size:12px}
+.global-file-menu button:hover,.global-file-menu button:focus-visible{
+ background:var(--ui-hover);color:var(--ui-on-hover,var(--ui-text))}
+.file-button{background:var(--ui-control)!important;color:var(--ui-on-control,var(--ui-text))!important}
+.file-separator{border-top:1px solid var(--ui-border);margin:3px 5px}
+#divider{width:2px!important}
+
+/* PRMU-owned language selection; surface and text follow Host palette. */
+.language-menu[hidden]{display:none!important}
+.language-menu{display:grid;gap:1px;padding:3px 6px 5px 12px;
+ border-left:2px solid var(--ui-accent);margin:2px 4px 5px;
+ background:var(--ui-panel);color:var(--ui-on-panel,var(--ui-text))}
+.language-menu button{font-size:12px;text-align:left;min-height:30px}
+.language-menu button:hover,.language-menu button:focus-visible{
+ background:var(--ui-hover)!important;color:var(--ui-on-hover,var(--ui-text))!important}

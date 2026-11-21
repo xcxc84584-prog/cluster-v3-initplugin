@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "type": "cluster.plugin-project",
+  "plugins": [
+    {
+      "id": "cluster.explorer",
+      "version": "2.1.0",
+      "directory": "plugins/cluster.explorer"
+    },
+    {
+      "id": "cluster.text-editor",
+      "version": "2.6.0",
+      "directory": "plugins/cluster.text-editor"
+    }
+  ]
+}
