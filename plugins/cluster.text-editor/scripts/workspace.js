@@ -407,9 +407,14 @@
         setProgress('synced',100);
       else if(msg.event==='workspace.error' ||
         msg.event==='editor.registration.error')setProgress('error',100);
-      else if(msg.event==='document.opened')setProgress('loading',40);
-      else if(msg.event==='tab.activated')
-        setProgress(doc?.dirty?'pending':'synced',100);
+      else if(msg.event==='document.opened') {
+        setProgress('loading',40);
+        setTimeout(()=>{
+          if(currentStatus==='loading')
+            setProgress(doc?.dirty || !doc?.diskBacked?'pending':'synced',100);
+        },180);
+      } else if(msg.event==='tab.activated')
+        setProgress(doc?.dirty || !doc?.diskBacked?'pending':'synced',100);
       return;
     }
     if(event.source===editor.contentWindow &&
