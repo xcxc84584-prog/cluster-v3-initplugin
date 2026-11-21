@@ -97,7 +97,8 @@ test('Explorer polls authorized disk and sends safe sync events',()=>{
   assert.match(explorer,/action === 'storage-policy'/);
   assert.match(workspace,/msg\.action==='external\.changed'/);
   assert.match(editor,/document\.externalSynced/);
-  assert.match(editor,/type:'reconnected'/);
+  assert.match(editor,/changed\.type==='reconnected'/);
+  assert.match(workspace,/type:'reconnected'/);
 });
 
 test('footer supports four actual state transitions in original palette',()=>{
