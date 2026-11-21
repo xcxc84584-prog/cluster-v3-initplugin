@@ -77,9 +77,10 @@ when preserving existing files is important.
   Reloaded roots are initially restored as **virtual snapshots**. For real
   disk reads/overwrites after reload, choose Open Folder again and reauthorize
   the same disk directory; it reconnects without discarding restored data.
-- Content is kept in browser-local storage; if browser storage is disabled,
-  cleared or its quota is exceeded, recovery cannot be guaranteed. A snapshot
-  write error is reported in the red status state.
+- Editor and Explorer now save snapshots primarily in IndexedDB with a
+  localStorage fallback; this avoids the smaller localStorage quota for large
+  workspace content. If both browser stores are disabled, cleared or full,
+  recovery cannot be guaranteed. Errors display as red status events.
 - No Cluster-v3 Host source files were changed in this release.
 
 ### Release verification
