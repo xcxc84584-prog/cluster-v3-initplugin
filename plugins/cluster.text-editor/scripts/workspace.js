@@ -285,6 +285,14 @@
   const normalize = value => value && typeof value === 'object' ? value : {};
   window.addEventListener('message', event => {
     const msg = normalize(event.data);
+    if(event.source===editor.contentWindow &&
+       msg.protocol==='cluster.workspace.status.v1' && msg.type==='cursor'){
+      const line=Number(msg.line),col=Number(msg.col);
+      if(Number.isSafeInteger(line)&&line>0&&Number.isSafeInteger(col)&&col>0)
+        document.getElementById('workbenchCursor').textContent=
+          'Ln '+line+', Col '+col;
+      return;
+    }
     // Host never receives raw workspace UI events: they stay between children.
     if (event.source === editor.contentWindow &&
         msg.protocol === 'cluster.editor.v1' && msg.type === 'event') {
