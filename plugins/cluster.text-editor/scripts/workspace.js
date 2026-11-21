@@ -371,6 +371,11 @@
     const msg = normalize(event.data);
     if(event.source===explorer.contentWindow &&
        msg.protocol==='cluster.workspace.sync.v1' && msg.type==='command'){
+      if(msg.action==='disk.reconnected'){
+        editor.contentWindow?.postMessage({protocol:'cluster.workspace.external.v1',
+          type:'reconnected',path:msg.params?.path},'*');
+        return;
+      }
       if(msg.action==='external.changed'){
         setProgress('loading',30);
         editor.contentWindow?.postMessage({protocol:'cluster.workspace.external.v1',
