@@ -143,6 +143,54 @@
     await parent.removeEntry(parts.at(-1),{recursive:Boolean(item.folder)});
   }
 
+  // Explicit Save-to-disk for workspace-only files and folders. The native
+  // picker is called directly from the Explorer row click (user activation).
+  async function saveWorkspaceItem(item) {
+    try {
+      if (isDiskBacked(item.path)) {
+        toast(t('磁碟來源已存在，請在編輯器直接儲存',
+          'Disk-backed item: use Editor Save to overwrite'));return;
+      }
+      if (item.folder) {
+        if (typeof window.showDirectoryPicker !== 'function')
+          throw Error(t('瀏覽器不支援選擇資料夾儲存位置',
+            'Browser cannot select a destination folder'));
+        const destination = await window.showDirectoryPicker({mode:'readwrite'});
+        const root = await destination.getDirectoryHandle(item.name,{create:true});
+        const folders = [...knownFolders].filter(path =>
+          path.startsWith(item.path+'/')).sort((a,b)=>a.length-b.length);
+        for (const folder of folders) {
+          const parts=folder.slice(item.path.length+1).split('/').filter(Boolean);
+          let current=root;
+          for (const part of parts)
+            current=await current.getDirectoryHandle(part,{create:true});
+        }
+        for (const [path,file] of entries) {
+          if(!path.startsWith(item.path+'/'))continue;
+          const parts=path.slice(item.path.length+1).split('/').filter(Boolean);
+          let current=root;
+          for(const part of parts.slice(0,-1))
+            current=await current.getDirectoryHandle(part,{create:true});
+          const target=await current.getFileHandle(parts.at(-1),{create:true});
+          const stream=await target.createWritable();
+          try{await stream.write(file.content);await stream.close();}
+          catch(error){try{await stream.abort();}catch{}throw error;}
+        }
+      } else {
+        if(typeof window.showSaveFilePicker !== 'function')
+          throw Error(t('瀏覽器不支援選擇檔案儲存位置',
+            'Browser cannot select a destination file'));
+        const target=await window.showSaveFilePicker({suggestedName:item.name});
+        const stream=await target.createWritable();
+        try{await stream.write(item.content);await stream.close();}
+        catch(error){try{await stream.abort();}catch{}throw error;}
+      }
+      toast(t('已儲存至選擇的磁碟位置','Saved to selected disk location'));
+    } catch(error) {
+      if(error?.name==='AbortError')return;
+      toast(t('儲存失敗：','Save failed: ')+String(error.message||error));
+    }
+  }
   const escapePath = path => path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   const parents = path => {
     const bits = path.split('/');
@@ -686,6 +734,8 @@
         rowAction('⧉',t('複製','Copy'),()=>setClipboard(item,false)),
         rowAction('✂',t('剪下','Cut'),()=>setClipboard(item,true)),
         rowAction('▣',t('貼上','Paste'),()=>pasteInto(item),!clipboard),
+        rowAction('↓',t('儲存至磁碟','Save to disk'),()=>void saveWorkspaceItem(item),
+          isDiskBacked(item.path)),
         rowAction('⊟',t('關閉','Close'),()=>closeEntry(item)),
         rowAction('⌫',t('刪除','Delete'),()=>deleteEntry(item))
       );
