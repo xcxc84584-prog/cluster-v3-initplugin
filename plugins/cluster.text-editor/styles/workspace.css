@@ -107,3 +107,49 @@ button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3
  .global-file-menu{width:min(230px,calc(100vw - 12px))}
  .workbench-footer{gap:7px;padding:0 8px;font-size:10px}
 }
+
+/* Cluster status transport: green synced, amber pending, red error, blue loading. */
+.workbench-progress{width:108px;height:7px;flex:none;border-radius:4px;
+  border:1px solid var(--ui-border);background:var(--ui-control);overflow:hidden}
+.workbench-progress>span{display:block;width:5%;height:100%;
+  background:var(--ui-accent);transition:width .2s ease,background-color .2s}
+.workbench-progress[data-state="synced"]>span{background:#42b883}
+.workbench-progress[data-state="pending"]>span{background:#e6b44f}
+.workbench-progress[data-state="error"]>span{background:#ee6060}
+.workbench-progress[data-state="loading"]>span{background:#4c9bfa}
+.workbench-progress-label{min-width:32px;font-size:10px;
+  color:var(--ui-muted-on-surface,var(--ui-text))}
+.workspace-option-dialog{position:fixed;z-index:120;width:min(430px,calc(100vw - 28px));
+ max-height:calc(100dvh - 28px);overflow:auto;border-radius:9px;
+ border:1px solid var(--ui-border);background:var(--ui-surface);
+ color:var(--ui-on-surface,var(--ui-text));padding:19px 20px;
+ box-shadow:0 24px 65px #0009;font-family:system-ui,"Microsoft JhengHei",sans-serif}
+.workspace-option-dialog::backdrop{background:#000b}
+.workspace-option-dialog header{display:flex;align-items:center;justify-content:space-between;
+ border-bottom:1px solid var(--ui-border);padding-bottom:12px;margin-bottom:11px}
+.workspace-option-dialog h2{font-size:16px;margin:0;color:var(--ui-text)}
+.workspace-option-dialog header button{border:0;background:var(--ui-control);
+ color:var(--ui-on-control,var(--ui-text));border-radius:5px;font-size:20px;
+ width:30px;height:30px;cursor:pointer}
+.workspace-option-dialog p{font-size:12px;line-height:1.7;
+ color:var(--ui-muted-on-surface,var(--ui-text))}
+.workspace-language-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.workspace-language-grid button{min-height:40px;border-radius:6px;
+ border:1px solid var(--ui-border);background:var(--ui-control);
+ color:var(--ui-on-control,var(--ui-text));cursor:pointer;padding:7px 9px;
+ text-align:left;font-size:12px}
+.workspace-language-grid button:hover,.workspace-language-grid button[aria-pressed="true"]{
+ background:var(--ui-hover);color:var(--ui-on-hover,var(--ui-text));
+ border-color:var(--ui-accent)}
+.workspace-priority-choice{display:flex;align-items:flex-start;gap:11px;
+ border:1px solid var(--ui-border);padding:13px;margin:9px 0;border-radius:7px;
+ background:var(--ui-panel);cursor:pointer}
+.workspace-priority-choice:has(input:checked){border-color:var(--ui-accent)}
+.workspace-priority-choice input{margin-top:3px;accent-color:var(--ui-accent)}
+.workspace-priority-choice span{display:grid;gap:5px;min-width:0}
+.workspace-priority-choice strong{font-size:13px}
+.workspace-priority-choice small{font-size:11px;line-height:1.6;
+ color:var(--ui-muted-on-panel,var(--ui-text))}
+@media(max-width:520px){.workbench-progress{width:68px}
+ .workbench-progress-label{display:none}
+ .workspace-language-grid{grid-template-columns:1fr}}
