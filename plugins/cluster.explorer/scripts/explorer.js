@@ -37,7 +37,15 @@
     '未能關閉文件':['Could not close file','Impossible de fermer','ファイルを閉じられません','No se puede cerrar','फ़ाइल बंद नहीं हुई'],
     '輸入名稱':['Enter name','Saisir le nom','名前を入力','Introduzca nombre','नाम दर्ज करें'],
     '名稱已存在':['Name already exists','Nom déjà utilisé','名前は既に存在します','El nombre ya existe','नाम पहले से है'],
-    '無法開啟編輯器：':['Cannot open editor: ','Impossible d’ouvrir l’éditeur : ','エディターを開けません：','No se puede abrir el editor: ','संपादक नहीं खुला: ']
+    '無法開啟編輯器：':['Cannot open editor: ','Impossible d’ouvrir l’éditeur : ','エディターを開けません：','No se puede abrir el editor: ','संपादक नहीं खुला: '],
+    '檔案總管':['Explorer','Explorateur','エクスプローラー','Explorador','फ़ाइल एक्सप्लोरर'],
+    '尚無文件':['No files','Aucun fichier','ファイルがありません','Sin archivos','कोई फ़ाइल नहीं'],
+    '文件數量':['File count','Nombre de fichiers','ファイル数','Número de archivos','फ़ाइल संख्या'],
+    '檔案清單':['File list','Liste de fichiers','ファイル一覧','Lista de archivos','फ़ाइल सूची'],
+    '儲存至磁碟':['Save to disk','Enregistrer sur disque','ディスクに保存','Guardar en disco','डिस्क में सहेजें'],
+    '已開啟：':['Opened: ','Ouvert : ','開きました：','Abierto: ','खुला: '],
+    '正在開啟：':['Opening: ','Ouverture : ','開いています：','Abriendo: ','खोला जा रहा: '],
+    '工作區':['Workspace','Espace de travail','ワークスペース','Espacio de trabajo','कार्यक्षेत्र']
   };
   const languageIndex={en:0,fr:1,ja:2,es:3,hi:4};
   const t = (zh,en) => locale.startsWith('zh') ? zh :
@@ -63,6 +71,8 @@
   // Only files enumerated from a user-authorized directory are disk-backed.
   const diskRoots = new Map(); // imported root path -> FileSystemDirectoryHandle
   const diskPaths = new Set(); // canonical names observed on disk
+  const diskSnapshots = new Map();
+  let externalScanOffset=0;
   const hasDiskOrigin = path => [...diskRoots].some(([root]) =>
     path === root || path.startsWith(root + '/'));
   const isDiskBacked = path => diskRoots.has(path) || diskPaths.has(path);
@@ -95,7 +105,7 @@
           const file=await child.getFile();
           if(!TYPES.test(name) || file.size>MAX_FILE) continue;
           try { rows.push([path,new TextDecoder('utf-8',{fatal:true})
-            .decode(await file.arrayBuffer())]); }
+            .decode(await file.arrayBuffer()),file.lastModified,file.size]); }
           catch { /* Unsupported file: do not pretend it is editable. */ }
         }
       }
@@ -104,7 +114,10 @@
     knownFolders.add(base);
     diskRoots.set(base,handle);
     for(const folder of folders){ knownFolders.add(folder);diskPaths.add(folder); }
-    for(const [path,content] of rows){ addFile(path,content);diskPaths.add(path); }
+    for(const [path,content,modified,size] of rows){
+      addFile(path,content);diskPaths.add(path);
+      diskSnapshots.set(path,{modified,size});
+    }
     expanded.add(base);
     render();
     toast(t(`已連結磁碟資料夾：${base}`,
@@ -246,7 +259,8 @@
         else for (const [key, item] of openDocuments)
           if (String(item.id) === String(data.data.id)) openDocuments.delete(key);
       } else if (doc && (data.event === 'tab.activated' ||
-          data.event === 'document.changed' || data.event === 'document.saved')) {
+          data.event === 'document.changed' || data.event === 'document.saved' ||
+          data.event === 'document.externalSynced')) {
         const targetPath = path || [...openDocuments].find(([,x])=>
           String(x.id) === String(doc.id))?.[0] || canonical(doc.name);
         if (targetPath) {
@@ -315,6 +329,8 @@
       try{await writable.write(content);await writable.close();}
       catch(error){try{await writable.abort();}catch{}throw error;}
       entries.get(path).content=content;
+      const updated=await handle.getFile();
+      diskSnapshots.set(path,{modified:updated.lastModified,size:updated.size});
       result(true);
     })().catch(error=>result(false,String(error.message||error)));
   });
@@ -772,8 +788,9 @@
     }
     $('empty').hidden = entries.size > 0 || knownFolders.size > 0 || !!query || !!inlineEdit;
     $('fileCount').textContent = String(entries.size);
+    scheduleExplorerSave();
     const roots = [...knownFolders].filter(value => value && !value.includes('/'));
-    $('workspaceName').textContent = roots.length === 1 ? roots[0] : 'WORKSPACE';
+    $('workspaceName').textContent = roots.length === 1 ? roots[0] : t('工作區','Workspace');
   }
   async function openFile(item) {
     const alreadyOpen = openDocuments.get(item.path);
@@ -781,13 +798,14 @@
       sendWorkspace('tabs.activate', {id:String(alreadyOpen.id)});
       return;
     }
-    setStatus('OPENING ' + item.name);
+    setStatus(t('正在開啟：','Opening: ')+item.name);
     try {
       const reply = await hostRequest('Router.request', 'cluster.text-editor', 'document.open',
         {name:item.name, path:'/' + item.path, content:item.content,
           diskBacked:diskPaths.has(item.path)});
       if (!reply.ok) throw new Error(reply.error?.message || 'Router.request failed');
-      setStatus('OPENED ' + item.name); toast('已開啟：' + item.name);
+      setStatus(t('已開啟：','Opened: ')+item.name);
+      toast(t('已開啟：','Opened: ')+item.name);
     } catch (error) {
       setStatus('ROUTER UNAVAILABLE');
       toast('無法開啟編輯器：' + String(error.message || error) + '。請確認 Host 路由及編輯器已裝載。');
@@ -830,13 +848,99 @@
       $(id).title=label;$(id).setAttribute('aria-label',label);
     }
     $('search').placeholder=t('搜尋文件','Search files');
+    $('search').setAttribute('aria-label',$('search').placeholder);
+    document.querySelector('.legacy-heading > span').textContent=t('檔案總管','Explorer');
+    $('empty').querySelector('span').textContent=t('尚無文件','No files');
+    $('tree').setAttribute('aria-label',t('檔案清單','File list'));
+    $('fileCount').setAttribute('aria-label',t('文件數量','File count'));
+    $('collapseNotice').setAttribute('aria-label',t('收合檔案總管','Collapse Explorer'));
+    document.documentElement.lang=locale;
     $('collapseNotice').title=t('收合檔案總管','Collapse explorer');
   }
   document.addEventListener('cluster-public-properties',event=>{
     if(event.detail?.language){locale=event.detail.language;updateLanguage();render();}
   });
+  // Snapshots restore the virtual tree; browser disk handles require reauthorization.
+  const EXPLORER_SESSION_KEY='cluster.explorer.workspace.v2';
+  let explorerSaveTimer=null,restoringExplorer=false,initialTreeScroll=0;
+  function saveExplorerNow(){
+    try {
+      localStorage.setItem(EXPLORER_SESSION_KEY,JSON.stringify({
+        schema:2,selectedPath,expanded:[...expanded],
+        folders:[...knownFolders],
+        files:[...entries.values()].map(x=>({path:x.path,content:x.content})),
+        manualOrder:[...manualOrder],treeScroll:$('tree').scrollTop,
+        search:$('search').value
+      }));
+    }catch(error){
+      sendWorkspace('workspace.error',{message:'Explorer snapshot: '+String(error.message||error)});
+    }
+  }
+  function scheduleExplorerSave(){
+    if(restoringExplorer)return;
+    clearTimeout(explorerSaveTimer);
+    explorerSaveTimer=setTimeout(saveExplorerNow,220);
+  }
+  function restoreExplorer(){
+    let snap;try{snap=JSON.parse(localStorage.getItem(EXPLORER_SESSION_KEY)||'null');}
+    catch{return;}
+    if(snap?.schema!==2 || !Array.isArray(snap.files) || snap.files.length>3000)return;
+    restoringExplorer=true;
+    for(const folder of snap.folders||[]){
+      if(typeof folder==='string' && folder && !folder.includes('..'))
+        knownFolders.add(folder);
+    }
+    for(const file of snap.files){
+      if(typeof file.path==='string' && typeof file.content==='string' &&
+         !file.path.includes('..') && file.content.length<=MAX_FILE)
+        addFile(file.path,file.content);
+    }
+    for(const folder of snap.expanded||[])
+      if(typeof folder==='string')expanded.add(folder);
+    for(const pair of snap.manualOrder||[])
+      if(Array.isArray(pair) && typeof pair[0]==='string' &&
+        Array.isArray(pair[1]))manualOrder.set(pair[0],pair[1]);
+    selectedPath=typeof snap.selectedPath==='string'?snap.selectedPath:null;
+    initialTreeScroll=Math.max(0,Number(snap.treeScroll)||0);
+    $('search').value=typeof snap.search==='string'?snap.search:'';
+    restoringExplorer=false;
+  }
+  // Disk polling is read-only; only previously-authorized paths are queried.
+  async function inspectExternalChanges(){
+    if(document.visibilityState==='hidden' || !diskRoots.size)return;
+    const paths=[...diskSnapshots.keys()];
+    if(!paths.length)return;
+    const portion=paths.slice(externalScanOffset,externalScanOffset+50);
+    externalScanOffset=(externalScanOffset+portion.length)%paths.length;
+    for(const path of portion){
+      const origin=diskOrigin(path);
+      if(!origin || !diskPaths.has(path))continue;
+      try{
+        const parts=origin.relative.split('/').filter(Boolean);
+        let directory=origin.handle;
+        for(const folder of parts.slice(0,-1))
+          directory=await directory.getDirectoryHandle(folder);
+        const handle=await directory.getFileHandle(parts.at(-1));
+        const file=await handle.getFile();
+        const last=diskSnapshots.get(path);
+        if(file.lastModified===last?.modified && file.size===last?.size)continue;
+        diskSnapshots.set(path,{modified:file.lastModified,size:file.size});
+        if(file.size>MAX_FILE)continue;
+        const content=new TextDecoder('utf-8',{fatal:true})
+          .decode(await file.arrayBuffer());
+        sendWorkspace('external.changed',{path:'/'+path,content});
+      }catch(error){
+        sendWorkspace('workspace.error',{message:String(error.message||error)});
+      }
+    }
+  }
+  setInterval(()=>void inspectExternalChanges(),8000);
+  $('tree').addEventListener('scroll',scheduleExplorerSave,{passive:true});
+  window.addEventListener('pagehide',saveExplorerNow);
+  restoreExplorer();
   updateLanguage();
   // The Host PRMU palette and locale are authoritative; no local theme preferences.
 
   render();
+  $('tree').scrollTop=initialTreeScroll;
 })();
