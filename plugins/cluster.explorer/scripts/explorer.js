@@ -884,28 +884,67 @@
   });
   // Snapshots restore the virtual tree; browser disk handles require reauthorization.
   const EXPLORER_SESSION_KEY='cluster.explorer.workspace.v2';
+  const EXPLORER_DB='cluster-v3-plugin-workspace';
   let explorerSaveTimer=null,restoringExplorer=false,initialTreeScroll=0;
+  let explorerSnapshotFailure=false;
+  function snapshotDB(mode, operation) {
+    return new Promise((resolve,reject)=>{
+      if(typeof indexedDB==='undefined'){
+        reject(Error('IndexedDB unavailable'));return;
+      }
+      const open=indexedDB.open(EXPLORER_DB,1);
+      open.onupgradeneeded=()=>{
+        if(!open.result.objectStoreNames.contains('snapshots'))
+          open.result.createObjectStore('snapshots');
+      };
+      open.onerror=()=>reject(open.error||Error('IndexedDB open failed'));
+      open.onsuccess=()=>{
+        const db=open.result;
+        try{
+          const tx=db.transaction('snapshots',mode);
+          const request=operation(tx.objectStore('snapshots'));
+          tx.oncomplete=()=>{db.close();resolve(request?.result);};
+          tx.onerror=()=>{db.close();reject(tx.error||Error('Snapshot transaction failed'));};
+          tx.onabort=()=>{db.close();reject(tx.error||Error('Snapshot transaction aborted'));};
+        }catch(error){db.close();reject(error);}
+      };
+    });
+  }
   function saveExplorerNow(){
-    try {
-      localStorage.setItem(EXPLORER_SESSION_KEY,JSON.stringify({
-        schema:2,selectedPath,expanded:[...expanded],
-        folders:[...knownFolders],
-        files:[...entries.values()].map(x=>({path:x.path,content:x.content})),
-        manualOrder:[...manualOrder],treeScroll:$('tree').scrollTop,
-        search:$('search').value
-      }));
-    }catch(error){
-      sendWorkspace('workspace.error',{message:'Explorer snapshot: '+String(error.message||error)});
-    }
+    if(restoringExplorer)return;
+    const snapshot={
+      schema:2,selectedPath,expanded:[...expanded],
+      folders:[...knownFolders],
+      files:[...entries.values()].map(x=>({path:x.path,content:x.content})),
+      manualOrder:[...manualOrder],treeScroll:$('tree').scrollTop,
+      search:$('search').value
+    };
+    let localSaved=false;
+    try{
+      localStorage.setItem(EXPLORER_SESSION_KEY,JSON.stringify(snapshot));
+      localSaved=true;
+    }catch{}
+    void snapshotDB('readwrite',store=>store.put(snapshot,EXPLORER_SESSION_KEY))
+      .then(()=>{explorerSnapshotFailure=false;})
+      .catch(error=>{
+        if(!localSaved && !explorerSnapshotFailure){
+          explorerSnapshotFailure=true;
+          sendWorkspace('workspace.error',{message:'Explorer snapshot failed: '+
+            String(error?.message||error)});
+        }
+      });
   }
   function scheduleExplorerSave(){
     if(restoringExplorer)return;
     clearTimeout(explorerSaveTimer);
     explorerSaveTimer=setTimeout(saveExplorerNow,220);
   }
-  function restoreExplorer(){
-    let snap;try{snap=JSON.parse(localStorage.getItem(EXPLORER_SESSION_KEY)||'null');}
-    catch{return;}
+  function restoreExplorer(override){
+    let snap=override;
+    if(!snap){
+      try{snap=JSON.parse(localStorage.getItem(EXPLORER_SESSION_KEY)||'null');}
+      catch{return;}
+    }
     if(snap?.schema!==2 || !Array.isArray(snap.files) || snap.files.length>3000)return;
     restoringExplorer=true;
     for(const folder of snap.folders||[]){
@@ -915,7 +954,7 @@
     for(const file of snap.files){
       if(typeof file.path==='string' && typeof file.content==='string' &&
          !file.path.includes('..') && file.content.length<=MAX_FILE)
-        addFile(file.path,file.content);
+        if(!entries.has(file.path))addFile(file.path,file.content);
     }
     for(const folder of snap.expanded||[])
       if(typeof folder==='string')expanded.add(folder);
@@ -964,10 +1003,16 @@
   setInterval(()=>void inspectExternalChanges(),8000);
   $('tree').addEventListener('scroll',scheduleExplorerSave,{passive:true});
   window.addEventListener('pagehide',saveExplorerNow);
-  restoreExplorer();
-  updateLanguage();
+  restoringExplorer=true;
+  void (async()=>{
+    let indexed=null;
+    try{indexed=await snapshotDB('readonly',
+      store=>store.get(EXPLORER_SESSION_KEY));}catch{}
+    restoreExplorer(indexed);
+    restoringExplorer=false;
+    updateLanguage();
+    render();
+    $('tree').scrollTop=initialTreeScroll;
+  })();
   // The Host PRMU palette and locale are authoritative; no local theme preferences.
-
-  render();
-  $('tree').scrollTop=initialTreeScroll;
 })();
