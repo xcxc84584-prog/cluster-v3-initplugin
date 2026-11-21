@@ -20,7 +20,7 @@ No Host source code changes are needed when publishing additional plugins.
 ## Existing plugins
 
 - `plugins/cluster.explorer/`: Explorer v2.4.0
-- `plugins/cluster.text-editor/`: BasicTextEditor v2.9.0
+- `plugins/cluster.text-editor/`: BasicTextEditor v2.9.1
 
 Both are independent Folder packages. The embedded Editor module's nested
 manifest was omitted to prevent treating that module as another plugin.
@@ -88,3 +88,12 @@ when preserving existing files is important.
 The `Initplugin regression` GitHub Action checks manifests, JavaScript syntax,
 embedded Editor parity, reload and cursor state handling, external priority
 routing, modal structure and four-color progress states.
+
+## Editor 2.9.1 and LOG audit
+
+- A fresh Editor now starts with the empty-state hint and **no Untitled file**
+  created automatically. Existing saved tabs are still restored on reload.
+- A source-based coverage review is available at
+  [docs/LOG-Audit-2026-11-21.md](docs/LOG-Audit-2026-11-21.md).
+- Complete per-event/API logging is **not** currently implemented; the audit
+  identifies what Host Router/ELOG covers and what still needs instrumentation.
