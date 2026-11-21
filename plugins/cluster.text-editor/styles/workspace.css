@@ -74,3 +74,36 @@ button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3
 .workspace-delete-actions button:hover{background:var(--ui-hover);color:var(--ui-on-hover,var(--ui-text))}
 .workspace-delete-actions button.danger{border-color:var(--ui-accent)}
 .workspace-delete-actions button:disabled{opacity:.4;cursor:not-allowed}
+
+/* v2.8: File menu adapts to short/zoomed viewports, remaining keyboard-scrollable. */
+.global-file-menu{
+  box-sizing:border-box;
+  max-height:min(74dvh,calc(100dvh - 72px));
+  max-width:calc(100vw - 12px);
+  overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  scrollbar-color:var(--ui-border) transparent;
+  grid-auto-rows:max-content;
+}
+.global-file-menu:focus-visible{outline:2px solid var(--ui-accent)}
+.global-file-menu button{min-width:0;white-space:normal;overflow-wrap:anywhere;flex-shrink:0}
+.language-menu{min-height:min-content;overflow:visible}
+.workbench{min-height:0}
+/* Editor footer belongs to the entire workspace: Explorer + Editor. */
+.workbench-footer{
+  flex:none;display:flex;align-items:center;gap:12px;
+  width:100%;height:29px;min-height:29px;padding:0 12px;
+  border-top:1px solid var(--ui-border);
+  background:var(--ui-surface);color:var(--ui-muted-on-surface,var(--ui-text));
+  font:11px Consolas,monospace;white-space:nowrap;overflow:hidden;
+}
+.workbench-footer .status-title{color:var(--ui-accent);font-weight:700}
+.workbench-footer .status-spacer{flex:1}
+.workbench-footer .status-cursor{color:var(--ui-text)}
+@media (max-height:520px){
+ .global-file-menu{max-height:calc(100dvh - 62px)}
+ .workbench-footer{height:25px;min-height:25px}
+}
+@media (max-width:440px){
+ .global-file-menu{width:min(230px,calc(100vw - 12px))}
+ .workbench-footer{gap:7px;padding:0 8px;font-size:10px}
+}
