@@ -248,7 +248,8 @@
       type:'save-result',requestId,ok,error:error||null},'*');
     (async()=>{
       if(!diskPaths.has(path)||!entries.has(path))
-        throw Error(t('此文件未授權寫入磁碟','File has no authorized disk destination'));
+        throw Error(t('此文件沒有磁碟來源，請選擇儲存位置',
+          'No disk location for this file; choose a save destination'));
       const origin=diskOrigin(path);
       if(!origin?.relative)throw Error('Missing authorized parent');
       const pieces=origin.relative.split('/').filter(Boolean);
@@ -733,7 +734,8 @@
     setStatus('OPENING ' + item.name);
     try {
       const reply = await hostRequest('Router.request', 'cluster.text-editor', 'document.open',
-        {name:item.name, path:'/' + item.path, content:item.content});
+        {name:item.name, path:'/' + item.path, content:item.content,
+          diskBacked:diskPaths.has(item.path)});
       if (!reply.ok) throw new Error(reply.error?.message || 'Router.request failed');
       setStatus('OPENED ' + item.name); toast('已開啟：' + item.name);
     } catch (error) {
