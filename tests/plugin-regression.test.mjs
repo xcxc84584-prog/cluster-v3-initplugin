@@ -87,7 +87,7 @@ test('Editor and Explorer persist reload snapshots and positions',()=>{
   assert.match(editor,/scrollLeft:tab\.scrollLeft/);
   assert.match(editor,/requestAnimationFrame\(\(\)=>/);
   assert.match(explorer,/EXPLORER_SESSION_KEY='cluster\.explorer\.workspace\.v2'/);
-  assert.match(explorer,/restoreExplorer\(\)/);
+  assert.match(explorer,/restoreExplorer\(indexed\)/);
   assert.match(explorer,/treeScroll:\$\('tree'\)\.scrollTop/);
 });
 
@@ -121,4 +121,21 @@ test('embedded Editor source matches standalone source',()=>{
   const decoded=encoded.replaceAll('&quot;','"').replaceAll('&gt;','>')
     .replaceAll('&lt;','<').replaceAll('&amp;','&');
   assert.equal(decoded,editor);
+});
+
+test('browser-local restore has durable IndexedDB with localStorage fallback',()=>{
+  assert.match(editor,/indexedDB\.open\(SNAPSHOT_DB,1\)/);
+  assert.match(explorer,/indexedDB\.open\(EXPLORER_DB,1\)/);
+  assert.match(editor,/store=>store\.put\(snapshot,SESSION_KEY\)/);
+  assert.match(explorer,/store=>store\.put\(snapshot,EXPLORER_SESSION_KEY\)/);
+  assert.match(editor,/store=>store\.get\(SESSION_KEY\)/);
+  assert.match(explorer,/store=>store\.get\(EXPLORER_SESSION_KEY\)/);
+  assert.match(editor,/localStorage\.setItem\(SESSION_KEY/);
+  assert.match(explorer,/localStorage\.setItem\(EXPLORER_SESSION_KEY/);
+  assert.match(editor,/await bootReady/);
+});
+test('external-first refreshes unopened files as well as open tabs',()=>{
+  assert.match(explorer,/storagePriority==='external' && entries\.has\(path\)/);
+  assert.match(explorer,/sendWorkspace\('external\.changed'/);
+  assert.match(editor,/document\.externalSynced/);
 });
