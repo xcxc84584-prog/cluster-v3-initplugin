@@ -141,8 +141,16 @@
   window.addEventListener('message', event => {
     if (event.source !== parent) return;
     if (event.data?.protocol === 'cluster.workspace.external.v1') {
-      if (event.data.type!=='changed')return;
       const changed=event.data;
+      if(changed.type==='reconnected') {
+        const authorized=[...tabs.values()].find(tab=>tab.path===changed.path);
+        if(authorized) {
+          authorized.diskBacked=true;
+          scheduleSessionSave();
+        }
+        return;
+      }
+      if (changed.type!=='changed')return;
       const tab=[...tabs.values()].find(x=>x.path===changed.path);
       if(!tab || typeof changed.content!=='string')return;
       if(changed.strategy!=='external') {
