@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.7.0",
-  "description": "Editor-owned deletion dialog, shared languages, plugins link, disk overwrite save",
+  "version": "2.8.0",
+  "description": "Scrollable File menu, smart save destination and shared Cluster status bar",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
