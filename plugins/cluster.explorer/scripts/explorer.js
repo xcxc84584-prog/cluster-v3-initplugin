@@ -938,6 +938,11 @@
         if(file.size>MAX_FILE)continue;
         const content=new TextDecoder('utf-8',{fatal:true})
           .decode(await file.arrayBuffer());
+        // An unopened file also follows the externally authoritative copy.
+        if(storagePriority==='external' && entries.has(path)){
+          entries.get(path).content=content;
+          render();
+        }
         sendWorkspace('external.changed',{path:'/'+path,content});
       }catch(error){
         sendWorkspace('workspace.error',{message:String(error.message||error)});
