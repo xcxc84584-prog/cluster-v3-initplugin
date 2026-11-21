@@ -1282,7 +1282,17 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     catch{}
     if(!restoreSession(indexed)){
       tabs.clear();
-      if(!restoreSession()) {tabs.clear();newFile();}
+      if(!restoreSession())tabs.clear();
+    }
+    if(tabs.size===0){
+      activeId=null;
+      editor.value='';
+      editor.readOnly=true;
+      $('emptyHint').hidden=false;
+      renderTabs();
+      renderLines();
+      renderCursor();
+      setStatus(t('ready'));
     }
   })();
 })();
