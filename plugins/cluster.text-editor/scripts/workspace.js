@@ -339,10 +339,10 @@
     saveWorkspaceOptions();
   };
   toggle.addEventListener('click', () => setSidebar(sidebar.classList.contains('collapsed')));
-  if(restoredOptions?.collapsed===true)setSidebar(false);
   if(typeof restoredOptions?.sidebarWidth==='string' &&
      /^[0-9]+(?:\.[0-9]+)?px$/.test(restoredOptions.sidebarWidth))
     sidebar.style.setProperty('--sidebar-width',restoredOptions.sidebarWidth);
+  if(restoredOptions?.collapsed===true)setSidebar(false);
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.key.toLowerCase() === 'b') {
       event.preventDefault(); toggle.click();
