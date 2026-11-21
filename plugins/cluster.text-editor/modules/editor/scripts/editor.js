@@ -510,6 +510,29 @@
     tab.name = handle.name || tab.name;
     updateSaved(tab);
   }
+  let diskSaveCounter=0;
+  const pendingDiskSaves=new Map();
+  function saveViaExplorer(tab){
+    if(!tab.path || parent===window)return Promise.reject(Error('No authorized file destination')); 
+    const requestId='disk-save-'+(++diskSaveCounter);
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>{
+        pendingDiskSaves.delete(requestId);reject(Error('Disk save timed out'));
+      },12000);
+      pendingDiskSaves.set(requestId,{resolve,reject,timer});
+      parent.postMessage({protocol:'cluster.workspace.file.v1',type:'save-request',
+        requestId,path:tab.path,content:tab.text},'*');
+    });
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==parent || event.data?.protocol!=='cluster.workspace.file.v1' ||
+       event.data.type!=='save-result')return;
+    const pending=pendingDiskSaves.get(event.data.requestId);
+    if(!pending)return;
+    clearTimeout(pending.timer);pendingDiskSaves.delete(event.data.requestId);
+    if(event.data.ok)pending.resolve(true);
+    else pending.reject(Error(String(event.data.error||'Disk save not authorized')));
+  });
   async function save() {
     closeMenu();
     captureTab();
@@ -521,6 +544,13 @@
         return;
       } catch (error) {
         toast(t('failed')+': '+String(error?.message||error));
+      }
+    }
+    if(tab.path){
+      try{await saveViaExplorer(tab);updateSaved(tab);return;}
+      catch(error){
+        // A direct save must not silently export or claim success.
+        toast(t('failed')+': '+String(error.message||error));return;
       }
     }
     await saveAs();

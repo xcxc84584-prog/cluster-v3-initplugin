@@ -104,3 +104,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ui-accent)!impo
 .node-actions{position:relative;z-index:1}
 .row-action{width:19px;height:22px;font-size:12px}
 .node:focus-within{background:var(--ui-hover)}
+
+/* No yellow or other edit-state marker in Explorer. */
+.opened-indicator,.node.is-dirty .opened-indicator{display:none!important}

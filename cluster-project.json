@@ -4,12 +4,12 @@
   "plugins": [
     {
       "id": "cluster.explorer",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "directory": "plugins/cluster.explorer"
     },
     {
       "id": "cluster.text-editor",
-      "version": "2.6.0",
+      "version": "2.7.0",
       "directory": "plugins/cluster.text-editor"
     }
   ]

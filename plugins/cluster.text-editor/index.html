@@ -14,9 +14,16 @@
 <button data-file-action="close" role="menuitem" type="button">關閉文件</button>
 <div class="file-separator"></div>
 <button data-file-action="palette" role="menuitem" type="button">介面調色盤</button>
-<button data-file-action="language" role="menuitem" type="button" aria-expanded="false" aria-controls="workspaceLanguageMenu">語言 / Language ▸</button>
-<div id="workspaceLanguageMenu" class="language-menu" hidden role="group" aria-label="Language"><button type="button" data-locale="zh-TW">繁體中文</button><button type="button" data-locale="en">English</button><button type="button" data-locale="fr">Français</button><button type="button" data-locale="ja">日本語</button><button type="button" data-locale="es">Español</button><button type="button" data-locale="hi">हिन्दी</button></div>
+<button data-file-action="plugin" role="menuitem" type="button">Plugin</button>
+<button aria-controls="workspaceLanguageMenu" aria-expanded="false" data-file-action="language" role="menuitem" type="button">語言 / Language ▸</button>
+<div aria-label="Language" class="language-menu" hidden="" id="workspaceLanguageMenu" role="group"><button data-locale="zh-TW" type="button">繁體中文</button><button data-locale="en" type="button">English</button><button data-locale="fr" type="button">Français</button><button data-locale="ja" type="button">日本語</button><button data-locale="es" type="button">Español</button><button data-locale="hi" type="button">हिन्दी</button></div>
 </div></div><span hidden="True" id="registryState"></span></header>
+<dialog aria-labelledby="workspaceDeleteTitle" class="workspace-delete-dialog" id="workspaceDeleteDialog">
+<h2 id="workspaceDeleteTitle">確認刪除</h2><p id="workspaceDeleteName"></p>
+<p id="workspaceDeleteDetail"></p>
+<div class="workspace-delete-actions"><button id="workspaceDeleteCancel" type="button">取消</button>
+<button class="danger" id="workspaceDeleteConfirm" type="button">刪除</button></div>
+</dialog>
 <section class="workbench-main"><aside aria-label="Explorer" class="sidebar" id="sidebar"><div class="connect-panel" id="connectPanel"><strong>EXPLORER</strong><p id="connectMessage">正在透過公共庫查詢 Explorer 插件…</p><button id="retryDiscovery" type="button">重新偵測</button></div><iframe hidden="" id="explorerFrame" title="Explorer plugin"></iframe></aside><div aria-label="調整側欄寬度" aria-orientation="vertical" id="divider" role="separator" tabindex="0"></div><section aria-label="BasicTextEditor" class="editor-pane"><iframe id="editorFrame" srcdoc="&lt;!DOCTYPE html&gt;
 
 &lt;html lang=&quot;zh-TW&quot;&gt;
@@ -870,6 +877,29 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     tab.name = handle.name || tab.name;
     updateSaved(tab);
   }
+  let diskSaveCounter=0;
+  const pendingDiskSaves=new Map();
+  function saveViaExplorer(tab){
+    if(!tab.path || parent===window)return Promise.reject(Error('No authorized file destination')); 
+    const requestId='disk-save-'+(++diskSaveCounter);
+    return new Promise((resolve,reject)=&gt;{
+      const timer=setTimeout(()=&gt;{
+        pendingDiskSaves.delete(requestId);reject(Error('Disk save timed out'));
+      },12000);
+      pendingDiskSaves.set(requestId,{resolve,reject,timer});
+      parent.postMessage({protocol:'cluster.workspace.file.v1',type:'save-request',
+        requestId,path:tab.path,content:tab.text},'*');
+    });
+  }
+  window.addEventListener('message',event=&gt;{
+    if(event.source!==parent || event.data?.protocol!=='cluster.workspace.file.v1' ||
+       event.data.type!=='save-result')return;
+    const pending=pendingDiskSaves.get(event.data.requestId);
+    if(!pending)return;
+    clearTimeout(pending.timer);pendingDiskSaves.delete(event.data.requestId);
+    if(event.data.ok)pending.resolve(true);
+    else pending.reject(Error(String(event.data.error||'Disk save not authorized')));
+  });
   async function save() {
     closeMenu();
     captureTab();
@@ -881,6 +911,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
         return;
       } catch (error) {
         toast(t('failed')+': '+String(error?.message||error));
+      }
+    }
+    if(tab.path){
+      try{await saveViaExplorer(tab);updateSaved(tab);return;}
+      catch(error){
+        // A direct save must not silently export or claim success.
+        toast(t('failed')+': '+String(error.message||error));return;
       }
     }
     await saveAs();

@@ -14,7 +14,35 @@
   let pendingRemoval = new Map();
   let inlineEdit = null; // {mode, path, folder, parent, value}
   let closingTree = null;
-  const t = (zh,en) => locale.startsWith('zh') ? zh : en;
+  // Host owns locale. Every visible label uses the common six-language contract.
+  const translations = {
+    '重新命名':['Rename','Renommer','名前を変更','Renombrar','नाम बदलें'],
+    '複製':['Copy','Copier','コピー','Copiar','कॉपी करें'],
+    '剪下':['Cut','Couper','切り取り','Cortar','काटें'],
+    '貼上':['Paste','Coller','貼り付け','Pegar','चिपकाएँ'],
+    '關閉':['Close','Fermer','閉じる','Cerrar','बंद करें'],
+    '刪除':['Delete','Supprimer','削除','Eliminar','हटाएँ'],
+    '建立資料夾':['New folder','Nouveau dossier','新しいフォルダー','Nueva carpeta','नया फ़ोल्डर'],
+    '建立文件':['New file','Nouveau fichier','新規ファイル','Nuevo archivo','नई फ़ाइल'],
+    '開啟資料夾':['Open folder','Ouvrir dossier','フォルダーを開く','Abrir carpeta','फ़ोल्डर खोलें'],
+    '開啟文件':['Open file','Ouvrir fichier','ファイルを開く','Abrir archivo','फ़ाइल खोलें'],
+    '重新整理並關閉已載入根目錄':['Refresh and close roots','Actualiser et fermer les racines','更新してルートを閉じる','Actualizar y cerrar raíces','रीफ़्रेश करें और रूट बंद करें'],
+    '搜尋文件':['Search files','Rechercher des fichiers','ファイルを検索','Buscar archivos','फ़ाइल खोजें'],
+    '收合檔案總管':['Collapse Explorer','Réduire Explorateur','エクスプローラーを閉じる','Ocultar explorador','एक्सप्लोरर बंद करें'],
+    '新增資料夾':['New folder','Nouveau dossier','新しいフォルダー','Nueva carpeta','नया फ़ोल्डर'],
+    '未命名.txt':['Untitled.txt','Sans titre.txt','無題.txt','Sin título.txt','बेनाम.txt'],
+    '取消':['Cancel','Annuler','キャンセル','Cancelar','रद्द करें'],
+    '確認刪除':['Confirm deletion','Confirmer la suppression','削除の確認','Confirmar eliminación','हटाने की पुष्टि'],
+    '刪除完成':['Deleted','Supprimé','削除しました','Eliminado','हटा दिया गया'],
+    '未能關閉文件':['Could not close file','Impossible de fermer','ファイルを閉じられません','No se puede cerrar','फ़ाइल बंद नहीं हुई'],
+    '輸入名稱':['Enter name','Saisir le nom','名前を入力','Introduzca nombre','नाम दर्ज करें'],
+    '名稱已存在':['Name already exists','Nom déjà utilisé','名前は既に存在します','El nombre ya existe','नाम पहले से है'],
+    '無法開啟編輯器：':['Cannot open editor: ','Impossible d’ouvrir l’éditeur : ','エディターを開けません：','No se puede abrir el editor: ','संपादक नहीं खुला: ']
+  };
+  const languageIndex={en:0,fr:1,ja:2,es:3,hi:4};
+  const t = (zh,en) => locale.startsWith('zh') ? zh :
+    (translations[zh]?.[languageIndex[locale]] || en);
+
 
   const openDocuments = new Map(); // canonical path -> editor document metadata
   const workspaceProtocol = 'cluster.workspace.sync.v1';
@@ -193,7 +221,7 @@
       if (pending) { clearTimeout(pending.timeout); requests.delete(data.requestId); pending.resolve(data); }
     }
     if (data.protocol === 'cluster.plugin.v1' && data.type === 'context') {
-      if (typeof data.language === 'string') { locale = data.language; updateLanguage(); }
+      if (typeof data.language === 'string') { locale = data.language; updateLanguage();render(); }
       if (data.pluginId === 'cluster.explorer') void registerServices();
     }
     if (data.protocol === 'cluster.plugin.v1' && data.type === 'invoke') {
@@ -210,6 +238,37 @@
   });
 
   $('collapseNotice').addEventListener('click', () => sendWorkspace('sidebar.toggle', {}));
+  window.addEventListener('message',event=>{
+    const data=event.data;
+    if(event.source!==parent||data?.protocol!=='cluster.workspace.file.v1'||
+      data.type!=='save-request')return;
+    const requestId=String(data.requestId||'');
+    const path=canonical(data.path);
+    const result=(ok,error)=>parent.postMessage({protocol:'cluster.workspace.file.v1',
+      type:'save-result',requestId,ok,error:error||null},'*');
+    (async()=>{
+      if(!diskPaths.has(path)||!entries.has(path))
+        throw Error(t('此文件未授權寫入磁碟','File has no authorized disk destination'));
+      const origin=diskOrigin(path);
+      if(!origin?.relative)throw Error('Missing authorized parent');
+      const pieces=origin.relative.split('/').filter(Boolean);
+      let directory=origin.handle;
+      // The granted folder handle is never serialized to the Editor.
+      if(typeof directory.queryPermission==='function' &&
+         await directory.queryPermission({mode:'readwrite'})!=='granted')
+        throw Error(t('目錄尚未取得讀寫權限','Directory write permission not granted'));
+      for(const segment of pieces.slice(0,-1))
+        directory=await directory.getDirectoryHandle(segment);
+      const handle=await directory.getFileHandle(pieces.at(-1));
+      const content=String(data.content||'');
+      if(new Blob([content]).size>MAX_FILE)throw Error('File exceeds size limit');
+      const writable=await handle.createWritable();
+      try{await writable.write(content);await writable.close();}
+      catch(error){try{await writable.abort();}catch{}throw error;}
+      entries.get(path).content=content;
+      result(true);
+    })().catch(error=>result(false,String(error.message||error)));
+  });
   window.addEventListener('message', event => {
     if (event.source !== parent || event.data?.protocol !== workspaceProtocol ||
         event.data.type !== 'control') return;
@@ -366,32 +425,34 @@
     toast(t('已關閉所有資料夾根目錄','All folder roots closed'));
   }
   function deleteEntry(item) {
-    const dlg=$('deleteDialog');
-    $('deleteTarget').textContent=item.name;
     const origin=diskOrigin(item.path);
+    let detail, allowed=true;
     if(origin && diskRoots.has(item.path)) {
-      $('deleteDescription').textContent=t(
-        '此項目是已授權根目錄。瀏覽器不能透過該目錄自身的權限刪除它；請關閉根目錄，或先授權其父目錄。',
-        'This is an authorized root. To delete the root itself, authorize its parent directory. You can close this root instead.');
-      $('deleteConfirm').disabled=true;
+      detail=t('已授權的根目錄無法透過自身權限刪除，請先授權其父目錄。',
+        'This authorized root cannot be deleted without parent-directory access.');
+      allowed=false;
     } else if(origin && diskPaths.has(item.path)) {
-      $('deleteDescription').textContent=t(
-        '將永久刪除本機磁碟原始'+(item.folder?'資料夾（包含所有子檔案，即使目前未顯示）':'檔案')+
-        '及編輯分頁。此操作不經過資源回收筒、無法復原。磁碟路徑：'+origin.root+'/'+origin.relative,
-        'Permanently delete the original '+(item.folder?'directory and ALL disk contents (including hidden items)':'file')+
-        ' and close its tabs. This bypasses the recycle bin and cannot be undone. Path: '+origin.root+'/'+origin.relative);
-      $('deleteConfirm').disabled=false;
+      detail=t('永久刪除磁碟原始檔案或資料夾（包括未顯示子項目），無法復原。',
+        'Permanently delete original disk content, including hidden children. This cannot be undone.');
+      detail+=' '+origin.root+'/'+origin.relative;
     } else {
-      $('deleteDescription').textContent=t(
-        '此項目沒有磁碟來源或刪除權限。僅刪除工作區內的副本及相關編輯分頁，不會刪除電腦上的原始檔案。',
-        'This item has no disk-delete authorization. Delete only the workspace copy and related tabs; the source file on disk is unchanged.');
-      $('deleteConfirm').disabled=false;
+      detail=t('僅刪除工作區中的項目，磁碟上的原始檔案不變。',
+        'Remove only the workspace copy; the disk original is unchanged.');
     }
-    dlg.dataset.path=item.path;
-    if(!dlg.open)dlg.showModal();
+    // Confirmation dialog belongs to the editor workspace, never Explorer.
+    sendWorkspace('delete.confirm',{path:item.path,name:item.name,folder:item.folder,
+      disk:Boolean(origin && diskPaths.has(item.path)),allowed,detail});
   }
-  async function deleteConfirmed() {
-    const path=$('deleteDialog').dataset.path;
+  window.addEventListener('message',event=>{
+    if(event.source!==parent||event.data?.protocol!==workspaceProtocol||
+       event.data.type!=='delete.decision'||event.data.approved!==true)return;
+    const path=String(event.data.path||'');
+    // Confirm only a still-visible exact path; no stale selection fallback.
+    if(!visibleTree().some(item=>item.path===path))return;
+    void deleteConfirmed(path).catch(error=>toast(t('刪除失敗，磁碟和工作區保持不變：',
+      'Delete failed; disk and workspace unchanged: ')+String(error.message||error)));
+  });
+  async function deleteConfirmed(path) {
     const item=visibleTree().find(node=>node.path===path);
     if(!item)return false;
     if(diskRoots.has(path))throw Error('Cannot delete authorized root without parent access');
@@ -608,7 +669,7 @@
       const live = !item.folder && openDocuments.get(item.path);
       if (live) row.classList.add('is-open');
       if (live?.active) row.classList.add('is-active');
-      if (live?.dirty) row.classList.add('is-dirty');
+
       const twist = document.createElement('span'); twist.className = 'twisty'; twist.textContent = item.folder ? (expanded.has(item.path) || query ? '⌄' : '›') : '';
       const icon = document.createElement('span'); icon.className = 'file-icon' + (item.folder ? ' folder' : ''); icon.textContent = item.folder ? '▣' : '◇';
       const label = document.createElement('span'); label.className = 'node-name'; label.textContent = item.name;
@@ -618,9 +679,6 @@
         row.replaceChild(wrapper,label);
         beginInline(wrapper,inlineEdit.value);
       }
-
-      if(live?.dirty){const mark=document.createElement('span');mark.className='opened-indicator';
-        mark.title='尚未儲存';mark.textContent='●';row.append(mark);}
       const tools=document.createElement('span');tools.className='node-actions';
       tools.append(
         rowAction('✎',t('重新命名','Rename'),()=>renameEntry(item)),
@@ -697,16 +755,6 @@
       if(item){event.preventDefault();renameEntry(item);}
     }
   });
-  $('deleteCancel').addEventListener('click',()=>$('deleteDialog').close('cancel'));
-  $('deleteConfirm').addEventListener('click',async()=>{
-    const button=$('deleteConfirm');
-    if(button.disabled)return;
-    button.disabled=true;
-    try { await deleteConfirmed(); $('deleteDialog').close('delete'); }
-    catch(error){ toast(t('刪除失敗，磁碟和工作區保持不變：',
-      'Delete failed; disk and workspace unchanged: ')+String(error.message||error)); }
-    finally { button.disabled=false; }
-  });
   $('refreshRoots').addEventListener('click',refreshTree);
   $('filesInput').addEventListener('change',e => { void importList([...e.target.files]); e.target.value=''; });
   $('folderInput').addEventListener('change',e => { void importList([...e.target.files]); e.target.value=''; });
@@ -730,11 +778,11 @@
       $(id).title=label;$(id).setAttribute('aria-label',label);
     }
     $('search').placeholder=t('搜尋文件','Search files');
-    $('deleteTitle').textContent=t('確認刪除','Confirm deletion');
-    $('deleteCancel').textContent=t('取消','Cancel');
-    $('deleteConfirm').textContent=t('刪除','Delete');
     $('collapseNotice').title=t('收合檔案總管','Collapse explorer');
   }
+  document.addEventListener('cluster-public-properties',event=>{
+    if(event.detail?.language){locale=event.detail.language;updateLanguage();render();}
+  });
   updateLanguage();
   // The Host PRMU palette and locale are authoritative; no local theme preferences.
 

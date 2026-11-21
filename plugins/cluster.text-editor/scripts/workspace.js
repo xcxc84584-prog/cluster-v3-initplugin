@@ -12,16 +12,18 @@
   const fileMenu=document.getElementById('globalFileMenu');
   const languageMenu=document.getElementById('workspaceLanguageMenu');
   const fileLocaleNames={
-    'zh-TW':['建立新文件','建立新檔（資料夾）','開啟舊文件','開啟舊檔（資料夾）','儲存','另存新檔','關閉文件','介面調色盤','語言'],
-    en:['New file','New folder','Open file','Open folder','Save','Save as','Close file','Interface palette','Language'],
-    fr:['Nouveau fichier','Nouveau dossier','Ouvrir fichier','Ouvrir dossier','Enregistrer','Enregistrer sous','Fermer','Palette','Langue'],
-    ja:['新しいファイル','新しいフォルダー','ファイルを開く','フォルダーを開く','保存','名前を付けて保存','閉じる','配色','言語'],
-    es:['Nuevo archivo','Nueva carpeta','Abrir archivo','Abrir carpeta','Guardar','Guardar como','Cerrar','Paleta','Idioma'],
-    hi:['नई फ़ाइल','नया फ़ोल्डर','फ़ाइल खोलें','फ़ोल्डर खोलें','सहेजें','इस रूप में सहेजें','बंद करें','रंग पैलेट','भाषा']
+    'zh-TW':['建立新文件','建立新檔（資料夾）','開啟舊文件','開啟舊檔（資料夾）','儲存','另存新檔','關閉文件','介面調色盤','插件','語言'],
+    en:['New file','New folder','Open file','Open folder','Save','Save as','Close file','Interface palette','Plugins','Language'],
+    fr:['Nouveau fichier','Nouveau dossier','Ouvrir fichier','Ouvrir dossier','Enregistrer','Enregistrer sous','Fermer','Palette','Plugins','Langue'],
+    ja:['新しいファイル','新しいフォルダー','ファイルを開く','フォルダーを開く','保存','名前を付けて保存','閉じる','配色','プラグイン','言語'],
+    es:['Nuevo archivo','Nueva carpeta','Abrir archivo','Abrir carpeta','Guardar','Guardar como','Cerrar','Paleta','Complementos','Idioma'],
+    hi:['नई फ़ाइल','नया फ़ोल्डर','फ़ाइल खोलें','फ़ोल्डर खोलें','सहेजें','इस रूप में सहेजें','बंद करें','रंग पैलेट','प्लगइन','भाषा']
   };
   function applyMenuLocale(lang){
-    const labels=fileLocaleNames[lang]||fileLocaleNames.en;
-    ['new','new-folder','open','open-folder','save','save-as','close','palette','language']
+    updateDeleteLocale(lang);
+    const labels=fileLocaleNames[lang] ||
+      (String(lang).startsWith('zh')?fileLocaleNames['zh-TW']:fileLocaleNames.en);
+    ['new','new-folder','open','open-folder','save','save-as','close','palette','plugin','language']
       .forEach((action,i)=>{
         const button=fileMenu.querySelector('[data-file-action="'+action+'"]');
         if(button)button.textContent=labels[i]+(action==='language'?' ▸':'');
@@ -48,8 +50,20 @@
   function showFileMenu(open) {
     fileMenu.hidden=!open;
     if(!open)languageMenu.hidden=true;
+    const toggle=fileMenu.querySelector('[data-file-action="language"]');
+    if(toggle)toggle.setAttribute('aria-expanded',String(open && !languageMenu.hidden));
     fileButton.setAttribute('aria-expanded',String(open));
   }
+  let pluginSiteUrl=null;
+  function openPluginManager(){
+    if(pluginSiteUrl){window.open(pluginSiteUrl,'_blank','noopener,noreferrer');return;}
+    // Explicitly obtain the canonical URL from PRMU; never guess /plugin.
+    if(parent!==window){
+      parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
+        requestId:'workspace-plugin-url',method:'PRMU.getPluginSiteUrl',args:[]},'*');
+    }
+  }
+
   function editorFile(action){
     editor.contentWindow?.postMessage({protocol:'cluster.workspace.file.v1',
       type:'command',action},'*');
@@ -59,6 +73,13 @@
       type:'control',action},'*');
   }
   function fileAction(action){
+    if(action==='language') {
+      const opening=languageMenu.hidden;
+      fileMenu.hidden=false;
+      languageMenu.hidden=!opening;
+      showFileMenu(true);
+      return;
+    }
     showFileMenu(false);
     if(action==='new')explorerFile('new-file');
     else if(action==='new-folder')explorerFile('new-folder');
@@ -74,7 +95,7 @@
         });
       } else document.getElementById('workspaceOpenFolder').click();
     }
-    else if(action==='language'){languageMenu.hidden=!languageMenu.hidden;showFileMenu(true);}
+    else if(action==='plugin')openPluginManager();
     else if(action==='palette')editorFile('palette');
     else editorFile(action);
   }
@@ -96,6 +117,8 @@
     });
   }
   fileButton.addEventListener('click',()=>showFileMenu(fileMenu.hidden));
+  // A click inside a child iframe does not bubble to the shell document.
+  window.addEventListener('blur',()=>showFileMenu(false));
   fileMenu.addEventListener('click',event=>{
     if(event.target.closest('[data-locale]'))return;
     const cmd=event.target.closest('button[data-file-action]')?.dataset.fileAction;
@@ -110,6 +133,31 @@
       event.preventDefault();fileAction('new');
     }
   });
+  const deleteDialog=document.getElementById('workspaceDeleteDialog');
+  let deleteRequest=null;
+  const deleteTranslations={
+    'zh-TW':['確認刪除','取消','刪除'],en:['Confirm deletion','Cancel','Delete'],
+    fr:['Confirmer la suppression','Annuler','Supprimer'],
+    ja:['削除の確認','キャンセル','削除'],es:['Confirmar eliminación','Cancelar','Eliminar'],
+    hi:['हटाने की पुष्टि','रद्द करें','हटाएँ']};
+  function updateDeleteLocale(lang){
+    const [heading,cancel,confirm]=deleteTranslations[lang]||deleteTranslations.en;
+    document.getElementById('workspaceDeleteTitle').textContent=heading;
+    document.getElementById('workspaceDeleteCancel').textContent=cancel;
+    document.getElementById('workspaceDeleteConfirm').textContent=confirm;
+  }
+  function closeDeleteDialog(approved){
+    const info=deleteRequest; deleteRequest=null;
+    if(deleteDialog.open)deleteDialog.close();
+    if(info&&approved)explorer.contentWindow?.postMessage({
+      protocol:'cluster.workspace.sync.v1',type:'delete.decision',
+      path:info.path,approved:true},'*');
+  }
+  document.getElementById('workspaceDeleteCancel').addEventListener('click',
+    ()=>closeDeleteDialog(false));
+  document.getElementById('workspaceDeleteConfirm').addEventListener('click',
+    ()=>closeDeleteDialog(true));
+  deleteDialog.addEventListener('cancel',()=>{deleteRequest=null;});
   const requests = new Map();
   const forwardRequests = new Map();
   let serial = 0;
@@ -248,8 +296,25 @@
         type:'event', event:msg.event, data:msg.data}, '*');
       return;
     }
+    if(event.source===editor.contentWindow &&
+       msg.protocol==='cluster.workspace.file.v1' && msg.type==='save-request'){
+      explorer.contentWindow?.postMessage(msg,'*');return;
+    }
+    if(event.source===explorer.contentWindow &&
+       msg.protocol==='cluster.workspace.file.v1' && msg.type==='save-result'){
+      editor.contentWindow?.postMessage(msg,'*');return;
+    }
     if (event.source === explorer.contentWindow &&
         msg.protocol === syncProtocol && msg.type === 'command') {
+      if(msg.action==='delete.confirm'){
+        const info=msg.params||{};
+        if(deleteDialog.open)deleteDialog.close();
+        deleteRequest=info;
+        document.getElementById('workspaceDeleteName').textContent=String(info.name||'');
+        document.getElementById('workspaceDeleteDetail').textContent=String(info.detail||'');
+        document.getElementById('workspaceDeleteConfirm').disabled=info.allowed===false;
+        deleteDialog.showModal();return;
+      }
       if (msg.action === 'sidebar.toggle') { toggle.click(); return; }
       if (msg.action === 'file.new') { fileAction('new'); return; }
       if (['document.close','tabs.activate','document.rename'].includes(msg.action) &&
@@ -260,6 +325,14 @@
     }
 
     if (event.source === parent && parent !== window) {
+      if(msg.protocol===hostProtocol && msg.type==='response' &&
+         msg.requestId==='workspace-plugin-url') {
+        if(msg.ok && typeof msg.data==='string')pluginSiteUrl=msg.data;
+        else if(msg.ok && typeof msg.data?.pluginSiteUrl==='string')
+          pluginSiteUrl=msg.data.pluginSiteUrl;
+        if(pluginSiteUrl)window.open(pluginSiteUrl,'_blank','noopener,noreferrer');
+        return;
+      }
       if (msg.protocol === hostProtocol && msg.type === 'response') {
         const pending = forwardRequests.get(msg.requestId);
         if (!pending) return;
@@ -270,6 +343,7 @@
         editor.contentWindow?.postMessage(msg, '*');
       } else if (msg.type === 'context' || msg.protocol === 'cluster.settings.context.v1') {
         lastHostContext = msg;
+        if(typeof msg.pluginSiteUrl==='string')pluginSiteUrl=msg.pluginSiteUrl;
         if(typeof msg.language==='string')applyMenuLocale(msg.language);
         explorer.contentWindow?.postMessage(msg, '*');
         editor.contentWindow?.postMessage(msg, '*');
@@ -354,7 +428,7 @@
 window.addEventListener('message',event=>{
   if(event.source!==parent || event.data?.protocol!=='cluster.public.v1')return;
   if(event.data.type!=='snapshot' && event.data.type!=='properties.changed')return;
-  if(typeof event.data.language==='string')document.documentElement.lang=event.data.language;
+  if(typeof event.data.language==='string')applyMenuLocale(event.data.language);
   for(const id of ['explorerFrame','editorFrame']){
     document.getElementById(id)?.contentWindow?.postMessage(event.data,'*');
   }

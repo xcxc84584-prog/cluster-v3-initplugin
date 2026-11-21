@@ -58,3 +58,19 @@ button:focus-visible,input:focus-visible {outline:2px solid var(--accent,#6f9be3
 .language-menu button{font-size:12px;text-align:left;min-height:30px}
 .language-menu button:hover,.language-menu button:focus-visible{
  background:var(--ui-hover)!important;color:var(--ui-on-hover,var(--ui-text))!important}
+
+/* Editor-owned confirmation UI; accessible contrast from PRMU palette. */
+.workspace-delete-dialog{position:fixed;z-index:100;width:min(410px,calc(100vw - 28px));
+ max-height:calc(100vh - 30px);overflow:auto;border:1px solid var(--ui-border);
+ border-radius:9px;background:var(--ui-surface);color:var(--ui-on-surface,var(--ui-text));
+ padding:21px 22px;box-shadow:0 18px 60px #0008}
+.workspace-delete-dialog::backdrop{background:#0009}
+.workspace-delete-dialog h2{margin:0 0 15px;font-size:17px}
+.workspace-delete-dialog p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+#workspaceDeleteDetail{color:var(--ui-muted-on-surface,var(--ui-text))}
+.workspace-delete-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:19px}
+.workspace-delete-actions button{padding:8px 14px;border-radius:6px;border:1px solid var(--ui-border);
+ background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));cursor:pointer}
+.workspace-delete-actions button:hover{background:var(--ui-hover);color:var(--ui-on-hover,var(--ui-text))}
+.workspace-delete-actions button.danger{border-color:var(--ui-accent)}
+.workspace-delete-actions button:disabled{opacity:.4;cursor:not-allowed}

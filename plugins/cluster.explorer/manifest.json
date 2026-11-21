@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.explorer",
   "name": "Cluster Explorer",
-  "version": "2.1.0",
-  "description": "Explorer with permission-gated physical disk deletion for authorized folders",
+  "version": "2.2.0",
+  "description": "Editor-owned delete confirmation; six-language Explorer; save authorized files",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
