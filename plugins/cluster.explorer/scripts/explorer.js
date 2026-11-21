@@ -73,6 +73,7 @@
   const diskPaths = new Set(); // canonical names observed on disk
   const diskSnapshots = new Map();
   let externalScanOffset=0;
+  let storagePriority='internal';
   const hasDiskOrigin = path => [...diskRoots].some(([root]) =>
     path === root || path.startsWith(root + '/'));
   const isDiskBacked = path => diskRoots.has(path) || diskPaths.has(path);
@@ -87,8 +88,9 @@
     if (!handle || handle.kind !== 'directory')
       throw new Error(t('無效的目錄權限','Invalid directory handle'));
     const base = escapePath(handle.name);
-    if (!base || exists(base))
+    if (!base || diskRoots.has(base))
       throw new Error(t('工作區已有同名根目錄，請先關閉','A root with this name already exists'));
+    const reconnecting=knownFolders.has(base);
     const rows=[];
     const folders=[];
     const MAX_ENTRIES=3000;
@@ -115,7 +117,12 @@
     diskRoots.set(base,handle);
     for(const folder of folders){ knownFolders.add(folder);diskPaths.add(folder); }
     for(const [path,content,modified,size] of rows){
-      addFile(path,content);diskPaths.add(path);
+      if(!entries.has(path))addFile(path,content);
+      else if(reconnecting && storagePriority==='external'){
+        entries.get(path).content=content;
+        sendWorkspace('external.changed',{path:'/'+path,content});
+      }
+      diskPaths.add(path);
       diskSnapshots.set(path,{modified,size});
     }
     expanded.add(base);
@@ -341,6 +348,8 @@
     if (action === 'new-folder') createEntry(true);
     if (action === 'new-file') createEntry(false);
     if (action === 'refresh') refreshTree();
+    if (action === 'storage-policy' && ['internal','external'].includes(event.data.value))
+      storagePriority=event.data.value;
     if (action === 'import-folder') $('folderInput').click();
     if (action === 'import-folder-picker') void chooseAuthorizedFolder();
     if (action === 'import-handle') void openAuthorizedFolder(event.data.handle)
