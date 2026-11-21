@@ -139,3 +139,13 @@ test('external-first refreshes unopened files as well as open tabs',()=>{
   assert.match(explorer,/sendWorkspace\('external\.changed'/);
   assert.match(editor,/document\.externalSynced/);
 });
+
+test('Editor starts without an automatic untitled tab when recovery is empty', () => {
+  assert.doesNotMatch(editor,/if\(!restoreSession\(\)\)\s*\{?[^\n]*newFile\(\)/);
+  assert.match(editor,/if\(tabs\.size===0\)\{/);
+  assert.match(editor,/activeId=null;/);
+  assert.match(editor,/editor\.readOnly=true;/);
+  assert.match(editor,/\$\('emptyHint'\)\.hidden=false;/);
+  assert.match(editor,/function newFile\(\)/);
+  assert.match(editor,/if\(!restoreSession\(indexed\)\)/);
+});
