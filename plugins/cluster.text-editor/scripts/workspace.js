@@ -11,6 +11,64 @@
   const fileButton=document.getElementById('globalFileButton');
   const fileMenu=document.getElementById('globalFileMenu');
   const languageMenu=document.getElementById('workspaceLanguageMenu');
+  const languageDialog=document.getElementById('workspaceLanguageDialog');
+  const storageDialog=document.getElementById('workspaceStorageDialog');
+  const OPTIONS_KEY='cluster.workspace.options.v1';
+  let workspacePriority='internal',currentLocale='zh-TW';
+  let restoredOptions=null;
+  try {
+    restoredOptions=JSON.parse(localStorage.getItem(OPTIONS_KEY)||'null');
+    if(restoredOptions?.priority==='external')workspacePriority='external';
+  }catch{}
+  const priorityLabels={
+    'zh-TW':['存儲優先策略','內部優先','外部優先',
+      '外部檔案變更時保留編輯器內容','外部檔案變更時同步磁碟內容',
+      '選擇語言後將透過公共庫同步所有插件'],
+    en:['Storage priority','Internal priority','External priority',
+      'Keep editor content when disk files change',
+      'Replace editor content with changed disk files',
+      'Language changes are shared via the public repository'],
+    fr:['Priorité de stockage','Priorité interne','Priorité externe',
+      'Conserver le contenu local','Synchroniser le contenu du disque',
+      'La langue est synchronisée via le dépôt public'],
+    ja:['保存の優先順位','内部優先','外部優先',
+      '外部変更後も編集内容を保持','ディスク変更で編集内容を置換',
+      '言語は公開リポジトリから同期されます'],
+    es:['Prioridad de almacenamiento','Prioridad interna','Prioridad externa',
+      'Conservar el contenido local','Sincronizar el contenido del disco',
+      'El idioma se sincroniza mediante el repositorio público'],
+    hi:['भंडारण प्राथमिकता','आंतरिक प्राथमिकता','बाहरी प्राथमिकता',
+      'डिस्क परिवर्तन पर संपादक सामग्री रखें','डिस्क से संपादक सामग्री बदलें',
+      'भाषा सार्वजनिक रिपॉज़िटरी के माध्यम से साझा होती है']
+  };
+  const statusLabels={
+    'zh-TW':['同步','待存儲','錯誤','載入'],
+    en:['Synced','Pending','Error','Loading'],
+    fr:['Synchronisé','En attente','Erreur','Chargement'],
+    ja:['同期済','未保存','エラー','読込中'],
+    es:['Sincronizado','Pendiente','Error','Cargando'],
+    hi:['सिंक','लंबित','त्रुटि','लोड']
+  };
+  let currentStatus='loading',currentPercent=5;
+  function setProgress(status,percent){
+    if(!['synced','pending','error','loading'].includes(status))return;
+    currentStatus=status;
+    currentPercent=Math.max(0,Math.min(100,Number(percent)||0));
+    const bar=document.getElementById('workbenchProgress');
+    bar.dataset.state=status;
+    bar.setAttribute('aria-valuenow',String(currentPercent));
+    bar.querySelector('span').style.width=currentPercent+'%';
+    const label=statusLabels[currentLocale]||statusLabels.en;
+    const index={synced:0,pending:1,error:2,loading:3}[status];
+    document.getElementById('workbenchProgressLabel').textContent=label[index];
+    bar.setAttribute('aria-label',label[index]);
+  }
+  function saveWorkspaceOptions(){
+    try{localStorage.setItem(OPTIONS_KEY,JSON.stringify({
+      priority:workspacePriority,collapsed:sidebar.classList.contains('collapsed'),
+      sidebarWidth:sidebar.style.getPropertyValue('--sidebar-width')
+    }));}catch{}
+  }
   const fileLocaleNames={
     'zh-TW':['建立新文件','建立新檔（資料夾）','開啟舊文件','開啟舊檔（資料夾）','儲存','另存新檔','關閉文件','介面調色盤','插件','語言'],
     en:['New file','New folder','Open file','Open folder','Save','Save as','Close file','Interface palette','Plugins','Language'],
@@ -23,12 +81,25 @@
     updateDeleteLocale(lang);
     const labels=fileLocaleNames[lang] ||
       (String(lang).startsWith('zh')?fileLocaleNames['zh-TW']:fileLocaleNames.en);
+    currentLocale=fileLocaleNames[lang]?lang:'en';
     ['new','new-folder','open','open-folder','save','save-as','close','palette','plugin','language']
       .forEach((action,i)=>{
         const button=fileMenu.querySelector('[data-file-action="'+action+'"]');
-        if(button)button.textContent=labels[i]+(action==='language'?' ▸':'');
+        if(button)button.textContent=labels[i];
       });
     document.documentElement.lang=lang;
+    const more=priorityLabels[currentLocale]||priorityLabels.en;
+    fileMenu.querySelector('[data-file-action="storage-priority"]').textContent=more[0];
+    document.getElementById('workspaceStorageTitle').textContent=more[0];
+    document.getElementById('priorityInternalTitle').textContent=more[1];
+    document.getElementById('priorityExternalTitle').textContent=more[2];
+    document.getElementById('priorityInternalHint').textContent=more[3];
+    document.getElementById('priorityExternalHint').textContent=more[4];
+    document.getElementById('workspaceLanguageHint').textContent=more[5];
+    document.getElementById('workspaceLanguageTitle').textContent=labels[9];
+    languageMenu.querySelectorAll('[data-locale]').forEach(button=>
+      button.setAttribute('aria-pressed',String(button.dataset.locale===currentLocale)));
+    setProgress(currentStatus,currentPercent);
   }
   let localeRequestSerial=0;
   function setSharedLanguage(locale){
@@ -43,15 +114,12 @@
     const lang=event.target.closest('[data-locale]')?.dataset.locale;
     if(!lang)return;
     setSharedLanguage(lang);
-    languageMenu.hidden=true;
+    languageDialog.close();
     showFileMenu(false);
   });
 
   function showFileMenu(open) {
     fileMenu.hidden=!open;
-    if(!open)languageMenu.hidden=true;
-    const toggle=fileMenu.querySelector('[data-file-action="language"]');
-    if(toggle)toggle.setAttribute('aria-expanded',String(open && !languageMenu.hidden));
     fileButton.setAttribute('aria-expanded',String(open));
   }
   let pluginSiteUrl=null;
@@ -73,14 +141,9 @@
       type:'control',action},'*');
   }
   function fileAction(action){
-    if(action==='language') {
-      const opening=languageMenu.hidden;
-      fileMenu.hidden=false;
-      languageMenu.hidden=!opening;
-      showFileMenu(true);
-      return;
-    }
     showFileMenu(false);
+    if(action==='language'){languageDialog.showModal();return;}
+    if(action==='storage-priority'){storageDialog.showModal();return;}
     if(action==='new')explorerFile('new-file');
     else if(action==='new-folder')explorerFile('new-folder');
     else if(action==='open')document.getElementById('workspaceOpenFiles').click();
@@ -120,7 +183,6 @@
   // A click inside a child iframe does not bubble to the shell document.
   window.addEventListener('blur',()=>showFileMenu(false));
   fileMenu.addEventListener('click',event=>{
-    if(event.target.closest('[data-locale]'))return;
     const cmd=event.target.closest('button[data-file-action]')?.dataset.fileAction;
     if(cmd)fileAction(cmd);
   });
@@ -133,6 +195,18 @@
       event.preventDefault();fileAction('new');
     }
   });
+  for(const button of document.querySelectorAll('[data-close-workspace-dialog]'))
+    button.addEventListener('click',()=>document.getElementById(
+      button.dataset.closeWorkspaceDialog).close());
+  for(const radio of document.querySelectorAll('input[name="workspacePriority"]')){
+    radio.checked=radio.value===workspacePriority;
+    radio.addEventListener('change',()=>{
+      if(!radio.checked)return;
+      workspacePriority=radio.value;
+      saveWorkspaceOptions();
+      storageDialog.close();
+    });
+  }
   const deleteDialog=document.getElementById('workspaceDeleteDialog');
   let deleteRequest=null;
   const deleteTranslations={
