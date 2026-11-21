@@ -203,6 +203,8 @@
     radio.addEventListener('change',()=>{
       if(!radio.checked)return;
       workspacePriority=radio.value;
+      explorer.contentWindow?.postMessage({protocol:'cluster.workspace.sync.v1',
+        type:'control',action:'storage-policy',value:workspacePriority},'*');
       saveWorkspaceOptions();
       storageDialog.close();
     });
@@ -297,6 +299,8 @@
       version:'1.0.0',requestId,action:'workspace.snapshot',params:{}},'*');
   }
   explorer.addEventListener('load', () => {
+    explorer.contentWindow?.postMessage({protocol:'cluster.workspace.sync.v1',
+      type:'control',action:'storage-policy',value:workspacePriority},'*');
     // Iframe load order is unspecified; retry when Editor boots afterwards.
     if (lastHostContext) explorer.contentWindow?.postMessage(lastHostContext,'*');
     requestSnapshot();
