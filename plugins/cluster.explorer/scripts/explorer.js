@@ -45,7 +45,18 @@
     '儲存至磁碟':['Save to disk','Enregistrer sur disque','ディスクに保存','Guardar en disco','डिस्क में सहेजें'],
     '已開啟：':['Opened: ','Ouvert : ','開きました：','Abierto: ','खुला: '],
     '正在開啟：':['Opening: ','Ouverture : ','開いています：','Abriendo: ','खोला जा रहा: '],
-    '工作區':['Workspace','Espace de travail','ワークスペース','Espacio de trabajo','कार्यक्षेत्र']
+    '工作區':['Workspace','Espace de travail','ワークスペース','Espacio de trabajo','कार्यक्षेत्र'],
+    '已連結磁碟資料夾：':['Connected disk folder: ','Dossier lié : ','ディスクフォルダー接続：','Carpeta vinculada: ','डिस्क फ़ोल्डर जुड़ा: '],
+    '已匯入':['Imported ','Importés : ','インポート：','Importados: ','आयातित: '],
+    '個文字檔':[' text files',' fichiers texte',' 個のテキストファイル',' archivos de texto',' पाठ फ़ाइलें'],
+    '來源與目標相同':['Source and target match','Source et cible identiques','移動元と移動先が同じです','Origen y destino iguales','स्रोत और गंतव्य समान'],
+    '不可移動資料夾至自身內部':['Cannot move a folder inside itself','Dossier déplacé en lui-même interdit','フォルダーを自身の中に移動できません','No mover una carpeta dentro de sí misma','फ़ोल्डर को स्वयं में नहीं ले जा सकते'],
+    '目標已有同名項目':['Destination name already exists','Nom existant à destination','移動先に同名の項目があります','Nombre existente en destino','गंतव्य में नाम पहले से मौजूद'],
+    '目標已有同名檔案':['Destination file already exists','Fichier déjà présent','同名ファイルが存在します','Archivo ya existente','फ़ाइल पहले से मौजूद'],
+    '已關閉所有資料夾根目錄':['All roots closed','Toutes les racines fermées','すべてのルートを閉じました','Raíces cerradas','सभी मूल फ़ोल्डर बंद'],
+    '未連接 Cluster Host Router':['Cluster Host Router unavailable','Routeur Cluster indisponible','Cluster Router に接続されていません','Router de Cluster no disponible','Cluster राउटर उपलब्ध नहीं'],
+    '編輯器未就緒':['Editor is not ready','Éditeur indisponible','エディターの準備ができていません','Editor no disponible','संपादक तैयार नहीं'],
+    '已略過不支援檔案：':['Unsupported files skipped: ','Fichiers non pris en charge : ','非対応ファイルをスキップ：','Archivos no compatibles: ','असमर्थित फ़ाइलें छोड़ी: ']
   };
   const languageIndex={en:0,fr:1,ja:2,es:3,hi:4};
   const t = (zh,en) => locale.startsWith('zh') ? zh :
@@ -128,8 +139,7 @@
     }
     expanded.add(base);
     render();
-    toast(t(`已連結磁碟資料夾：${base}`,
-      `Disk folder connected: ${base}`));
+    toast(t('已連結磁碟資料夾：','Connected disk folder: ')+base);
   }
   async function chooseAuthorizedFolder() {
     if(typeof window.showDirectoryPicker!=='function') {
@@ -229,7 +239,7 @@
     /\.(html|css)$/i.test(name) ? '<>' : /\.json$/i.test(name) ? '{}' : /\.py$/i.test(name) ? 'Py' : '≡';
 
   async function hostRequest(method, ...args) {
-    if (window.parent === window) throw new Error('未連接 Cluster Host Router');
+    if (window.parent === window) throw new Error(t('未連接 Cluster Host Router','Host Router unavailable'));
     const requestId = 'explorer-' + (++counter);
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => { requests.delete(requestId); reject(new Error('Host Router timeout')); }, 12000);
@@ -417,7 +427,8 @@
       } catch { skipped++; }
     }
     render(); setStatus(`IMPORTED ${success}`);
-    toast(`已匯入 ${success} 個文字檔${skipped ? `，略過 ${skipped} 個不支援檔案` : ''}`);
+    toast(t('已匯入','Imported ')+success+t('個文字檔',' text files')+
+      (skipped ? ', '+t('已略過不支援檔案：','Unsupported files skipped: ')+skipped : ''));
   }
   const parentOf = path => path.includes('/') ? path.slice(0,path.lastIndexOf('/')) : '';
   const basename = path => path.split('/').pop();
@@ -431,7 +442,7 @@
         mappings.push([key, newPath + key.slice(oldPath.length)]);
     }
     if (mappings.some(([,dest]) => exists(dest) && !mappings.some(([src])=>src===dest)))
-      throw new Error('目標已有同名檔案');
+      throw new Error(t('目標已有同名檔案','Destination file already exists'));
     for (const [before,after] of mappings) {
       if (entries.has(before)) {
         const entry = entries.get(before); entries.delete(before);
@@ -611,11 +622,11 @@
     const source=clipboard.path;
     const targetDir=item?.folder?item.path:parentOf(item?.path||'');
     const destination=(targetDir?targetDir+'/':'')+basename(source);
-    if(source===destination){toast('來源與目標相同');return;}
+    if(source===destination){toast(t('來源與目標相同','Source and target match'));return;}
     if(item?.folder&&(targetDir===source||targetDir.startsWith(source+'/'))){
-      toast('不可移動資料夾至自身內部');return;
+      toast(t('不可移動資料夾至自身內部','Cannot move folder into itself'));return;
     }
-    if(exists(destination)){toast('目標已有同名項目');return;}
+    if(exists(destination)){toast(t('目標已有同名項目','Destination name already exists'));return;}
     if(clipboard.cut){
       try{remapPath(source,destination);clipboard=null;render();}
       catch(err){toast(err.message);}
@@ -818,7 +829,8 @@
       toast(t('已開啟：','Opened: ')+item.name);
     } catch (error) {
       setStatus('ROUTER UNAVAILABLE');
-      toast('無法開啟編輯器：' + String(error.message || error) + '。請確認 Host 路由及編輯器已裝載。');
+      toast(t('無法開啟編輯器：','Cannot open editor: ')+
+        String(error.message || error));
     }
   }
   function createEntry(folder) {
