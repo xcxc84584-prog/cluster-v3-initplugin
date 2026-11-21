@@ -91,6 +91,7 @@
   }
   function tabMetadata(tab) {
     return {id:String(tab.id), name:tab.name, path:tab.path || null,
+      diskBacked:tab.diskBacked === true,
       dirty:tab.dirty, revision:tab.revision, active:tab.id === activeId,
       length:tab.text.length};
   }
@@ -150,9 +151,10 @@
   });
 
   function current() { return tabs.get(activeId) || null; }
-  function makeTab(name, text = '', handle = null, path = null) {
+  function makeTab(name, text = '', handle = null, path = null, diskBacked = false) {
     const id = nextId++;
-    const data = { id, name, text, lastSaved: text, handle, path, revision:nextRevision++, dirty:false,
+    const data = { id, name, text, lastSaved: text, handle, path, diskBacked,
+      revision:nextRevision++, dirty:false,
       selectionStart:0, selectionEnd:0, scrollTop:0 };
     tabs.set(id, data);
     selectTab(id);
@@ -296,7 +298,8 @@
           selectTab(existing.id);
           reply(200,{document:tabMetadata(existing), reused:true});return;
         }
-        const tab=makeTab(args.name,args.content,null,args.path || null);
+        const tab=makeTab(args.name,args.content,null,args.path || null,
+          args.diskBacked === true);
         reply(200,{document:tabMetadata(tab)});return;
       }
       const tab = tabs.get(Number(args.id));
@@ -507,6 +510,7 @@
     await stream.write(new Blob([tab.text],{type:'text/plain;charset=utf-8'}));
     await stream.close();
     tab.handle = handle;
+    tab.diskBacked = true;
     tab.name = handle.name || tab.name;
     updateSaved(tab);
   }
@@ -546,13 +550,14 @@
         toast(t('failed')+': '+String(error?.message||error));
       }
     }
-    if(tab.path){
+    if(tab.path && tab.diskBacked){
       try{await saveViaExplorer(tab);updateSaved(tab);return;}
       catch(error){
         // A direct save must not silently export or claim success.
         toast(t('failed')+': '+String(error.message||error));return;
       }
     }
+    // No disk origin: ask the browser where to persist the document.
     await saveAs();
   }
   async function saveAs() {
