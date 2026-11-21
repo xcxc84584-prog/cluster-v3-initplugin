@@ -19,8 +19,8 @@ No Host source code changes are needed when publishing additional plugins.
 
 ## Existing plugins
 
-- `plugins/cluster.explorer/`: Explorer v2.2.0
-- `plugins/cluster.text-editor/`: BasicTextEditor v2.7.0
+- `plugins/cluster.explorer/`: Explorer v2.3.0
+- `plugins/cluster.text-editor/`: BasicTextEditor v2.8.0
 
 Both are independent Folder packages. The embedded Editor module's nested
 manifest was omitted to prevent treating that module as another plugin.
@@ -40,3 +40,21 @@ These values are Host-owned and read-only; plugin code must not repeat them.
 
 Physical disk deletion and overwrite require explicit writable directory
 authorization in a browser that supports the File System Access API.
+
+## 2026-11-21 Plugin UI and storage update
+
+- Editor File menu is bounded by viewport height and scrolls at high browser zoom.
+- Workspace-only files prompt for a native save destination where supported.
+- Explorer rows provide **Save to disk** for virtual files and folders; the folder
+  action asks for a destination directory and writes its contained files.
+- Existing authorized disk files keep direct overwrite behavior.
+- The bottom **Cluster · Ln / Col** status bar spans the Explorer and Editor.
+- These changes are limited to this initplugin repository; Cluster-v3 Host is
+  not changed.
+- CI regression checks: `node --test tests/plugin-regression.test.mjs`.
+
+**Browser limitation:** Native directory/file pickers require a supported secure
+context with user activation. If blocked, the operation reports the limitation
+rather than claiming that physical disk storage succeeded. Folder export may
+write into an existing directory of the same name; choose a separate location
+when preserving existing files is important.
