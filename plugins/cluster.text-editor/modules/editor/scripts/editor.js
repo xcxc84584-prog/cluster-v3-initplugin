@@ -186,45 +186,78 @@
   });
 
   const SESSION_KEY = 'cluster.editor.workspace.v2';
+  const SNAPSHOT_DB = 'cluster-v3-plugin-workspace';
   let snapshotTimer = null, snapshotFailure = false;
+  let bootReady = Promise.resolve();
+  function snapshotDB(mode, operation) {
+    return new Promise((resolve,reject)=>{
+      if (typeof indexedDB === 'undefined') {
+        reject(Error('IndexedDB unavailable'));return;
+      }
+      const open=indexedDB.open(SNAPSHOT_DB,1);
+      open.onupgradeneeded=()=>{
+        if (!open.result.objectStoreNames.contains('snapshots'))
+          open.result.createObjectStore('snapshots');
+      };
+      open.onerror=()=>reject(open.error||Error('IndexedDB open failed'));
+      open.onsuccess=()=>{
+        const db=open.result;
+        let request;
+        try{
+          const tx=db.transaction('snapshots',mode);
+          request=operation(tx.objectStore('snapshots'));
+          tx.oncomplete=()=>{db.close();resolve(request?.result);};
+          tx.onerror=()=>{db.close();reject(tx.error||Error('Snapshot transaction failed'));};
+          tx.onabort=()=>{db.close();reject(tx.error||Error('Snapshot transaction aborted'));};
+        }catch(error){db.close();reject(error);}
+      };
+    });
+  }
   function saveSessionNow() {
     clearTimeout(snapshotTimer);
-    const active = current();
+    const active=current();
     if (active) {
-      active.text = editor.value;
-      active.selectionStart = editor.selectionStart;
-      active.selectionEnd = editor.selectionEnd;
-      active.scrollTop = editor.scrollTop;
-      active.scrollLeft = editor.scrollLeft;
-      active.dirty = active.text !== active.lastSaved;
+      active.text=editor.value;
+      active.selectionStart=editor.selectionStart;
+      active.selectionEnd=editor.selectionEnd;
+      active.scrollTop=editor.scrollTop;
+      active.scrollLeft=editor.scrollLeft;
+      active.dirty=active.text!==active.lastSaved;
     }
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify({
-        schema:2,activeId,nextId,untitled,
-        documents:[...tabs.values()].map(tab => ({
-          id:tab.id,name:tab.name,text:tab.text,lastSaved:tab.lastSaved,
-          path:tab.path,revision:tab.revision,
-          selectionStart:tab.selectionStart,selectionEnd:tab.selectionEnd,
-          scrollTop:tab.scrollTop,scrollLeft:tab.scrollLeft || 0
-        }))
-      }));
-      snapshotFailure=false;
-    } catch (error) {
-      if (!snapshotFailure) {
-        snapshotFailure=true;
-        emitEditorEvent('workspace.error',{message:'Session snapshot unavailable: '+
-          String(error?.message || error)});
-      }
-    }
+    const snapshot={
+      schema:2,activeId,nextId,untitled,
+      documents:[...tabs.values()].map(tab=>({
+        id:tab.id,name:tab.name,text:tab.text,lastSaved:tab.lastSaved,
+        path:tab.path,revision:tab.revision,
+        selectionStart:tab.selectionStart,selectionEnd:tab.selectionEnd,
+        scrollTop:tab.scrollTop,scrollLeft:tab.scrollLeft||0
+      }))
+    };
+    let localSaved=false;
+    try{
+      localStorage.setItem(SESSION_KEY,JSON.stringify(snapshot));
+      localSaved=true;
+    }catch{}
+    void snapshotDB('readwrite',store=>store.put(snapshot,SESSION_KEY))
+      .then(()=>{snapshotFailure=false;})
+      .catch(error=>{
+        if(!localSaved && !snapshotFailure){
+          snapshotFailure=true;
+          emitEditorEvent('workspace.error',{message:'Editor snapshot failed: '+
+            String(error?.message||error)});
+        }
+      });
   }
   function scheduleSessionSave() {
     clearTimeout(snapshotTimer);
     snapshotTimer=setTimeout(saveSessionNow,160);
   }
-  function restoreSession() {
-    let saved;
-    try { saved=JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
-    catch { return false; }
+  function restoreSession(override) {
+    let saved=override;
+    if(!saved){
+      try{saved=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}
+      catch{return false;}
+    }
     if(saved?.schema!==2 || !Array.isArray(saved.documents) ||
        saved.documents.length>100 || !saved.documents.length)return false;
     let total=0;
@@ -368,6 +401,7 @@
   // Host Router / Explorer bridge v1.0. Requests must be forwarded by the Host.
   // This is an in-memory document API. Saving to a filesystem is NOT authorized.
   async function handleEditorRequest(event) {
+    await bootReady;
     const request = event.data;
     const requestId = request?.requestId;
     if (typeof requestId !== 'string' || !requestId ||
@@ -901,5 +935,13 @@
   window.addEventListener('pagehide',saveSessionNow);
   window.addEventListener('error', event =>
     emitEditorEvent('workspace.error',{message:String(event.message||'Editor error')}));
-  if(!restoreSession())newFile();
+  bootReady=(async()=>{
+    let indexed=null;
+    try{indexed=await snapshotDB('readonly',store=>store.get(SESSION_KEY));}
+    catch{}
+    if(!restoreSession(indexed)){
+      tabs.clear();
+      if(!restoreSession()) {tabs.clear();newFile();}
+    }
+  })();
 })();
