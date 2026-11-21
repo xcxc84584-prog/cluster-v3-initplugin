@@ -332,8 +332,13 @@
     sidebar.classList.toggle('collapsed', !show);
     divider.classList.toggle('collapsed', !show);
     toggle.setAttribute('aria-expanded', String(show));
+    saveWorkspaceOptions();
   };
   toggle.addEventListener('click', () => setSidebar(sidebar.classList.contains('collapsed')));
+  if(restoredOptions?.collapsed===true)setSidebar(false);
+  if(typeof restoredOptions?.sidebarWidth==='string' &&
+     /^[0-9]+(?:\.[0-9]+)?px$/.test(restoredOptions.sidebarWidth))
+    sidebar.style.setProperty('--sidebar-width',restoredOptions.sidebarWidth);
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.key.toLowerCase() === 'b') {
       event.preventDefault(); toggle.click();
@@ -351,6 +356,7 @@
   divider.addEventListener('pointerup', event => {
     if (divider.hasPointerCapture(event.pointerId)) divider.releasePointerCapture(event.pointerId);
     divider.classList.remove('dragging');
+    saveWorkspaceOptions();
   });
   const sendResponse = (frame, requestId, ok, data, error) => {
     frame.postMessage({protocol:hostProtocol,type:'response',requestId,ok,data,
@@ -359,6 +365,16 @@
   const normalize = value => value && typeof value === 'object' ? value : {};
   window.addEventListener('message', event => {
     const msg = normalize(event.data);
+    if(event.source===explorer.contentWindow &&
+       msg.protocol==='cluster.workspace.sync.v1' && msg.type==='command'){
+      if(msg.action==='external.changed'){
+        setProgress('loading',30);
+        editor.contentWindow?.postMessage({protocol:'cluster.workspace.external.v1',
+          type:'changed',...msg.params,strategy:workspacePriority},'*');
+        return;
+      }
+      if(msg.action==='workspace.error'){setProgress('error',100);return;}
+    }
     if(event.source===editor.contentWindow &&
        msg.protocol==='cluster.workspace.status.v1' && msg.type==='cursor'){
       const line=Number(msg.line),col=Number(msg.col);
@@ -376,6 +392,15 @@
       if (msg.event === 'document.closed') documentPaths.delete(String(msg.data?.id));
       explorer.contentWindow?.postMessage({protocol:syncProtocol,
         type:'event', event:msg.event, data:msg.data}, '*');
+      if(msg.event==='document.changed' || msg.event==='document.conflict')
+        setProgress('pending',100);
+      else if(msg.event==='document.saved' || msg.event==='document.externalSynced')
+        setProgress('synced',100);
+      else if(msg.event==='workspace.error' ||
+        msg.event==='editor.registration.error')setProgress('error',100);
+      else if(msg.event==='document.opened')setProgress('loading',40);
+      else if(msg.event==='tab.activated')
+        setProgress(doc?.dirty?'pending':'synced',100);
       return;
     }
     if(event.source===editor.contentWindow &&
