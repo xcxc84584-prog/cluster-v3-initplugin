@@ -433,6 +433,8 @@
     }
     const pos = linePosition(editor.value, editor.selectionStart);
     $('cursorStatus').textContent = `Ln ${pos.line}, Col ${pos.col}`;
+    if(parent!==window) parent.postMessage({protocol:'cluster.workspace.status.v1',
+      type:'cursor',line:pos.line,col:pos.col},'*');
   }
   function renderLines() {
     const total = (editor.value.match(/\n/g) || []).length + 1;
