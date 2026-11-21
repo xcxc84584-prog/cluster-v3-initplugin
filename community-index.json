@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "type": "cluster.community-index",
+  "plugins": [
+    {
+      "id": "cluster.explorer",
+      "name": "Cluster Explorer",
+      "version": "2.2.0",
+      "description": "Editor-owned delete confirmation; six-language Explorer; save authorized files",
+      "directory": "plugins/cluster.explorer"
+    },
+    {
+      "id": "cluster.text-editor",
+      "name": "Cluster BasicTextEditor",
+      "version": "2.7.0",
+      "description": "Editor-owned deletion dialog, shared languages, plugins link, disk overwrite save",
+      "directory": "plugins/cluster.text-editor"
+    }
+  ]
+}
