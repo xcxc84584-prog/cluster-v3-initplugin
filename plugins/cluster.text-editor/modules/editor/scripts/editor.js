@@ -140,6 +140,33 @@
   }
   window.addEventListener('message', event => {
     if (event.source !== parent) return;
+    if (event.data?.protocol === 'cluster.workspace.external.v1') {
+      if (event.data.type!=='changed')return;
+      const changed=event.data;
+      const tab=[...tabs.values()].find(x=>x.path===changed.path);
+      if(!tab || typeof changed.content!=='string')return;
+      if(changed.strategy!=='external') {
+        emitEditorEvent('document.conflict',{document:tabMetadata(tab),
+          message:'External file changed; internal state retained'});
+        return;
+      }
+      const active=tab.id===activeId;
+      if(active)captureTab();
+      tab.text=changed.content;tab.lastSaved=changed.content;
+      tab.dirty=false;tab.revision=nextRevision++;
+      if(active) {
+        editor.value=tab.text;
+        editor.setSelectionRange(Math.min(tab.selectionStart,tab.text.length),
+          Math.min(tab.selectionEnd,tab.text.length));
+        renderLines();renderCursor();
+        requestAnimationFrame(()=>{editor.scrollTop=tab.scrollTop;
+          editor.scrollLeft=tab.scrollLeft||0;renderLines();});
+      }
+      renderTabs();scheduleSessionSave();
+      emitEditorEvent('document.externalSynced',{document:tabMetadata(tab),
+        content:tab.text});
+      return;
+    }
     if (event.data?.protocol === EDITOR_PROTOCOL) {
       if (event.data.type === 'req') void handleEditorRequest(event);
       return;
@@ -150,15 +177,86 @@
     receiveContext(event.data);
   });
 
+  const SESSION_KEY = 'cluster.editor.workspace.v2';
+  let snapshotTimer = null, snapshotFailure = false;
+  function saveSessionNow() {
+    clearTimeout(snapshotTimer);
+    const active = current();
+    if (active) {
+      active.text = editor.value;
+      active.selectionStart = editor.selectionStart;
+      active.selectionEnd = editor.selectionEnd;
+      active.scrollTop = editor.scrollTop;
+      active.scrollLeft = editor.scrollLeft;
+      active.dirty = active.text !== active.lastSaved;
+    }
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        schema:2,activeId,nextId,untitled,
+        documents:[...tabs.values()].map(tab => ({
+          id:tab.id,name:tab.name,text:tab.text,lastSaved:tab.lastSaved,
+          path:tab.path,revision:tab.revision,
+          selectionStart:tab.selectionStart,selectionEnd:tab.selectionEnd,
+          scrollTop:tab.scrollTop,scrollLeft:tab.scrollLeft || 0
+        }))
+      }));
+      snapshotFailure=false;
+    } catch (error) {
+      if (!snapshotFailure) {
+        snapshotFailure=true;
+        emitEditorEvent('workspace.error',{message:'Session snapshot unavailable: '+
+          String(error?.message || error)});
+      }
+    }
+  }
+  function scheduleSessionSave() {
+    clearTimeout(snapshotTimer);
+    snapshotTimer=setTimeout(saveSessionNow,160);
+  }
+  function restoreSession() {
+    let saved;
+    try { saved=JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+    catch { return false; }
+    if(saved?.schema!==2 || !Array.isArray(saved.documents) ||
+       saved.documents.length>100 || !saved.documents.length)return false;
+    let total=0;
+    for(const item of saved.documents) {
+      if(!Number.isSafeInteger(item.id) || item.id<1 ||
+        typeof item.name!=='string' || typeof item.text!=='string' ||
+        typeof item.lastSaved!=='string' || item.text.length>10*1024*1024)return false;
+      total+=item.text.length;
+      if(total>30*1024*1024)return false;
+      tabs.set(item.id,{
+        id:item.id,name:item.name,text:item.text,lastSaved:item.lastSaved,
+        handle:null,path:typeof item.path==='string'?item.path:null,
+        // FileSystemHandle cannot be restored from a JSON snapshot.
+        diskBacked:false,revision:Number(item.revision)||nextRevision++,
+        dirty:item.text!==item.lastSaved,
+        selectionStart:Math.max(0,Number(item.selectionStart)||0),
+        selectionEnd:Math.max(0,Number(item.selectionEnd)||0),
+        scrollTop:Math.max(0,Number(item.scrollTop)||0),
+        scrollLeft:Math.max(0,Number(item.scrollLeft)||0)
+      });
+    }
+    nextId=Math.max(...tabs.keys())+1;
+    nextRevision=Math.max(nextRevision,...[...tabs.values()].map(x=>x.revision))+1;
+    untitled=Math.max(1,Number(saved.untitled)||1);
+    const active=Number(saved.activeId);
+    selectTab(tabs.has(active)?active:tabs.keys().next().value);
+    for(const item of tabs.values())
+      emitEditorEvent('document.opened',{document:tabMetadata(item),content:item.text});
+    return true;
+  }
   function current() { return tabs.get(activeId) || null; }
   function makeTab(name, text = '', handle = null, path = null, diskBacked = false) {
     const id = nextId++;
     const data = { id, name, text, lastSaved: text, handle, path, diskBacked,
       revision:nextRevision++, dirty:false,
-      selectionStart:0, selectionEnd:0, scrollTop:0 };
+      selectionStart:0, selectionEnd:0, scrollTop:0,scrollLeft:0 };
     tabs.set(id, data);
     selectTab(id);
     emitEditorEvent('document.opened', {document:tabMetadata(data), content:text});
+    scheduleSessionSave();
     return data;
   }
   function newFile() { makeTab(`${t('newFile')}-${untitled++}.txt`); editor.focus(); }
@@ -169,6 +267,7 @@
     tab.selectionStart = editor.selectionStart;
     tab.selectionEnd = editor.selectionEnd;
     tab.scrollTop = editor.scrollTop;
+    tab.scrollLeft = editor.scrollLeft;
     tab.dirty = tab.text !== tab.lastSaved;
   }
   function selectTab(id) {
@@ -182,8 +281,16 @@
     editor.selectionStart = Math.min(tab.selectionStart, tab.text.length);
     editor.selectionEnd = Math.min(tab.selectionEnd, tab.text.length);
     editor.scrollTop = tab.scrollTop;
+    editor.scrollLeft = tab.scrollLeft || 0;
     internalUpdate = false;
     $('emptyHint').hidden = true;
+    requestAnimationFrame(()=>{
+      if(activeId !== id)return;
+      editor.scrollTop=tab.scrollTop;
+      editor.scrollLeft=tab.scrollLeft || 0;
+      renderLines();
+    });
+    scheduleSessionSave();
     renderTabs();
     renderLines();
     renderCursor();
@@ -231,6 +338,7 @@
     const order = [...tabs.keys()];
     const index = order.indexOf(id);
     tabs.delete(id);
+    scheduleSessionSave();
     emitEditorEvent('document.closed', {id:String(id), path:tab.path || null});
     if (activeId === id) {
       const candidate = order[index + 1] || order[index - 1];
@@ -326,6 +434,7 @@
         if (tab.id === activeId) captureTab();
         tab.text=args.content;tab.dirty=tab.text!==tab.lastSaved;
         tab.revision=nextRevision++;
+        scheduleSessionSave();
         if (tab.id===activeId) selectTab(tab.id);
         else renderTabs();
         emitEditorEvent('document.changed',{document:tabMetadata(tab),content:tab.text});
@@ -337,6 +446,7 @@
           reply(400,null,{code:'INVALID_RENAME',message:'Invalid new document name/path'});return;
         }
         tab.name=args.name;tab.path=args.path;tab.revision=nextRevision++;
+        scheduleSessionSave();
         renderTabs();
         emitEditorEvent('document.renamed',{document:tabMetadata(tab)});
         reply(200,{document:tabMetadata(tab)});return;
@@ -452,6 +562,7 @@
     tab.dirty = tab.text !== tab.lastSaved;
     tab.revision = nextRevision++;
     emitEditorEvent('document.changed', {document:tabMetadata(tab), content:tab.text});
+    scheduleSessionSave();
     renderTabs();
     renderLines();
     renderCursor();
@@ -504,6 +615,7 @@
     tab.dirty = false;
     tab.revision = nextRevision++;
     emitEditorEvent('document.saved', {document:tabMetadata(tab), content:tab.text, persistence:'file-handle'});
+    scheduleSessionSave();
     renderTabs();
     setStatus(t('savedWithName')+': '+tab.name);
   }
@@ -734,9 +846,14 @@
   });
   $('closeFind').addEventListener('click',hideFind);
   editor.addEventListener('input',markChanged);
-  editor.addEventListener('scroll',renderLines);
-  editor.addEventListener('click',renderCursor);
-  editor.addEventListener('keyup',renderCursor);
+  editor.addEventListener('scroll',() => {
+    renderLines();
+    const tab=current();
+    if(tab){tab.scrollTop=editor.scrollTop;
+      tab.scrollLeft=editor.scrollLeft;scheduleSessionSave();}
+  });
+  editor.addEventListener('click',()=>{renderCursor();scheduleSessionSave();});
+  editor.addEventListener('keyup',()=>{renderCursor();scheduleSessionSave();});
   editor.addEventListener('keydown',event=>{
     if (event.key === 'Tab') {
       event.preventDefault();
@@ -767,10 +884,14 @@
   });
   window.addEventListener('beforeunload',event=>{
     captureTab();
+    saveSessionNow();
     if ([...tabs.values()].some(tab=>tab.dirty)) {
       event.preventDefault();
       event.returnValue = '';
     }
   });
-  newFile();
+  window.addEventListener('pagehide',saveSessionNow);
+  window.addEventListener('error', event =>
+    emitEditorEvent('workspace.error',{message:String(event.message||'Editor error')}));
+  if(!restoreSession())newFile();
 })();
