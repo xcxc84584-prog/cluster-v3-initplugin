@@ -57,6 +57,87 @@
     '未連接 Cluster Host Router':['Cluster Host Router unavailable','Routeur Cluster indisponible','Cluster Router に接続されていません','Router de Cluster no disponible','Cluster राउटर उपलब्ध नहीं'],
     '編輯器未就緒':['Editor is not ready','Éditeur indisponible','エディターの準備ができていません','Editor no disponible','संपादक तैयार नहीं'],
     '已略過不支援檔案：':['Unsupported files skipped: ','Fichiers non pris en charge : ','非対応ファイルをスキップ：','Archivos no compatibles: ','असमर्थित फ़ाइलें छोड़ी: ']
+,
+    "無效的目錄權限":[
+      "Invalid directory authorization","Autorisation de dossier invalide",
+      "フォルダー権限が無効です","Permiso de carpeta inválido","फ़ोल्डर की अनुमति अमान्य"
+    ],
+    "工作區已有同名根目錄，請先關閉":[
+      "Root folder already exists; close it first","Le dossier racine existe déjà ; fermez-le",
+      "同名のルートが存在します。先に閉じてください","La raíz ya existe; ciérrela primero","मूल फ़ोल्डर मौजूद है, पहले बंद करें"
+    ],
+    "瀏覽器不支援磁碟授權；將以唯讀方式匯入":[
+      "No disk authorization; importing read-only","Autorisation disque indisponible ; import en lecture seule",
+      "ディスク権限が使えないため読み取り専用で読み込みます","Sin autorización del disco; importación de solo lectura","डिस्क अनुमति नहीं, केवल-पठन आयात"
+    ],
+    "資料夾開啟失敗：":[
+      "Cannot open folder: ","Ouverture du dossier impossible : ",
+      "フォルダーを開けません：","No se puede abrir la carpeta: ","फ़ोल्डर नहीं खुला: "
+    ],
+    "此項目沒有磁碟刪除權限":[
+      "Disk deletion is not authorized","Suppression du disque non autorisée",
+      "ディスクからの削除権限がありません","No autorizado para eliminar del disco","डिस्क से हटाने की अनुमति नहीं"
+    ],
+    "未取得磁碟寫入權限":[
+      "Disk write permission denied","Écriture disque refusée",
+      "ディスクの書き込み権限がありません","Permiso de escritura denegado","डिस्क लेखन की अनुमति नहीं"
+    ],
+    "磁碟來源已存在，請在編輯器直接儲存":[
+      "Disk file linked; save from Editor","Fichier lié au disque ; enregistrer dans l’éditeur",
+      "ディスクのファイルです。エディターで保存してください","Archivo vinculado al disco; guarde en Editor","डिस्क फ़ाइल लिंक है; संपादक से सहेजें"
+    ],
+    "瀏覽器不支援選擇資料夾儲存位置":[
+      "Folder picker unavailable","Sélecteur de dossiers indisponible",
+      "フォルダーの保存先を選択できません","Selector de carpetas no disponible","फ़ोल्डर स्थान चयन उपलब्ध नहीं"
+    ],
+    "瀏覽器不支援選擇檔案儲存位置":[
+      "File save picker unavailable","Sélecteur d’enregistrement indisponible",
+      "ファイルの保存先を選択できません","Selector de guardado no disponible","फ़ाइल स्थान चयन उपलब्ध नहीं"
+    ],
+    "已儲存至選擇的磁碟位置":[
+      "Saved to selected disk location","Enregistré à l’emplacement choisi",
+      "指定したディスク位置に保存しました","Guardado en la ubicación elegida","चुने हुए डिस्क स्थान पर सहेजा"
+    ],
+    "儲存失敗：":[
+      "Save failed: ","Échec de l’enregistrement : ",
+      "保存に失敗しました：","Error al guardar: ","सहेजने में विफल: "
+    ],
+    "此文件沒有磁碟來源，請選擇儲存位置":[
+      "No disk origin; select save location","Aucune origine disque ; choisissez une destination",
+      "ディスク元がありません。保存先を選択してください","Sin origen en disco; elija destino","डिस्क स्रोत नहीं; सहेजने का स्थान चुनें"
+    ],
+    "目錄尚未取得讀寫權限":[
+      "Directory read/write permission unavailable","Accès lecture/écriture au dossier refusé",
+      "フォルダーの読み書き権限がありません","Sin permiso de lectura y escritura","फ़ोल्डर पढ़ने/लिखने की अनुमति नहीं"
+    ],
+    "已授權的根目錄無法透過自身權限刪除，請先授權其父目錄。":[
+      "Authorize parent folder to delete this root","Autorisez le dossier parent pour supprimer cette racine",
+      "ルートを削除するには親フォルダーの権限が必要です","Autorice la carpeta superior para eliminar la raíz","मूल फ़ोल्डर हटाने हेतु पैरेंट अनुमति दें"
+    ],
+    "永久刪除磁碟原始檔案或資料夾（包括未顯示子項目），無法復原。":[
+      "Permanently delete disk content, including hidden children. Cannot undo.","Supprimer définitivement du disque et ses éléments masqués. Irréversible.",
+      "非表示の子項目を含め完全削除します。元に戻せません。","Eliminar del disco incluso archivos ocultos. Irreversible.","छिपी फ़ाइलों सहित स्थायी रूप से हटाएँ; वापस नहीं होगा।"
+    ],
+    "僅刪除工作區中的項目，磁碟上的原始檔案不變。":[
+      "Remove workspace entry only; disk original remains.","Retirer uniquement du projet ; l’original reste sur disque.",
+      "作業領域からのみ削除し、ディスク元は保持します。","Eliminar solo del espacio de trabajo; disco sin cambios.","केवल कार्यक्षेत्र से हटाएँ; डिस्क फ़ाइल सुरक्षित।"
+    ],
+    "刪除失敗，磁碟和工作區保持不變：":[
+      "Delete failed; disk and workspace unchanged: ","Échec de suppression ; disque et projet inchangés : ",
+      "削除失敗。ディスクと作業領域は変更されません：","Error al eliminar; disco y espacio intactos: ","हटाने में विफल; डिस्क व कार्यक्षेत्र अपरिवर्तित: "
+    ],
+    "磁碟檔案重新命名尚未支援；請勿改變真實路徑":[
+      "Disk file renaming is not supported","Renommage du fichier disque non pris en charge",
+      "ディスクファイルの名前変更は未対応です","No se admite renombrar archivos del disco","डिस्क फ़ाइल का नाम बदलना समर्थित नहीं"
+    ],
+    "名稱不可為空或包含 /、\\":[
+      "Name must not be empty or contain slashes","Le nom ne peut être vide ni contenir de barres",
+      "名前を空欄にしたりスラッシュを含めたりできません","El nombre no puede estar vacío ni incluir barras","नाम खाली या स्लैश वाला नहीं हो सकता"
+    ],
+    "磁碟檔案剪下移動尚未支援":[
+      "Moving disk-backed files is not supported","Déplacer des fichiers disque n’est pas pris en charge",
+      "ディスクファイルの移動は未対応です","No se admite mover archivos del disco","डिस्क फ़ाइलों को स्थानांतरित करना समर्थित नहीं"
+    ]
   };
   const languageIndex={en:0,fr:1,ja:2,es:3,hi:4};
   const t = (zh,en) => locale.startsWith('zh') ? zh :
