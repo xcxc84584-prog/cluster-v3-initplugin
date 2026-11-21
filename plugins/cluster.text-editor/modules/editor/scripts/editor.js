@@ -941,7 +941,17 @@
     catch{}
     if(!restoreSession(indexed)){
       tabs.clear();
-      if(!restoreSession()) {tabs.clear();newFile();}
+      if(!restoreSession())tabs.clear();
+    }
+    if(tabs.size===0){
+      activeId=null;
+      editor.value='';
+      editor.readOnly=true;
+      $('emptyHint').hidden=false;
+      renderTabs();
+      renderLines();
+      renderCursor();
+      setStatus(t('ready'));
     }
   })();
 })();
