@@ -124,6 +124,7 @@
       }
       diskPaths.add(path);
       diskSnapshots.set(path,{modified,size});
+      if(reconnecting)sendWorkspace('disk.reconnected',{path:'/'+path});
     }
     expanded.add(base);
     render();
