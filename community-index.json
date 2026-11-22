@@ -12,8 +12,8 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.12.0",
-      "description": "Unified workspace with AI Agent MCP tool relay and native PowerShell",
+      "version": "2.12.1",
+      "description": "Unified Editor with updated native folder and token bootstrap",
       "directory": "plugins/cluster.text-editor"
     },
     {
