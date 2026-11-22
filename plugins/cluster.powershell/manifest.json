@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.powershell",
   "name": "ClusterPowerShell",
-  "version": "0.7.0",
-  "description": "Persistent redacted PowerShell stdout/stderr and enforced per-root automatic execution",
+  "version": "0.7.1",
+  "description": "PowerShell activity persistence with authenticated durable Clear Log endpoint",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
