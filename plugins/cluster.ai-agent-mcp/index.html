@@ -362,6 +362,8 @@ async function executeTool(name,args){
  case 'cluster.read_file':{
   if(typeof args.id!=='string'||args.id.length>200)throw Error('Invalid document ID');
   const data=await editorCall('document.get',{id:args.id});
+  if(data.document?.dirty===true)
+   throw Error('Document contains unsaved changes; save it before MCP reads');
   return {document:data.document,content:data.content};}
  case 'cluster.list_roots':
   return {roots:[...rootHandles.keys()].map(name=>({name,authorized:true,source:'user-picker'}))};
