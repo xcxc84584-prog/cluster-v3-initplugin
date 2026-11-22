@@ -19,8 +19,8 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.6.1",
-      "description": "Native Local Agent root permissions and verified CMD token messages",
+      "version": "0.6.2",
+      "description": "Encrypted PowerShell output history and automatic saved-token reconnect",
       "directory": "plugins/cluster.powershell"
     },
     {
