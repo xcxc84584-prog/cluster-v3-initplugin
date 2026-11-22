@@ -447,9 +447,9 @@ test('Windows folder picker and local CRUD/PS rights are agent-backed',()=>{
  assert.match(page,/class="root-list"/);
  assert.match(page,/id="selectRoot"/);
  assert.match(source,/function nativeRoot/);
- assert.match(source,/\\/roots\\/permissions/);
- assert.match(source,/\\/roots\\/action/);
- assert.match(source,/\\/roots\\/revoke/);
+ assert.ok(source.includes('/roots/permissions'));
+ assert.ok(source.includes('/roots/action'));
+ assert.ok(source.includes('/roots/revoke'));
  assert.match(source,/reloadRoots/);
  assert.match(source,/rightNames=\['read','create','update','delete','powershell'\]/);
  assert.doesNotMatch(source,/window\.showDirectoryPicker/);
