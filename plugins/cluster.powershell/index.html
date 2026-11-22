@@ -35,28 +35,86 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 [hidden]{display:none!important}
 
 #output{position:relative;padding:0;overflow:hidden}#output .terminal-view{position:absolute;inset:0;padding:7px;overflow:hidden}#output .terminal-view[hidden]{display:none!important}#output .xterm{height:100%}#terminalForm{display:none!important}
+
+/* Inline first-run workstation; no dialog, floating overlay or header setup badge. */
+.ps-header{min-height:43px;height:43px;padding:0 15px}
+.ps-header strong{font-size:13px}
+.ps-state{font:11px system-ui;color:var(--ui-muted)}
+.ps-tools{position:relative}
+.ps-tool-menu{position:absolute;right:0;top:calc(100% + 5px);z-index:25;width:155px;display:grid;gap:4px;padding:6px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;box-shadow:0 10px 28px #0008}
+.ps-tool-menu button{text-align:left;background:var(--ui-control)}
+.setup-workspace{flex:1;min-height:0;overflow:auto;background:var(--ui-editor);padding:14px 16px 24px}
+.setup-wrap{max-width:770px;margin:0 auto;display:grid;gap:9px}
+.setup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.setup-card{min-width:0;padding:13px 15px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:10px}
+.setup-card-title{display:flex;align-items:flex-start;gap:10px}
+.setup-card-title strong{display:block;font-size:12px;line-height:1.55;color:var(--ui-text)}
+.setup-card-title p{color:var(--ui-muted);line-height:1.6;margin:3px 0 6px;font-size:11px}
+.setup-count{display:inline-grid;place-items:center;flex:none;width:23px;height:23px;border-radius:6px;background:var(--ui-control);color:var(--ui-text);font:600 10px Consolas,monospace}
+.setup-card-body{margin-left:33px;display:grid;gap:6px}
+.setup-button{font-size:11px;min-width:85px;justify-self:start;padding:8px 13px}
+.setup-muted{font-size:11px;color:var(--ui-muted);overflow-wrap:anywhere}
+.setup-label{font-size:10px;color:var(--ui-muted)}
+#endpoint{width:100%;height:33px}
+.setup-connect{display:flex;gap:6px;align-items:center}
+#token{min-width:0;width:100%;height:33px;flex:1}
+.setup-full{width:100%}
+.setup-kicker{font:600 9px Consolas,monospace;letter-spacing:1px;color:var(--ui-muted);margin:0 0 7px 33px}
+.setup-status strong{font-size:13px}
+.setup-status p{margin:4px 0 0;color:var(--ui-muted);font-size:11px;line-height:1.6}
+.setup-preview{background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;font-size:11px}
+.setup-preview summary{cursor:pointer;padding:8px 12px}
+.setup-preview pre{max-height:150px;overflow:auto;white-space:pre-wrap;padding:5px 12px;color:var(--ui-muted);font:10px/1.6 Consolas,monospace}
+.setup-actions button{font-size:11px;padding:8px 14px}
+#terminalArea{flex:1;min-height:0;display:flex;flex-direction:column}
+#terminalArea[hidden],#connectPanel[hidden]{display:none!important}
+@media(max-width:660px){.setup-grid{grid-template-columns:1fr}.setup-workspace{padding:10px}.setup-wrap{max-width:100%}}
 </style></head><body><main>
-<header><span class="dot" id="dot"></span><strong>PowerShell</strong>
-<span class="grow"></span><button id="connectToggle" type="button" aria-expanded="true">Connect</button>
-<button id="clear" type="button">Clear</button></header>
-<section id="connectPanel">
-<p id="hint"></p>
-<div class="fields">
-<input id="endpoint" aria-label="Loopback address" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:PORT/">
-<input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="Session token">
-<button id="connect" type="button">Connect</button></div>
-<div id="setupGuide">
-<strong id="setupTitle"></strong>
-<ol><li id="setupStep1"></li><li id="setupStep2"></li><li id="setupStep3"></li></ol>
-<div class="guide-actions"><code>bridge\Setup-ClusterPowerShell.cmd</code>
-<button id="copySetup" type="button"></button></div>
-</div></section>
+<header class="ps-header">
+<strong>PowerShell</strong><span class="grow"></span>
+<span id="stateLabel" class="ps-state" role="status"></span>
+<div class="ps-tools"><button id="connectToggle" type="button" aria-haspopup="true" aria-expanded="false"></button>
+<div id="psToolMenu" class="ps-tool-menu" role="menu" hidden>
+<button id="reconfigure" type="button" role="menuitem"></button>
+<button id="clear" type="button" role="menuitem"></button>
+</div></div>
+</header>
+<section id="connectPanel" class="setup-workspace">
+<div class="setup-wrap">
+<div class="setup-grid">
+<article class="setup-card">
+<div class="setup-card-title"><span class="setup-count">01</span><div><strong id="setupTitle"></strong><p id="setupStep1"></p></div></div>
+<div class="setup-card-body"><button id="downloadSetup" type="button" class="setup-button"></button><span id="downloadStatus" class="setup-muted" role="status"></span></div>
+</article>
+<article class="setup-card">
+<div class="setup-card-title"><span class="setup-count">02</span><div><strong id="configureTitle"></strong><p id="setupStep2"></p></div></div>
+<div class="setup-card-body">
+<label class="setup-label" id="portLabel" for="endpoint"></label>
+<input id="endpoint" type="text" aria-label="Local Agent Port or loopback URL" autocomplete="off" spellcheck="false" placeholder="43881">
+<label class="setup-label" id="tokenLabel" for="token"></label>
+<div class="setup-connect"><input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="64-character token">
+<button id="connect" type="button" class="setup-button"></button></div>
+</div></article>
+</div>
+<article class="setup-card setup-full">
+<div class="setup-card-title"><span class="setup-count">03</span><div><strong id="verifyTitle"></strong><p id="setupStep3"></p></div></div>
+</article>
+<article class="setup-card setup-full setup-status">
+<div class="setup-kicker">LOCAL CONNECTION</div>
+<strong id="statusTitle"></strong><p id="hint"></p>
+</article>
+<details class="setup-preview"><summary id="previewTitle"></summary>
+<pre id="setupPreview"></pre></details>
+<div class="setup-actions"><button id="verifyConnection" type="button"></button></div>
+</div>
+</section>
+<section id="terminalArea" hidden>
 <nav id="tabs" role="tablist" aria-label="PowerShell sessions"></nav>
 <div id="output" role="log" aria-live="polite"></div>
-<form id="terminalForm">
+<form id="terminalForm" hidden>
 <input id="command" autocomplete="off" spellcheck="false" aria-label="PowerShell command" disabled placeholder="PS>">
-<button id="run" type="submit" disabled>Run</button>
-</form>
+<button id="run" type="submit" disabled>Run</button></form>
+</section>
 </main><script>
 /* Cluster is only the viewport. Native keyboard, ANSI, shell execution and line editing
  * are handled by xterm.js -> WebSocket -> Windows ConPTY -> powershell.exe/pwsh.exe.
