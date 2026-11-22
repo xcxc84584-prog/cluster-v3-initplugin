@@ -45,6 +45,9 @@ function headers(res,req) {
     res.setHeader('Vary','Origin');
     res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Cluster-Token');
+    // Allow Chrome private-network preflight only from the explicitly approved site.
+    if(req.headers['access-control-request-private-network']==='true')
+      res.setHeader('Access-Control-Allow-Private-Network','true');
   }
 }
 function json(res,status,obj) {
