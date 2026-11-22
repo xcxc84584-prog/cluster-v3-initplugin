@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.powershell",
   "name": "ClusterPowerShell",
-  "version": "0.4.0",
-  "description": "Native PowerShell sessions exposed as unified workspace tabs",
+  "version": "0.6.0",
+  "description": "ConPTY Local Agent with MCP/OAuth gateways, DPAPI and Ctrl+C copy",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {

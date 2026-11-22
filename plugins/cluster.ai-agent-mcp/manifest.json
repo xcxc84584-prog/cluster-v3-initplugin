@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "cluster.ai-agent-mcp",
+  "name": "Cluster AI Agent MCP",
+  "version": "0.2.0",
+  "description": "Cluster AI Agent MCP: 14 authenticated tools, user-permission bridge and OAuth 2.1 PKCE",
+  "entry": "index.html",
+  "apiVersion": "1.0.0",
+  "ui": {
+    "mode": "both",
+    "home": false
+  }
+}

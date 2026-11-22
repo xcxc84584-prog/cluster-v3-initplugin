@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cluster AI Agent MCP</title><style>
+:root{color-scheme:dark;--ui-editor:#0c0d10;--ui-background:#101115;--ui-panel:#191c23;--ui-control:#2a2e38;--ui-text:#e5e9f3;--ui-muted:#929bab;--ui-accent:#7e9ef4;--ui-border:#333944;--ui-hover:#343947}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--ui-editor);color:var(--ui-text);font:12px system-ui,sans-serif}
+button,input{font:inherit;color:var(--ui-text);background:var(--ui-control);border:1px solid var(--ui-border);border-radius:6px;padding:8px 10px}
+button{cursor:pointer}button:hover{background:var(--ui-hover)}button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+[hidden]{display:none!important}main{height:100%;display:flex;flex-direction:column}
+.head{height:45px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--ui-panel);border-bottom:1px solid var(--ui-border)}
+.head strong{font-size:13px}.head .grow{flex:1}.state{font:11px Consolas,monospace;color:var(--ui-muted)}
+.surface{flex:1;display:flex;min-height:0;min-width:0}
+.rail{flex:none;width:var(--agent-rail-width,190px);display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--ui-panel)}
+.rail button{display:flex;text-align:left;align-items:center;gap:9px;border:0;border-radius:6px;background:transparent;padding:11px 12px;margin:3px 7px;color:var(--ui-muted)}
+.rail button[aria-selected=true]{background:var(--ui-control);color:var(--ui-text);box-shadow:inset 2px 0 var(--ui-accent)}
+.rail h2{font:600 10px Consolas,monospace;letter-spacing:.5px;margin:17px 15px 8px;color:var(--ui-muted)}
+.divider{width:8px;flex:none;cursor:ew-resize;background:var(--ui-border);position:relative;touch-action:none}
+.divider:hover,.divider:focus-visible{background:var(--ui-accent);outline:0}
+.divider:after{content:'‹';position:absolute;top:50%;left:0;transform:translateY(-50%);font:11px Consolas;color:var(--ui-text)}
+main[data-rail-collapsed=true] .rail{width:0!important}
+main[data-rail-collapsed=true] .divider:after{content:'›'}
+.content{flex:1;min-width:0;overflow:auto;padding:16px 19px}
+.title{display:flex;align-items:center;gap:9px;margin-bottom:13px}.title h1{margin:0;font-size:17px}
+.subtle{color:var(--ui-muted);font-size:11px;line-height:1.6}
+.card{border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel);padding:15px;min-width:0}
+.card h3{font-size:12px;margin:0 0 9px}.card p{font-size:11px;color:var(--ui-muted);line-height:1.6;margin:4px 0 11px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.flow{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.flow span{padding:7px 10px;border:1px solid var(--ui-border);border-radius:20px;color:var(--ui-muted);font-size:11px}
+.flow .current{border-color:var(--ui-accent);color:var(--ui-text)}
+.field{display:grid;gap:5px;margin:9px 0}.field label{color:var(--ui-muted);font-size:11px}
+.field input{width:100%;min-width:0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.action-primary{background:var(--ui-control);border-color:var(--ui-accent)}
+.status-line{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--ui-border)}
+.status-line:last-child{border:0}.chip{font:10px Consolas,monospace;color:var(--ui-muted)}
+.logbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 12px}
+.log{border:1px solid var(--ui-border);border-radius:8px;overflow:auto;background:var(--ui-background);min-height:200px;max-height:calc(100vh - 175px)}
+.log-row{display:grid;grid-template-columns:90px 82px minmax(0,1fr) 64px;gap:9px;padding:10px 12px;border-bottom:1px solid var(--ui-border);font:11px Consolas,monospace;overflow-wrap:anywhere}
+.log-row .time,.log-row .source{color:var(--ui-muted)}.log-row .result{color:var(--ui-accent);text-align:right}
+.note{font-size:10px;color:var(--ui-muted);padding:10px 0}
+.tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
+.tool-row:last-child{border:0}.tool-row code{font:11px Consolas,monospace}
+.fine{font-size:10px;color:var(--ui-muted)}
+.approval{position:sticky;top:0;z-index:30;border-color:var(--ui-accent);margin-bottom:12px;box-shadow:0 8px 22px #0007}
+.approval p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
+@media(max-width:650px){.cards{grid-template-columns:1fr}.content{padding:10px}.rail{width:145px}.log-row{grid-template-columns:75px 55px minmax(0,1fr)}.log-row .result{display:none}}
+</style></head><body>
+<main id="app" data-rail-collapsed="false">
+ <div class="head"><strong>✧ AI Agent MCP</strong><span class="grow"></span><span id="headerStatus" class="state"></span></div>
+ <div class="surface">
+  <aside class="rail" id="agentRail"><h2 id="railTitle">AI AGENT</h2>
+   <button type="button" data-page="setup" aria-selected="true" id="setupNav"></button>
+   <button type="button" data-page="activity" id="activityNav"></button>
+   <button type="button" data-page="tools" id="toolsNav"></button>
+   <button type="button" data-page="status" id="statusNav"></button>
+  </aside>
+  <div id="railDivider" class="divider" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Toggle or resize Agent sidebar" aria-valuemin="120" aria-valuemax="340"></div>
+  <section class="content">
+   <section id="approvalPane" class="card approval" hidden role="region" aria-live="assertive" aria-label="AI action requires approval">
+    <h3 id="approvalHeading"></h3><p id="approvalDetail"></p>
+    <div class="field" id="approvalPathField" hidden>
+     <label for="approvalPath">Absolute Windows root path</label>
+     <input id="approvalPath" placeholder="C:\\YourFolder" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="actions">
+     <button id="approveAction" type="button" class="action-primary"></button>
+     <button id="denyAction" type="button"></button>
+    </div>
+   </section>
+   <div id="setupPage">
+    <div class="title"><h1 id="setupHeading"></h1></div>
+    <p class="subtle" id="setupIntro"></p>
+    <div class="flow"><span class="current">01 Local Agent</span><span>02 MCP Gateway</span><span>03 OAuth</span><span>04 Verify</span></div>
+    <div class="cards">
+     <div class="card"><h3 id="agentSetupTitle"></h3><p id="agentSetupDesc"></p>
+      <div class="field"><label id="portTitle" for="port"></label><input id="port" placeholder="43881" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label id="tokenTitle" for="pairToken"></label><input type="password" id="pairToken" autocomplete="off"></div>
+      <div class="actions"><button id="connect" type="button" class="action-primary"></button><button id="downloadAgent" type="button"></button></div>
+      <label class="remember"><input id="remember" type="checkbox"><span id="rememberCaption"></span></label>
+      <button id="forget" type="button"></button><span class="fine" id="pairingNote" role="status"></span>
+     </div>
+     <div class="card"><h3 id="gatewayTitle"></h3><p id="gatewayDesc"></p>
+      <div class="actions"><button id="gatewayGuide" type="button"></button></div>
+      <div class="fine" id="gatewayLimit"></div>
+     </div>
+    </div>
+    <div class="card"><h3 id="rootHeading">Workspace root permissions</h3>
+     <p id="rootInfo">Select a local directory to authorize Explorer file actions. Nothing is accessed before user approval.</p>
+     <div class="actions"><button id="selectRoot" type="button">Select local folder</button>
+      <button id="revokeRoots" type="button">Revoke folders</button></div>
+     <div id="rootList" class="fine"></div>
+    </div>
+    <div class="card"><h3 id="verifyTitle"></h3>
+     <div class="status-line"><span>Local Agent</span><span class="chip" id="agentStatus">–</span></div>
+     <div class="status-line"><span>MCP Gateway</span><span class="chip" id="mcpStatus">–</span></div>
+     <div class="status-line"><span>OAuth Gateway</span><span class="chip" id="oauthStatus">–</span></div>
+    </div>
+    <p id="setupError" role="status" class="note"></p>
+   </div>
+   <div id="activityPage" hidden>
+    <div class="title"><h1 id="activityTitle"></h1></div>
+    <div class="logbar"><span id="activitySubtitle" class="subtle"></span>
+     <div><button id="refresh" type="button"></button><button id="export" type="button"></button></div></div>
+    <div id="activityLog" class="log" role="log" aria-live="polite"></div>
+    <p id="logNotice" class="note"></p>
+   </div>
+   <div id="toolsPage" hidden><div class="title"><h1 id="toolsHeading"></h1></div>
+    <div class="card"><p id="toolGate"></p><div id="toolCatalog"></div></div>
+   </div>
+   <div id="statusPage" hidden><div class="title"><h1 id="statusHeading"></h1></div>
+    <div class="card"><div id="serviceDetails"></div><div class="actions"><button id="retry" type="button"></button><button id="disconnect" type="button"></button></div></div>
+   </div>
+  </section>
+ </div>
+</main>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const L={
+'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','延續 ClusterOpt2 的分離式 MCP/OAuth。請啟動本機 Gateway，並配置安全 HTTPS 入口。','下載 MCP 快速配置 CMD','14 項工具由本機代理轉送，敏感操作需要明確授權。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','僅顯示代理實際回報的事件；不記錄原始指令、金鑰或輸出文字。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
+en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Start the local MCP/OAuth gateways, then configure a trusted HTTPS endpoint.','Download MCP setup CMD','Fourteen tools are available through the browser bridge; sensitive actions require approval.','03 · Verify','AI actions and PowerShell events','Only verified agent activity; raw commands, secrets and output are not logged.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
+fr:['Déconnecté','Connecté','Configuration','Activité','Outils MCP','Services','Initialiser AI Agent','Connectez Local Agent, puis vérifiez MCP/OAuth.','01 · Agent local','Utilisez le CMD de ClusterPowerShell.','Port / URL locale','Jeton de jumelage','Connexion','02 · MCP / OAuth','Démarrer les services MCP/OAuth et configurer HTTPS.','Guide','Les actions sensibles nécessitent votre autorisation.','03 · Vérifier','Actions AI et événements PowerShell','Événements vérifiés uniquement.','Actualiser','Exporter','Aucun événement.','Catalogue MCP','Les outils nécessitent les autorisations v3.','État des services','Réessayer','Déconnecter','Inactif','Non implémenté','Attente','Erreur: '],
+ja:['未接続','接続済み','初期設定','操作記録','MCP ツール','サービス','AI Agent の初期化','Local Agent を接続してください。','01 · Local Agent','PowerShell の CMD で起動します。','ポート / URL','ペアリングトークン','接続','02 · MCP / OAuth','MCP/OAuth ゲートウェイと安全な HTTPS を設定します。','ガイド','危険な操作には毎回承認が必要です。','03 · 検証','AI と PowerShell の記録','認証されたイベントのみ。','更新','エクスポート','記録なし','MCP ツール','権限なしでは利用できません。','サービス状態','再試行','切断','無効','未実装','待機','接続エラー: '],
+es:['Desconectado','Conectado','Configuración','Actividad','Herramientas MCP','Servicios','Iniciar AI Agent','Conecte el agente local existente.','01 · Agente local','Use el CMD de PowerShell.','Puerto / URL','Token de emparejamiento','Conectar','02 · MCP / OAuth','Inicie MCP/OAuth y configure HTTPS seguro.','Guía','Las acciones sensibles requieren aprobación.','03 · Verificar','Actividad AI y PowerShell','Solo eventos verificados.','Actualizar','Exportar','Sin eventos','Herramientas MCP','Requiere permisos del Router.','Estado de servicios','Reintentar','Desconectar','Inactivo','No implementado','Esperando','Error: '],
+hi:['डिस्कनेक्ट','कनेक्टेड','सेटअप','गतिविधि','MCP टूल','सेवाएँ','AI Agent सेटअप','स्थानीय Agent कनेक्ट करें।','01 · लोकल एजेंट','PowerShell CMD चलाएँ।','पोर्ट / URL','पेयरिंग टोकन','कनेक्ट','02 · MCP / OAuth','MCP/OAuth और सुरक्षित HTTPS सेट करें।','निर्देश','संवेदनशील कार्यों के लिए स्वीकृति आवश्यक है।','03 · सत्यापन','AI और PowerShell रिकॉर्ड','केवल सत्यापित घटनाएँ।','रीफ़्रेश','निर्यात','कोई घटना नहीं','MCP टूल सूची','Router की अनुमति आवश्यक है।','सेवा स्थिति','पुन: प्रयास','डिस्कनेक्ट','निष्क्रिय','लागू नहीं','प्रतीक्षा','त्रुटि: ']
+};
+const tools=['get_status','get_task_status','list_files','get_editor_state','read_file','list_roots','find_root_windows_path','list_directory','read_path','create_file','write_path','delete_path','open_powershell','powershell_request'];
+let locale='zh-TW',endpoint='',token='',connected=false,page='setup',events=[],railOpen=true,railWidth=190,drag=null,bootstrap='',gateways={mcp:{active:false},oauth:{active:false}};
+const secretLabels={
+ 'zh-TW':['在此裝置記住已授權 Token（加密）','忘記配對','下載 Local Agent CMD','本機儲存不可用'],
+ en:['Remember authorized token on this device (encrypted)','Forget pairing','Download Local Agent CMD','Local vault unavailable'],
+ fr:['Mémoriser le jeton autorisé (chiffré)','Oublier','Télécharger CMD','Stockage indisponible'],
+ ja:['認証トークンを暗号化して保存','保存した認証を削除','CMD ダウンロード','保存できません'],
+ es:['Recordar token autorizado (cifrado)','Olvidar','Descargar CMD','Almacenamiento no disponible'],
+ hi:['अधिकृत टोकन सुरक्षित रखें','पेयरिंग हटाएँ','CMD डाउनलोड करें','स्टोरेज अनुपलब्ध']
+};
+const t=n=>(L[locale]||L.en)[n],root=$('app');
+const sl=n=>(secretLabels[locale]||secretLabels.en)[n];
+function renderLocale(){
+ const map={setupNav:2,activityNav:3,toolsNav:4,statusNav:5,setupHeading:6,setupIntro:7,agentSetupTitle:8,agentSetupDesc:9,portTitle:10,tokenTitle:11,connect:12,gatewayTitle:13,gatewayDesc:14,gatewayGuide:15,gatewayLimit:16,verifyTitle:17,activityTitle:18,activitySubtitle:19,refresh:20,export:21,logNotice:22,toolsHeading:23,toolGate:24,statusHeading:25,retry:26,disconnect:27};
+ for(const [id,i] of Object.entries(map))$(id).textContent=t(i);
+ $('headerStatus').textContent=connected?t(1):t(0);document.documentElement.lang=locale;
+ $('rememberCaption').textContent=sl(0);$('forget').textContent=sl(1);$('downloadAgent').textContent=sl(2);
+ $('agentStatus').textContent=connected?t(1):t(0);
+ $('mcpStatus').textContent=gateways.mcp.active?t(1):t(28);
+ $('oauthStatus').textContent=gateways.oauth.active?t(1):t(28);
+ $('toolCatalog').replaceChildren();
+ for(const name of tools){
+  const row=document.createElement('div');row.className='tool-row';
+  const code=document.createElement('code');code.textContent='cluster.'+name;
+  const state=document.createElement('span');state.className='fine';state.textContent=connected&&gateways.mcp.active?t(1):t(28);
+  row.append(code,state);$('toolCatalog').append(row);
+ }
+}
+function showPage(name){
+ page=name;
+ for(const p of ['setup','activity','tools','status']){
+  $(p+'Page').hidden=p!==page;
+  document.querySelector('[data-page="'+p+'"]').setAttribute('aria-selected',String(p===page));
+ }
+}
+for(const button of document.querySelectorAll('[data-page]'))button.onclick=()=>showPage(button.dataset.page);
+const divider=$('railDivider');
+function setRail(open){railOpen=open;root.dataset.railCollapsed=String(!open);
+ divider.setAttribute('aria-expanded',String(open));
+ try{localStorage.setItem('cluster.ai-agent.rail',JSON.stringify({open,width:railWidth}));}catch{}
+}
+try{
+ const p=JSON.parse(localStorage.getItem('cluster.ai-agent.rail')||'null');
+ if(p&&Number.isInteger(p.width))railWidth=Math.max(120,Math.min(340,p.width));
+ root.style.setProperty('--agent-rail-width',railWidth+'px');
+ if(p&&p.open===false)setRail(false);
+}catch{}
+divider.addEventListener('pointerdown',e=>{drag={x:e.clientX,width:railWidth,moved:false};
+ divider.setPointerCapture(e.pointerId);});
+divider.addEventListener('pointermove',e=>{
+ if(!drag)return;const dx=e.clientX-drag.x;
+ if(Math.abs(dx)>5)drag.moved=true;
+ if(drag.moved){railWidth=Math.max(120,Math.min(340,drag.width+dx));
+ root.style.setProperty('--agent-rail-width',railWidth+'px');if(!railOpen)setRail(true);}
+});
+divider.addEventListener('pointerup',()=>{if(!drag)return;
+ if(!drag.moved)setRail(!railOpen);else setRail(true);drag=null;
+});
+divider.addEventListener('dblclick',()=>{railWidth=190;root.style.setProperty('--agent-rail-width','190px');setRail(true);});
+divider.addEventListener('keydown',e=>{
+ if(e.key==='Enter'||e.key===' '){e.preventDefault();setRail(!railOpen);}
+ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+  e.preventDefault();railWidth=Math.max(120,Math.min(340,railWidth+(e.key==='ArrowRight'?12:-12)));
+  root.style.setProperty('--agent-rail-width',railWidth+'px');setRail(true);
+ }
+});
+/* Optional origin-scoped encrypted vault; no credential enters PRMU. */
+const vault=(()=>{
+ const DB='cluster-ai-agent-pairing-v1';
+ function tx(mode,operation){
+  return new Promise((resolve,reject)=>{
+   const dbreq=indexedDB.open(DB,1);
+   dbreq.onupgradeneeded=()=>dbreq.result.createObjectStore('vault');
+   dbreq.onerror=()=>reject(dbreq.error);
+   dbreq.onsuccess=()=>{
+    const db=dbreq.result,store=db.transaction('vault',mode).objectStore('vault');
+    let req;try{req=operation(store)}catch(e){db.close();reject(e);return;}
+    req.onsuccess=()=>{resolve(req.result);db.close()};
+    req.onerror=()=>{reject(req.error);db.close()};
+   };
+  });
+ }
+ async function key(){
+  let k=await tx('readonly',s=>s.get('key'));if(k)return k;
+  k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  await tx('readwrite',s=>s.put(k,'key'));return k;
+ }
+ return {
+  async save(url,secret){
+   const iv=crypto.getRandomValues(new Uint8Array(12));
+   const data=await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(),new TextEncoder().encode(secret));
+   return tx('readwrite',s=>s.put({url,iv:[...iv],data:[...new Uint8Array(data)]},'pairing'));
+  },
+  async load(){
+   const r=await tx('readonly',s=>s.get('pairing'));if(!r)return null;
+   const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(r.iv)},await key(),new Uint8Array(r.data));
+   return {url:r.url,token:new TextDecoder().decode(bytes)};
+  },
+  async forget(){return tx('readwrite',s=>s.delete('pairing'));}
+ };
+})();
+function entry(event){
+ const row=document.createElement('div');row.className='log-row';
+ for(const value of [new Date(event.at).toLocaleTimeString(),event.source,event.action+' · '+(event.detail||''),event.result]){
+  const span=document.createElement('span');span.textContent=value;row.append(span);
+ }
+ row.children[0].className='time';row.children[1].className='source';row.children[3].className='result';
+ return row;
+}
+function renderEvents(){const container=$('activityLog');container.replaceChildren(...events.map(entry));}
+async function call(route){
+ const url=new URL(endpoint);
+ if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only loopback HTTP');
+ const response=await fetch(new URL(route,url),{method:'POST',
+  headers:{'Content-Type':'application/json','X-Cluster-Token':token},
+  body:'{}',signal:AbortSignal.timeout(7000)});
+ const result=await response.json();
+ if(!response.ok||!result.ok)throw Error(result.error||'HTTP '+response.status);
+ return result;
+}
+async function refresh(){
+ if(!connected)return;
+ try{
+  await call('/health');
+  gateways=await call('/gateway/status');
+  renderLocale();
+  const result=await call('/activity');if(!Array.isArray(result.events))throw Error('Invalid agent events');
+  events=result.events.filter(e=>typeof e.at==='string'&&typeof e.action==='string').slice(-100);
+  renderEvents();$('setupError').textContent='';
+ }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;showPage('setup');}
+}
+$('connect').onclick=async()=>{
+ let raw=$('port').value.trim();
+ if(/^\d{1,5}$/.test(raw))raw='http://127.0.0.1:'+raw+'/';
+ endpoint=raw;token=$('pairToken').value.trim();
+ try{
+  const health=await call('/health');
+  if(health.agent!=='ClusterPowerShell')throw Error('Incorrect Local Agent');
+  connected=true;renderLocale();showPage('activity');connectAgentSocket();
+  if($('remember').checked)vault.save(endpoint,token).catch(()=>{$('pairingNote').textContent=sl(3)});
+  await refresh();
+ }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
+};
+$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';/* Authenticated browser bridge: user-selected File System Access handles.
+ * Editor is reached only through the parent adapter; no cross-frame DOM reading.
+ */
+const rootHandles=new Map();
+let agentSocket=null,editorSeq=0,approvalPending=null;
+const editorCalls=new Map();
+function editorCall(action,params={}){
+ return new Promise((resolve,reject)=>{
+  if(parent===window){reject(Error('Editor workspace unavailable'));return;}
+  const requestId='ai-edit-'+(++editorSeq);
+  const timer=setTimeout(()=>{editorCalls.delete(requestId);reject(Error('Editor timed out'));},12000);
+  editorCalls.set(requestId,{timer,resolve,reject});
+  parent.postMessage({protocol:'cluster.ai-agent.editor.v1',type:'req',
+   requestId,action,params},'*');
+ });
+}
+function rootLabels(){
+ $('rootList').textContent=[...rootHandles.keys()].join(' · ')||'No folders selected';
+}
+async function rootFor(raw){
+ if(typeof raw!=='string'||!raw||raw.length>1024||
+  raw.startsWith('/')||raw.includes('\\')||raw.split('/').some(x=>x==='..'||x==='.'||!x))
+  throw Error('Invalid path');
+ const [name,...rest]=raw.split('/'),root=rootHandles.get(name);
+ if(!root)throw Error('Root not authorized: select a local folder first');
+ return {root,segments:rest,rootName:name};
+}
+async function directoryFor(parts,create=false){
+ let dir=parts.root;
+ for(const name of parts.segments){
+  dir=await dir.getDirectoryHandle(name,{create});
+ }
+ return dir;
+}
+function assertBasename(value){
+ if(typeof value!=='string'||!value||value.length>255||
+  value==='.'||value==='..'||/[\\/:\0]/.test(value))throw Error('Invalid name');
+}
+async function fileAt(raw){
+ const p=await rootFor(raw),filename=p.segments.pop();
+ assertBasename(filename);
+ const parentDir=await directoryFor(p,false);
+ return {parentDir,filename};
+}
+async function requestApproval(title,details,{nativePath=false,timeout=38000}={}){
+ if(approvalPending)throw Error('Another approval is pending');
+ return new Promise((resolve,reject)=>{
+  const pane=$('approvalPane'),field=$('approvalPathField');
+  $('approvalHeading').textContent=title;$('approvalDetail').textContent=details;
+  field.hidden=!nativePath;$('approvalPath').value='';
+  $('approveAction').textContent=(locale==='zh-TW'?'核准此次操作':'Approve once');
+  $('denyAction').textContent=(locale==='zh-TW'?'拒絕':'Deny');
+  pane.hidden=false;showPage('activity');
+  parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'approval-pending'},'*');
+  function settle(value,reason){
+   if(!approvalPending)return;
+   clearTimeout(approvalPending.timer);approvalPending=null;
+   $('approveAction').onclick=null;$('denyAction').onclick=null;pane.hidden=true;
+   if(reason)reject(Error(reason));else resolve(value);
+  }
+  const timer=setTimeout(()=>settle(null,'Approval expired or not confirmed'),timeout);
+  approvalPending={timer};
+  $('approveAction').onclick=()=>{
+   const path=$('approvalPath').value.trim();
+   if(nativePath&&!/^[A-Za-z]:\\/.test(path)){
+    $('approvalDetail').textContent=details+'\nA valid absolute Windows path is required.';
+    return;
+   }
+   settle({approved:true,absolutePath:path});
+  };
+  $('denyAction').onclick=()=>settle(null,'User denied the requested operation');
+ });
+}
+async function ask(message){
+ return (await requestApproval('Authorize AI tool action',message)).approved;
+}
+async function executeTool(name,args){
+ switch(name){
+ case 'cluster.get_status':
+  return {connected,service:'ClusterPowerShell Local Agent',browserBridge:true,
+   roots:[...rootHandles.keys()],toolsAvailable:14};
+ case 'cluster.get_task_status':{
+  const live=await call('/activity');
+  return {tasks:(live.events||[]).slice(-50).map(e=>({action:e.action,result:e.result,at:e.at}))};
+ }
+ case 'cluster.list_files':{
+  const data=await editorCall('tabs.list');
+  return {files:data.tabs||[],activeId:data.activeId};}
+ case 'cluster.get_editor_state':{
+  const data=await editorCall('tabs.list');
+  return {activeId:data.activeId,tabs:data.tabs||[]};}
+ case 'cluster.read_file':{
+  if(typeof args.id!=='string'||args.id.length>200)throw Error('Invalid document ID');
+  const data=await editorCall('document.get',{id:args.id});
+  if(data.document?.dirty===true)
+   throw Error('Document contains unsaved changes; save it before MCP reads');
+  return {document:data.document,content:data.content};}
+ case 'cluster.list_roots':
+  return {roots:[...rootHandles.keys()].map(name=>({name,authorized:true,source:'user-picker'}))};
+ case 'cluster.find_root_windows_path':{
+  const root=String(args.root||'');
+  if(!rootHandles.has(root))throw Error('Root not authorized in browser');
+  const approval=await requestApproval('Confirm Windows root path',
+   'This path cannot be verified against the browser folder handle. Confirm only if you selected this exact directory: '+root,
+   {nativePath:true});
+  const pathText=approval.absolutePath;
+  if(pathText.length>1024)throw Error('Invalid Windows path');
+  return {root,absolutePath:pathText,verified:false,
+   confirmedByUser:true,reason:'BROWSER_HANDLE_IDENTITY_NOT_PROVABLE'};
+ }
+ case 'cluster.list_directory':{
+  const p=await rootFor(args.path||'');
+  const dir=await directoryFor(p,false);
+  const files=[];for await(const [name,handle] of dir.entries()){
+   files.push({name,kind:handle.kind});if(files.length>500)break;
+  }return {path:args.path,entries:files,truncated:files.length>500};}
+ case 'cluster.read_path':{
+  const file=await fileAt(args.path||'');
+  const data=await (await file.parentDir.getFileHandle(file.filename)).getFile();
+  const offset=Number(args.offset||0),length=Number(args.length||65536);
+  if(!Number.isInteger(offset)||offset<0||!Number.isInteger(length)||length<1||length>262144)
+   throw Error('Invalid read range');
+  const text=await data.slice(offset,offset+length).text();
+  return {path:args.path,offset,length:text.length,content:text,totalBytes:data.size};}
+ case 'cluster.create_file':{
+  const p=await rootFor(args.path||'');assertBasename(args.name);
+  if(!await ask('Allow AI to CREATE file '+args.path+'/'+args.name+'?'))throw Error('User denied create');
+  const dir=await directoryFor(p,false);
+  try{await dir.getFileHandle(args.name);throw Error('File already exists');}
+  catch(e){if(e.message==='File already exists')throw e;
+    if(e.name!=='NotFoundError')throw e;}
+  const handle=await dir.getFileHandle(args.name,{create:true});
+  return {created:handle.name};}
+ case 'cluster.write_path':{
+  const file=await fileAt(args.path||'');
+  if(typeof args.content!=='string'||new Blob([args.content]).size>1048576)
+   throw Error('Content too large');
+  if(!await ask('Allow AI to OVERWRITE '+args.path+' ('+args.content.length+' characters)?'))
+   throw Error('User denied write');
+  const handle=await file.parentDir.getFileHandle(file.filename);
+  const writable=await handle.createWritable();
+  await writable.write(args.content);await writable.close();
+  return {written:true,path:args.path};}
+ case 'cluster.delete_path':{
+  const file=await fileAt(args.path||'');
+  if(!await ask('Allow AI to DELETE '+args.path+' permanently?'))throw Error('User denied delete');
+  await file.parentDir.removeEntry(file.filename);
+  return {deleted:true,path:args.path};}
+ case 'cluster.open_powershell':
+  if(!await ask('Allow AI to open a new PowerShell terminal tab?'))throw Error('User denied terminal');
+  parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'open-powershell'},'*');
+  return {requested:true};
+ case 'cluster.powershell_request':{
+  const command=String(args.command||''),label=String(args.path||'');
+  if(command.length<1||command.length>2000||!rootHandles.has(label))
+   throw Error('PowerShell command or root invalid');
+  const approval=await requestApproval('PowerShell command approval',
+   'Run this exact command as your Windows user?\nRoot: '+label+'\n\n'+command,
+   {nativePath:true,timeout:110000});
+  return {approved:approval.approved,absolutePath:approval.absolutePath};
+ }
+ default:throw Error('Unknown MCP tool '+name);
+ }
+}
+function connectAgentSocket(){
+ if(agentSocket){try{agentSocket.close()}catch{}}
+ const url=new URL(endpoint);url.protocol='ws:';url.pathname='/agent';
+ url.searchParams.set('token',token);
+ const ws=new WebSocket(url);agentSocket=ws;
+ ws.onmessage=async e=>{
+  let msg;try{msg=JSON.parse(e.data)}catch{return}
+  if(msg.type==='tool_call'&&typeof msg.requestId==='string'){
+   let result,error;
+   try{result=await executeTool(msg.name,msg.args||{});}
+   catch(err){error=String(err.message||err).slice(0,250);}
+   if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({
+    type:'tool_result',requestId:msg.requestId,result,error
+   }));
+  }
+ };
+ ws.onclose=()=>{if(agentSocket===ws)agentSocket=null;};
+}
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.protocol!=='cluster.ai-agent.editor.v1'||
+  event.data.type!=='rep')return;
+ const call=editorCalls.get(event.data.requestId);if(!call)return;
+ editorCalls.delete(event.data.requestId);clearTimeout(call.timer);
+ if(event.data.ok)call.resolve(event.data.data);
+ else call.reject(Error(event.data.error||'Editor refused request'));
+});
+$('selectRoot').onclick=async()=>{
+ if(!window.showDirectoryPicker){$('rootInfo').textContent='File System Access API not available';return;}
+ try{
+  const handle=await window.showDirectoryPicker({mode:'readwrite'});
+  rootHandles.set(handle.name,handle);rootLabels();
+ }catch(error){$('rootInfo').textContent=String(error.message).slice(0,120);}
+};
+$('revokeRoots').onclick=()=>{rootHandles.clear();rootLabels();};
+rootLabels();
+
+renderLocale();showPage('setup');};
+$('refresh').onclick=refresh;$('retry').onclick=refresh;
+$('export').onclick=()=>{
+ const payload=events.map(({id,at,source,action,result,detail})=>({id,at,source,action,result,detail}));
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.download='cluster-ai-agent-activity.json';a.href=url;document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+$('gatewayGuide').onclick=()=>{
+ const cmd=[
+ '@echo off','setlocal EnableExtensions DisableDelayedExpansion',
+ 'title Cluster AI Agent MCP Setup',
+ 'set "BRIDGE=%LOCALAPPDATA%\\ClusterPowerShell\\bridge"',
+ 'if not exist "%BRIDGE%\\Start-Cluster-MCP.cmd" (',
+ 'echo Local Agent components missing. Run ClusterPowerShell QuickSetup first.',
+ 'pause','exit /b 1',')',
+ 'call "%BRIDGE%\\Start-Cluster-MCP.cmd"',
+ 'if errorlevel 1 echo MCP start failed. Review the output above.',
+ 'pause'
+ ].join('\r\n')+'\r\n';
+ const url=URL.createObjectURL(new Blob([cmd],{type:'application/octet-stream'}));
+ const link=document.createElement('a');
+ link.download='Cluster-MCP-QuickSetup.cmd';link.href=url;
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+ $('setupError').textContent='Start-Cluster-MCP.cmd uses local-only MCP and OAuth ports. Expose ONLY OAuth through trusted HTTPS.';
+};
+$('downloadAgent').onclick=()=>{
+ if(!bootstrap){$('pairingNote').textContent='PRMU bootstrap unavailable';return;}
+ const url=URL.createObjectURL(new Blob([bootstrap],{type:'application/octet-stream'}));
+ const link=document.createElement('a');link.download='ClusterPowerShell-QuickSetup.cmd';
+ link.href=url;document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+$('forget').onclick=async()=>{
+ try{await vault.forget();$('remember').checked=false;
+  $('pairToken').value='';token='';$('pairingNote').textContent='';}
+ catch{$('pairingNote').textContent=sl(3);}
+};
+vault.load().then(saved=>{
+ if(saved&&/^http:\/\/127\.0\.0\.1:\d+\/$/.test(saved.url)&&/^[a-f0-9]{64}$/.test(saved.token)){
+  $('port').value=saved.url;$('pairToken').value=saved.token;$('remember').checked=true;
+ }
+}).catch(()=>{});
+
+function palette(m){
+ const p=m.palette||m.data?.palette;if(p&&typeof p==='object')
+ for(const [name,value] of Object.entries(p))if(/^[a-z-]+$/.test(name)&&/^#[a-f0-9]{6}$/i.test(value))
+  document.documentElement.style.setProperty('--ui-'+name,value);
+ const lang=m.language||m.data?.language;
+ if(L[lang]){locale=lang;renderLocale();}
+}
+window.addEventListener('message',e=>{
+ if(e.source!==parent)return;const m=e.data;
+ if(m?.protocol==='cluster.powershell.setup.v1'&&m.type==='bootstrap-ready'&&typeof m.content==='string')bootstrap=m.content;
+ if(['cluster.plugin.v1','cluster.public.v1','cluster.settings.context.v1'].includes(m?.protocol)&&
+ ['context','snapshot','properties.changed'].includes(m.type))palette(m);
+});
+if(parent!==window){
+ parent.postMessage({protocol:'cluster.powershell.setup.v1',type:'request-bootstrap'},'*');
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');
+ parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId:'ai-agent-register',
+ method:'PRMU.register',args:['capabilities',{key:'workspace.ai-agent-mcp.v1',
+ value:{kind:'ui.embed',version:'0.2.0'},sharedWrite:false,persistent:false}]},'*');
+}
+renderLocale();showPage('setup');
+setInterval(()=>{if(connected&&page==='activity')refresh().catch(()=>{});},4000);
+})();
+</script></body></html>

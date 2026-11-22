@@ -9,7 +9,9 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const {spawn}=require('node:child_process');
 const pty = require('node-pty');
+const secureStore = require('./secure-store.cjs');
 const {WebSocketServer} = require('ws');
 
 if(process.platform !== 'win32') throw Error('ClusterPowerShell currently requires Windows ConPTY');
@@ -27,7 +29,53 @@ const enteredOrigin=process.env.CLUSTER_ALLOWED_ORIGIN;
 const origin=normalizeAllowedOrigin(enteredOrigin);
 if(enteredOrigin.trim()!==origin)console.log('Normalized Cluster website origin: '+origin);
 const shell = process.env.CLUSTER_SHELL === 'pwsh' ? 'pwsh.exe' : 'powershell.exe';
-const token = crypto.randomBytes(32).toString('hex'); // 64 printable characters
+// Only this Windows user can decrypt a retained pairing credential.
+const credentialDir=path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),
+  'ClusterPowerShell');
+fs.mkdirSync(credentialDir,{recursive:true});
+const token = secureStore.loadOrMigrate(
+ path.join(credentialDir,'pairing-token.dpapi'),
+ path.join(credentialDir,'legacy-pairing-token'),
+ value=>/^[a-f0-9]{64}$/.test(value),
+ ()=>crypto.randomBytes(32).toString('hex')
+);
+const portFile=path.join(credentialDir,'agent-port.json');
+let previousPort=0;
+try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
+ if(Number.isInteger(n)&&n>=1024&&n<=65535)previousPort=n;}catch{}
+const activity=[];let activitySequence=0;
+function record(action,result,detail=''){
+ const safe=String(detail).replace(/[a-f0-9]{64}/gi,'[redacted]').slice(0,256);
+ activity.push({id:++activitySequence,at:new Date().toISOString(),source:action.startsWith('mcp.')?'ai':'powershell',action,result,detail:safe});
+ if(activity.length>200)activity.splice(0,activity.length-200);
+}
+function runApprovedPowerShell(command,cwd){
+ return new Promise((resolve,reject)=>{
+  if(typeof command!=='string'||command.length<1||command.length>2000)throw Error('Invalid PowerShell command');
+  let real;try{real=fs.realpathSync.native(cwd);}catch{throw Error('Root path unavailable')}
+  if(!fs.statSync(real).isDirectory())throw Error('Not an approved root');
+  const encoded=Buffer.from(command,'utf16le').toString('base64');
+  const child=spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{
+   cwd:real,windowsHide:true,stdio:['ignore','pipe','pipe'],shell:false
+  });
+  let stdout='',stderr='',bytes=0,done=false;
+  function append(chunk,err){
+   bytes+=chunk.length;if(bytes>1000000){child.kill();return;}
+   if(err)stderr+=chunk.toString('utf8');else stdout+=chunk.toString('utf8');
+  }
+  const timer=setTimeout(()=>child.kill(),90000);
+  child.stdout.on('data',x=>append(x,false));
+  child.stderr.on('data',x=>append(x,true));
+  child.on('error',error=>{if(done)return;done=true;clearTimeout(timer);reject(error)});
+  child.on('close',exitCode=>{
+   if(done)return;done=true;clearTimeout(timer);
+   resolve({exitCode,stdout:stdout.slice(0,500000),
+     stderr:stderr.slice(0,500000),truncated:bytes>1000000});
+  });
+ });
+}
+const pendingTools=new Map();
+let browserBridge=null;
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
@@ -77,7 +125,48 @@ const server=http.createServer((req,res)=>{
     json(res,403,{ok:false,error:'Unauthorized'});return;
   }
   if(url.pathname==='/health'){
-    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS});
+    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
+    return;
+  }
+  if(url.pathname==='/gateway/status'){
+    function probe(name){
+      try{
+        const data=JSON.parse(fs.readFileSync(path.join(credentialDir,name+'-port.json'),'utf8'));
+        if(!Number.isInteger(data.port)||data.port<1024||data.port>65535||
+           !Number.isInteger(data.pid)||data.pid<1)return {active:false};
+        process.kill(data.pid,0);
+        return {active:true,port:data.port};
+      }catch{return {active:false}}
+    }
+    json(res,200,{ok:true,mcp:probe('mcp'),oauth:probe('oauth')});
+    return;
+  }
+  if(url.pathname==='/activity'){
+    json(res,200,{ok:true,events:activity.slice(-100),cursor:activitySequence});
+    return;
+  }
+  if(url.pathname==='/mcp/call'){
+    let body='';
+    req.on('data',chunk=>{body+=chunk;
+      if(Buffer.byteLength(body)>32768)req.destroy();});
+    req.on('end',()=>{
+      let request;try{request=JSON.parse(body)}catch{json(res,400,{error:'Invalid JSON'});return;}
+      if(!request||typeof request.name!=='string'||!request.name.startsWith('cluster.')){
+        json(res,400,{error:'Invalid tool name'});return;
+      }
+      if(!browserBridge||browserBridge.readyState!==1){
+        json(res,503,{error:'AI Agent browser not connected'});return;
+      }
+      if(pendingTools.size>=24){json(res,429,{error:'Too many pending requests'});return;}
+      const requestId=crypto.randomBytes(16).toString('hex');
+      const timer=setTimeout(()=>{
+        pendingTools.delete(requestId);
+        json(res,504,{error:'User or plugin response timed out'});
+      },request.name==='cluster.powershell_request'?125000:45000);
+      pendingTools.set(requestId,{res,timer,name:request.name,args:request.arguments||{}});
+      send(browserBridge,{type:'tool_call',requestId,name:request.name,args:request.arguments||{}});
+      record('mcp.request','pending',request.name);
+    });
     return;
   }
   json(res,404,{ok:false,error:'Unknown route'});
@@ -91,25 +180,59 @@ function closeSession(id) {
   if(!session)return;
   sessions.delete(id);
   try{session.process.kill();}catch{}
+  record('session.close','ok',id.slice(0,8));
 }
 server.on('upgrade',(req,socket,head)=>{
   try{
     const url=new URL(req.url,'http://127.0.0.1');
-    if(url.pathname!=='/terminal' ||
+    if(!['/terminal','/agent'].includes(url.pathname) ||
        req.headers.origin!==origin ||
        url.searchParams.get('token')!==token ||
        sessions.size>=MAX_SESSIONS){
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');socket.destroy();return;
     }
-    wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
+    wss.handleUpgrade(req,socket,head,ws=>{
+      ws.isAgent=url.pathname==='/agent';wss.emit('connection',ws);
+    });
   }catch{socket.destroy();}
 });
 wss.on('connection',ws=>{
   let current=null;
+  if(ws.isAgent){
+    if(browserBridge&&browserBridge!==ws&&browserBridge.readyState===1){
+      send(ws,{type:'error',error:'Agent browser already connected'});ws.close();return;
+    }
+    browserBridge=ws;
+    send(ws,{type:'bridge_registered'});
+  }
   ws.on('message',raw=>{
     let msg;
     try{msg=JSON.parse(String(raw));}catch{return;}
     if(!msg||typeof msg.type!=='string')return;
+    if(ws.isAgent){
+      if(msg.type==='tool_result'&&typeof msg.requestId==='string'){
+        const pending=pendingTools.get(msg.requestId);if(!pending||browserBridge!==ws)return;
+        pendingTools.delete(msg.requestId);clearTimeout(pending.timer);
+        if(pending.name==='cluster.powershell_request'&&!msg.error){
+          const approved=msg.result?.approved===true;
+          const cwd=msg.result?.absolutePath;
+          if(!approved||typeof cwd!=='string'||!path.win32.isAbsolute(cwd)||
+             path.win32.basename(path.win32.normalize(cwd)).toLowerCase()!==
+              String(pending.args.path||'').toLowerCase()){
+            json(pending.res,403,{error:'PowerShell execution requires approved matching Windows root'});return;
+          }
+          runApprovedPowerShell(pending.args.command,cwd).then(result=>{
+            json(pending.res,200,{result});
+            record('ps.execution','ok','Explicitly approved user action');
+          }).catch(error=>json(pending.res,422,{error:String(error.message).slice(0,240)}));
+          return;
+        }
+        const response=msg.error?{error:String(msg.error).slice(0,256)}:{result:msg.result};
+        json(pending.res,msg.error?403:200,response);
+        record('mcp.response',msg.error?'denied':'ok',pending.name);
+      }
+      return;
+    }
     if(msg.type==='create' && !current && sessions.size<MAX_SESSIONS) {
       const id=crypto.randomBytes(16).toString('hex');
       try{
@@ -118,9 +241,11 @@ wss.on('connection',ws=>{
           cwd:os.homedir(),env:process.env,useConpty:true
         });
         current=id;sessions.set(id,{process:proc,ws});
+        record('session.create','ok',id.slice(0,8));
         proc.onData(data=>send(ws,{type:'data',data}));
         proc.onExit(({exitCode})=>{
           if(sessions.get(id)?.ws===ws)sessions.delete(id);
+          record('process.exit',exitCode===0?'ok':'error','exit '+exitCode);
           current=null;send(ws,{type:'exit',exitCode});
         });
         send(ws,{type:'created',sessionId:id});
@@ -129,23 +254,44 @@ wss.on('connection',ws=>{
     }
     if(!current || !sessions.has(current))return;
     const proc=sessions.get(current).process;
-    if(msg.type==='input' && typeof msg.data==='string' && msg.data.length<=MAX_MESSAGE)proc.write(msg.data);
+    if(msg.type==='input' && typeof msg.data==='string' && msg.data.length<=MAX_MESSAGE){
+      proc.write(msg.data);
+      // Do not retain input text. Only record completed line submissions.
+      if(msg.data.includes('\r')||msg.data.includes('\n'))record('ps.command.submitted','ok','Input content withheld');
+    }
     if(msg.type==='resize' && Number.isInteger(msg.cols) && Number.isInteger(msg.rows) &&
        msg.cols>=10 && msg.cols<=500 && msg.rows>=2 && msg.rows<=200)
       proc.resize(msg.cols,msg.rows);
     if(msg.type==='close'){closeSession(current);current=null;}
   });
-  ws.on('close',()=>{if(current)closeSession(current);});
+  ws.on('close',()=>{
+  if(current)closeSession(current);
+  if(browserBridge===ws){browserBridge=null;
+    for(const [id,pending] of pendingTools){clearTimeout(pending.timer);
+      json(pending.res,503,{error:'AI Agent browser disconnected'});pendingTools.delete(id);}
+  }
+});
   ws.on('error',()=>{if(current)closeSession(current);});
 });
 function listen(port=0){
  server.listen(port,'127.0.0.1',()=>{
   const address=server.address();
+  fs.writeFileSync(portFile,JSON.stringify({port:address.port}),{mode:0o600});
+  fs.writeFileSync(path.join(credentialDir,'agent-state.json'),
+   JSON.stringify({port:address.port,origin,pid:process.pid}),{mode:0o600});
   console.log('PORT MESSAGE : http://127.0.0.1:'+address.port+'/ TOKEN '+token);
   console.log('ALLOWED ORIGIN : '+origin);
   console.log('PowerShell engine : '+shell);
   console.log('Close this window / Ctrl+C to stop Local Agent.');
  });
 }
-listen(Number(process.env.CLUSTER_PORT)||0);
+// Keep the browser's remembered endpoint stable whenever possible.
+const configuredPort=Number(process.env.CLUSTER_PORT)||previousPort||0;
+server.on('error',error=>{
+ if(error.code==='EADDRINUSE'&&configuredPort!==0&&!server.listening){
+  console.warn('Previous port occupied; selecting another loopback port.');
+  listen(0);
+ }else{console.error('Local Agent start failed:',error.message);process.exitCode=1;}
+});
+listen(configuredPort);
 process.on('SIGINT',()=>{for(const id of sessions.keys())closeSession(id);server.close();});

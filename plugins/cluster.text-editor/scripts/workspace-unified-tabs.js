@@ -24,7 +24,7 @@ if(!view)return;
 pane.insertBefore(tabbar,view);
 const documents=new Map();
 let activeDocument=null,activePowerShell=null,psSessions=[];
-let selected='editor',psOpened=false,psConnected=false,serial=0,snapshotTimer=0;
+let selected='editor',psOpened=false,psConnected=false,aiOpened=false,serial=0,snapshotTimer=0;
 const terminal=()=>Array.from(view.querySelectorAll('iframe')).find(x=>x.title==='ClusterPowerShell');
 function editorRequest(action,params){
 editor.contentWindow?.postMessage({protocol:'cluster.editor.v1',type:'req',
@@ -70,6 +70,11 @@ for(const d of documents.values()){
 addTab('doc',d.id,d.name||'Untitled',d.dirty,
 selected==='editor'&&String(activeDocument)===d.id,
 ()=>goEditor(d.id),()=>editorRequest('document.close',{id:d.id}));
+}
+if(aiOpened){
+ addTab('agent','ai-agent','AI Agent MCP',false,selected==='agent',
+  ()=>window.dispatchEvent(new Event('cluster-ai-agent-open')),
+  ()=>{aiOpened=false;goEditor();});
 }
 if(psOpened||psSessions.length){
 if(psSessions.length===0){
@@ -121,6 +126,10 @@ inner.head.append(css);
 }catch{/* Cross-origin child keeps native tabs rather than risking document damage. */}
 }
 editor.addEventListener('load',()=>{hideChildTabbar();setTimeout(scheduleSnapshot,125);});
+window.addEventListener('cluster-ai-agent-view',event=>{
+ if(event.detail?.selected===true){selected='agent';aiOpened=true;render();}
+ else if(selected==='agent'){selected='editor';render();}
+});
 window.addEventListener('cluster-powershell-new-tab',()=>{
  if(psConnected)psRequest('create');
 });

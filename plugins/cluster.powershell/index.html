@@ -70,6 +70,7 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 #terminalArea[hidden],#connectPanel[hidden]{display:none!important}
 @media(max-width:660px){.setup-grid{grid-template-columns:1fr}.setup-workspace{padding:10px}.setup-wrap{max-width:100%}}
 body.embedded-unified #tabs{display:none!important}
+.remember-secret{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ui-muted)}.remember-secret input{width:auto!important;accent-color:var(--ui-accent)}.forget-secret{justify-self:start;font-size:10px;padding:5px 8px} 
 </style></head><body><main>
 <header class="ps-header">
 <strong>PowerShell</strong><span class="grow"></span>
@@ -95,6 +96,9 @@ body.embedded-unified #tabs{display:none!important}
 <label class="setup-label" id="tokenLabel" for="token"></label>
 <div class="setup-connect"><input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="64-character token">
 <button id="connect" type="button" class="setup-button"></button></div>
+<label class="remember-secret"><input id="rememberPairing" type="checkbox"> <span id="rememberLabel"></span></label>
+<button id="forgetPairing" class="forget-secret" type="button"></button>
+<small id="credentialNotice" class="setup-muted" role="status"></small>
 </div></article>
 </div>
 <article class="setup-card setup-full">
@@ -131,6 +135,7 @@ es:['Conectar','Limpiar','Ejecutar','Agente local no conectado. Complete la conf
 hi:['कनेक्ट','साफ़','चलाएँ','लोकल एजेंट कनेक्ट नहीं है। त्वरित सेटअप करें।','कनेक्टेड','कनेक्शन विफल','टर्मिनल त्रुटि','डिस्कनेक्ट','नया PowerShell','टैब बंद','त्वरित सेटअप','Windows पर प्लगइन फ़ोल्डर डाउनलोड करें','bridge का CMD चलाकर वेबसाइट स्वीकार करें','दिखाया गया URL और Token दर्ज करें','पथ कॉपी करें']
 };
 let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false,bootstrapCommand='';
+const secretLabels={'zh-TW':['在此裝置記住已授權 Token（加密儲存）','忘記此裝置的配對','本機安全儲存不可用，請手動輸入 Token'],'en':['Remember authorized token on this device (encrypted)','Forget pairing on this device','Secure local storage unavailable'],fr:['Mémoriser le jeton autorisé sur cet appareil (chiffré)','Oublier l’appairage','Stockage indisponible'],ja:['この端末に認証トークンを暗号化して記憶','この端末のペアリングを削除','安全な保存先がありません'],es:['Recordar token autorizado en este dispositivo (cifrado)','Olvidar emparejamiento','Almacenamiento no disponible'],hi:['इस डिवाइस पर अधिकृत टोकन एन्क्रिप्ट करके रखें','पेयरिंग हटाएँ','सुरक्षित स्टोरेज उपलब्ध नहीं']};
 const sessions=new Map(),container=$('output');
 const t=i=>(translations[locale]||translations.en)[i];
 const setupLanguages={
@@ -161,8 +166,53 @@ function applyLabels(){
  $('tokenLabel').textContent=ui(15);
  $('downloadSetup').textContent=ui(4);
  $('setupPreview').textContent='node --version\nnpm install\nnpm install-scripts approve node-pty\nnode server.cjs';
+ $('rememberLabel').textContent=(secretLabels[locale]||secretLabels.en)[0];
+ $('forgetPairing').textContent=(secretLabels[locale]||secretLabels.en)[1];
  document.documentElement.lang=locale;renderTabs();
 }
+/* Browser-origin vault: non-extractable AES-GCM key in IndexedDB, opt-in only.
+ * Windows Local Agent independently protects the authoritative token with DPAPI.
+ * Browser-origin scripts remain trusted; never expose credentials to plugins/PRMU.
+ */
+const pairingVault=(()=>{
+ const database='cluster-powershell-pairing-v1';
+ const open=()=>new Promise((resolve,reject)=>{
+  if(!window.indexedDB||!crypto.subtle){reject(Error('Vault unavailable'));return;}
+  const req=indexedDB.open(database,1);
+  req.onupgradeneeded=()=>req.result.createObjectStore('vault');
+  req.onerror=()=>reject(req.error);req.onsuccess=()=>resolve(req.result);
+ });
+ async function transaction(mode,operation){
+  const db=await open();
+  try{return await new Promise((resolve,reject)=>{
+    const tx=db.transaction('vault',mode),store=tx.objectStore('vault');
+    let req;try{req=operation(store)}catch(e){reject(e);return;}
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });}finally{db.close();}
+ }
+ async function key(){
+  let k=await transaction('readonly',s=>s.get('key'));
+  if(k)return k;
+  k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  await transaction('readwrite',s=>s.put(k,'key'));return k;
+ }
+ return {
+  async save(url,secret){
+   const iv=crypto.getRandomValues(new Uint8Array(12));
+   const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(),new TextEncoder().encode(secret));
+   const blob={url,iv:Array.from(iv),data:Array.from(new Uint8Array(cipher))};
+   await transaction('readwrite',s=>s.put(blob,'pairing'));
+  },
+  async load(){
+   const blob=await transaction('readonly',s=>s.get('pairing'));
+   if(!blob)return null;
+   const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(blob.iv)},await key(),new Uint8Array(blob.data));
+   return {url:blob.url,token:new TextDecoder().decode(plain)};
+  },
+  async clear(){await transaction('readwrite',s=>s.delete('pairing'));}
+ };
+})();
+
 function colors(){
  const css=getComputedStyle(document.documentElement);
  const get=k=>css.getPropertyValue('--ui-'+k).trim();
@@ -273,6 +323,18 @@ function createSession(){
   if(message.type==='exit')term.writeln('\r\n[PowerShell exited: '+message.exitCode+']');
  });
  ws.addEventListener('close',()=>term.writeln('\r\n[Local Agent disconnected]'));
+ // Copy selected terminal output with Ctrl+C; without selection Ctrl+C
+ // continues to send the native interrupt to PowerShell/ConPTY.
+ term.attachCustomKeyEventHandler(e=>{
+  if(e.type!=='keydown'||!e.ctrlKey||e.shiftKey||e.altKey||e.metaKey||
+     e.key.toLowerCase()!=='c'||!term.hasSelection())return true;
+  const selection=term.getSelection();
+  if(selection&&navigator.clipboard?.writeText){
+   navigator.clipboard.writeText(selection).catch(()=>{});
+   term.clearSelection();return false;
+  }
+  return true;
+ });
  term.onData(data=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'input',data}));});
  term.onResize(()=>sendResize(session));
  const observer=new ResizeObserver(()=>{if(id===active)fit.fit();});
@@ -306,6 +368,9 @@ $('connect').onclick=async()=>{
  try{
   await requestHealth();await ensureAssets();
   setConnected(true);$('psToolMenu').hidden=true;
+  if($('rememberPairing').checked){
+   pairingVault.save(endpoint,token).catch(()=>{$('credentialNotice').textContent=(secretLabels[locale]||secretLabels.en)[2]});
+  }
   $('connectToggle').setAttribute('aria-expanded','false');
   createSession();
  }catch(error){
@@ -314,6 +379,19 @@ $('connect').onclick=async()=>{
  }
 };
 $('verifyConnection').onclick=()=>$('connect').click();
+$('forgetPairing').onclick=async()=>{
+ try{await pairingVault.clear();$('rememberPairing').checked=false;
+ $('token').value='';token='';$('credentialNotice').textContent='';}
+ catch{$('credentialNotice').textContent=(secretLabels[locale]||secretLabels.en)[2];}
+};
+pairingVault.load().then(saved=>{
+ if(!saved)return;
+ if(/^http:\/\/127\.0\.0\.1:\d+\/$/.test(saved.url)&&/^[a-f0-9]{64}$/.test(saved.token)){
+  $('endpoint').value=saved.url;$('token').value=saved.token;
+  $('rememberPairing').checked=true;
+ }
+}).catch(()=>{});
+
 $('connectToggle').onclick=()=>{
  const open=$('psToolMenu').hidden;
  $('psToolMenu').hidden=!open;

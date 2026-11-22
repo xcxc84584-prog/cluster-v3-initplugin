@@ -48,7 +48,12 @@ const glyph=document.createElement('span');glyph.className='menu-glyph';glyph.te
 const content=document.createElement('span');const name=document.createElement('strong');
 const detail=document.createElement('small');detail.className='menu-detail';
 content.append(name,detail);item.replaceChildren(glyph,content);
-menu.append(section,item);group.append(trigger,menu);
+const agentItem=document.createElement('button');agentItem.type='button';agentItem.setAttribute('role','menuitem');
+const agentGlyph=document.createElement('span');agentGlyph.className='menu-glyph';agentGlyph.textContent='✧';
+const agentBody=document.createElement('span');const agentName=document.createElement('strong');
+agentName.textContent='AI Agent MCP';const agentHint=document.createElement('small');agentHint.className='menu-detail';
+agentBody.append(agentName,agentHint);agentItem.append(agentGlyph,agentBody);
+menu.append(section,item,agentItem);group.append(trigger,menu);
 const toggle=document.getElementById('toggleExplorer');
 toggle.before(group);
 group.hidden=false; // Tool must remain accessible before Local Agent / capability init.
@@ -62,7 +67,7 @@ ja:['ツール ▾','PowerShell','エディター','PowerShell プラグイン�
 es:['Herramientas ▾','PowerShell','Editor','Instale y active primero el complemento PowerShell.'],
 hi:['टूल ▾','PowerShell','एडिटर','पहले PowerShell प्लगइन इंस्टॉल और सक्रिय करें।']
 };
-function localize(){const l=labels[language]||labels.en;trigger.textContent=l[0];name.textContent=l[1];detail.textContent=({ 'zh-TW':'本地終端與多工作階段',en:'Local terminal sessions',fr:'Terminal local',ja:'ローカル端末',es:'Terminal local',hi:'लोकल टर्मिनल' })[language]||'Local terminal';section.textContent=({ 'zh-TW':'工具 / 插件',en:'TOOLS / PLUGINS',fr:'OUTILS / PLUGINS',ja:'ツール / プラグイン',es:'HERRAMIENTAS',hi:'टूल / प्लगइन' })[language]||'TOOLS';editorTab.textContent=l[2];psTab.textContent=l[1];}
+function localize(){const l=labels[language]||labels.en;trigger.textContent=l[0];name.textContent=l[1];detail.textContent=({ 'zh-TW':'本地終端與多工作階段',en:'Local terminal sessions',fr:'Terminal local',ja:'ローカル端末',es:'Terminal local',hi:'लोकल टर्मिनल' })[language]||'Local terminal';agentHint.textContent=({ 'zh-TW':'MCP 動作與 PowerShell 紀錄',en:'MCP actions and terminal activity',fr:'Activité MCP et terminal',ja:'MCP と端末の記録',es:'Actividad MCP y terminal',hi:'MCP और टर्मिनल गतिविधि'})[language]||'MCP activity';section.textContent=({ 'zh-TW':'工具 / 插件',en:'TOOLS / PLUGINS',fr:'OUTILS / PLUGINS',ja:'ツール / プラグイン',es:'HERRAMIENTAS',hi:'टूल / प्लगइन' })[language]||'TOOLS';editorTab.textContent=l[2];psTab.textContent=l[1];}
 function select(which){
 selected=which;
 const ps=which==='powershell';
@@ -76,6 +81,7 @@ if(ps&&!loaded){notice.hidden=true;discover();requestCommunityFallback();}
 }
 function closeMenu(){menu.hidden=true;trigger.setAttribute('aria-expanded','false');}
 trigger.onclick=()=>{menu.hidden=!menu.hidden;trigger.setAttribute('aria-expanded',String(!menu.hidden));};
+agentItem.onclick=()=>{closeMenu();window.dispatchEvent(new Event('cluster-ai-agent-open'));};
 item.onclick=()=>{closeMenu();select('powershell');
 window.dispatchEvent(new CustomEvent('cluster-powershell-new-tab'));};
 editorTab.onclick=()=>select('editor');psTab.onclick=()=>select('powershell');
