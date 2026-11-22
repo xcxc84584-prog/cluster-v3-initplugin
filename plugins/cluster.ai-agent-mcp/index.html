@@ -295,16 +295,18 @@ function editorCall(action,params={}){
  });
 }
 const rootLang={
- 'zh-TW':['選擇本機資料夾','撤銷全部資料夾','尚未授權任何資料夾','讀取 R','建立 C','修改 U','刪除 D','PowerShell','撤銷','權限已更新','本機 Agent 尚未連線，請先配置連線。','Windows 對話框已開啟，請在電腦上選取資料夾。','本機資料夾選取失敗：'],
- en:['Select local folder','Revoke all folders','No folders authorized','Read R','Create C','Update U','Delete D','PowerShell','Revoke','Permissions saved','Connect the Local Agent first.','Choose a folder in the native Windows dialog.','Local folder selection failed: '],
- fr:['Choisir un dossier','Révoquer tous les dossiers','Aucun dossier autorisé','Lire R','Créer C','Modifier U','Supprimer D','PowerShell','Révoquer','Autorisations enregistrées','Connectez Local Agent.','Choisissez un dossier Windows.','Échec de sélection : '],
- ja:['ローカルフォルダーを選択','すべて取り消し','許可されたフォルダーなし','読み取り R','作成 C','更新 U','削除 D','PowerShell','取り消し','権限を保存','Local Agent に接続してください。','Windows でフォルダーを選択してください。','フォルダー選択エラー: '],
- es:['Elegir carpeta local','Revocar carpetas','Sin carpetas autorizadas','Leer R','Crear C','Actualizar U','Eliminar D','PowerShell','Revocar','Permisos guardados','Conecte Local Agent.','Seleccione la carpeta de Windows.','Error al seleccionar: '],
- hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ']
+ 'zh-TW':['選擇本機資料夾','撤銷全部資料夾','尚未授權任何資料夾','讀取 R','建立 C','修改 U','刪除 D','PowerShell','撤銷','權限已更新','本機 Agent 尚未連線，請先配置連線。','Windows 對話框已開啟，請在電腦上選取資料夾。','本機資料夾選取失敗：','本機資料夾權限','請先連接 Local Agent，再以 Windows 原生選取器選擇資料夾並設定 CRUD／PS 權限。'],
+ en:['Select local folder','Revoke all folders','No folders authorized','Read R','Create C','Update U','Delete D','PowerShell','Revoke','Permissions saved','Connect the Local Agent first.','Choose a folder in the native Windows dialog.','Local folder selection failed: ','Local folder permissions','Connect Local Agent, then select a native Windows folder and grant CRUD/PS rights.'],
+ fr:['Choisir un dossier','Révoquer tous les dossiers','Aucun dossier autorisé','Lire R','Créer C','Modifier U','Supprimer D','PowerShell','Révoquer','Autorisations enregistrées','Connectez Local Agent.','Choisissez un dossier Windows.','Échec de sélection : ','Permissions des dossiers locaux','Connectez Local Agent, choisissez un dossier Windows et définissez les droits CRUD/PS.'],
+ ja:['ローカルフォルダーを選択','すべて取り消し','許可されたフォルダーなし','読み取り R','作成 C','更新 U','削除 D','PowerShell','取り消し','権限を保存','Local Agent に接続してください。','Windows でフォルダーを選択してください。','フォルダー選択エラー: ','ローカルフォルダー権限','Local Agent に接続し、Windows のフォルダーを選択して CRUD/PS 権限を設定します。'],
+ es:['Elegir carpeta local','Revocar carpetas','Sin carpetas autorizadas','Leer R','Crear C','Actualizar U','Eliminar D','PowerShell','Revocar','Permisos guardados','Conecte Local Agent.','Seleccione la carpeta de Windows.','Error al seleccionar: ','Permisos de carpetas locales','Conecte Local Agent, seleccione una carpeta de Windows y configure CRUD/PS.'],
+ hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ','लोकल फ़ोल्डर अनुमतियाँ','Local Agent जोड़ें, Windows फ़ोल्डर चुनें और CRUD/PS अधिकार निर्धारित करें।']
 };
 const rl=i=>(rootLang[locale]||rootLang.en)[i];
 const rightNames=['read','create','update','delete','powershell'];
 function rootLabels(){
+ $('rootHeading').textContent=rl(13);
+ if(!connected && !rootHandles.size)$('rootInfo').textContent=rl(14);
  $('selectRoot').textContent=rl(0);
  $('revokeRoots').textContent=rl(1);
  const list=$('rootList');list.replaceChildren();
