@@ -7,11 +7,16 @@ if(!toolbar||!pane||!editor)return;
 const style=document.createElement('style');
 style.textContent=`
 .cluster-tool-group{position:relative;display:flex;gap:5px;align-items:center}
-.cluster-tool-menu{position:absolute;top:calc(100% + 5px);left:0;z-index:30;min-width:165px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;padding:5px;box-shadow:0 12px 35px #0007}
+.cluster-tool-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:50;min-width:215px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:9px;padding:6px;box-shadow:0 16px 40px #0009}
 .cluster-tool-menu[hidden]{display:none}
-.cluster-tool-menu button{width:100%;text-align:left;background:transparent;color:var(--ui-on-panel,var(--ui-text));border:0;padding:9px;border-radius:5px}
-.cluster-tool-menu button:hover{background:var(--ui-hover)}
-.cluster-shell-tabs{display:flex;gap:2px;align-items:center;background:var(--ui-panel);border-bottom:1px solid var(--ui-border);height:34px;padding:0 8px}
+.cluster-tool-menu button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:transparent;color:var(--ui-on-panel,var(--ui-text));border:0;padding:10px;border-radius:6px;font:500 12px system-ui;cursor:pointer}
+.cluster-tool-menu button:hover,.cluster-tool-menu button:focus-visible{background:var(--ui-hover);outline:1px solid var(--ui-accent)}
+.cluster-tool-menu .section-label{padding:7px 9px;color:var(--ui-muted);font:600 9px Consolas,monospace;letter-spacing:1px;border-bottom:1px solid var(--ui-border);margin-bottom:5px}
+.cluster-tool-menu .menu-glyph{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;border-radius:5px;background:var(--ui-control);color:var(--ui-accent);font:600 12px Consolas,monospace}
+.cluster-tool-menu .menu-detail{display:block;font:10px system-ui;color:var(--ui-muted);margin-top:3px}
+.cluster-tool-group>.tool{border:1px solid var(--ui-border);background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));border-radius:6px;padding:6px 11px;font-weight:600}
+.cluster-tool-group>.tool:hover,.cluster-tool-group>.tool[aria-expanded=true]{background:var(--ui-hover);border-color:var(--ui-accent)}
+.cluster-shell-tabs{display:none!important;gap:2px;align-items:center;background:var(--ui-panel);border-bottom:1px solid var(--ui-border);height:34px;padding:0 8px}
 .cluster-shell-tabs button{background:transparent;color:var(--ui-muted);border:0;border-bottom:2px solid transparent;height:100%;padding:0 13px}
 .cluster-shell-tabs button[aria-selected=true]{border-color:var(--ui-accent);color:var(--ui-on-panel,var(--ui-text))}
 .cluster-shell-view{min-height:0;flex:1;position:relative}
@@ -38,9 +43,14 @@ trigger.setAttribute('aria-haspopup','true');trigger.setAttribute('aria-expanded
 const menu=document.createElement('div');menu.className='cluster-tool-menu';menu.hidden=true;
 menu.setAttribute('role','menu');
 const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');
-menu.append(item);group.append(trigger,menu);
+const section=document.createElement('div');section.className='section-label';
+const glyph=document.createElement('span');glyph.className='menu-glyph';glyph.textContent='>_';
+const content=document.createElement('span');const name=document.createElement('strong');
+const detail=document.createElement('small');detail.className='menu-detail';
+content.append(name,detail);item.replaceChildren(glyph,content);
+menu.append(section,item);group.append(trigger,menu);
 const toggle=document.getElementById('toggleExplorer');
-toggle.after(group);
+toggle.before(group);
 group.hidden=false; // Tool must remain accessible before Local Agent / capability init.
 let language='zh-TW',loaded=false,requestId='',lastContext=null,selected='editor';
 let communityRequest='',fallbackInFlight=false;
@@ -52,7 +62,7 @@ ja:['ツール ▾','PowerShell','エディター','PowerShell プラグイン�
 es:['Herramientas ▾','PowerShell','Editor','Instale y active primero el complemento PowerShell.'],
 hi:['टूल ▾','PowerShell','एडिटर','पहले PowerShell प्लगइन इंस्टॉल और सक्रिय करें।']
 };
-function localize(){const l=labels[language]||labels.en;trigger.textContent=l[0];item.textContent=l[1];editorTab.textContent=l[2];psTab.textContent=l[1];}
+function localize(){const l=labels[language]||labels.en;trigger.textContent=l[0];name.textContent=l[1];detail.textContent=({ 'zh-TW':'本地終端與多工作階段',en:'Local terminal sessions',fr:'Terminal local',ja:'ローカル端末',es:'Terminal local',hi:'लोकल टर्मिनल' })[language]||'Local terminal';section.textContent=({ 'zh-TW':'工具 / 插件',en:'TOOLS / PLUGINS',fr:'OUTILS / PLUGINS',ja:'ツール / プラグイン',es:'HERRAMIENTAS',hi:'टूल / प्लगइन' })[language]||'TOOLS';editorTab.textContent=l[2];psTab.textContent=l[1];}
 function select(which){
 selected=which;
 const ps=which==='powershell';
@@ -61,13 +71,15 @@ notice.hidden=!ps||loaded;
 tabs.hidden=false;
 for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-selected',String(button.dataset.tab===which));
 window.dispatchEvent(new CustomEvent('cluster-powershell-view',{detail:{selected:ps}}));
+window.dispatchEvent(new CustomEvent('cluster-workspace-select',{detail:{selected:which}}));
 if(ps&&!loaded){notice.hidden=true;discover();requestCommunityFallback();}
 }
 function closeMenu(){menu.hidden=true;trigger.setAttribute('aria-expanded','false');}
 trigger.onclick=()=>{menu.hidden=!menu.hidden;trigger.setAttribute('aria-expanded',String(!menu.hidden));};
 item.onclick=()=>{closeMenu();select('powershell');};
 editorTab.onclick=()=>select('editor');psTab.onclick=()=>select('powershell');
-document.addEventListener('pointerdown',event=>{if(!group.contains(event.target))closeMenu();});
+document.addEventListener('pointerdown',event=>{if(!group.contains(event.target))closeMenu();},true);
+document.addEventListener('focusin',event=>{if(!group.contains(event.target))closeMenu();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu();});
 function discover(){if(window.parent===window)return;
 requestId='cluster-ps-capability-'+Date.now();
