@@ -149,8 +149,8 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const L={
-'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','延續 ClusterOpt2 的分離式 MCP/OAuth。請啟動本機 Gateway，並配置安全 HTTPS 入口。','下載 MCP 快速配置 CMD','14 項工具由本機代理轉送，敏感操作需要明確授權。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','顯示代理實際回報的事件與 PowerShell 輸出（本機保存、限量與敏感值遮罩）；不記錄原始指令。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
-en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Start the local MCP/OAuth gateways, then configure a trusted HTTPS endpoint.','Download MCP setup CMD','Fourteen tools are available; PowerShell can run without prompts only with a separate user grant.','03 · Verify','AI actions and PowerShell events','Verified agent activity and bounded PS output are stored locally; raw commands are not recorded.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
+'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','延續 ClusterOpt2 的分離式 MCP/OAuth。請啟動本機 Gateway，並配置安全 HTTPS 入口。','下載 MCP 快速配置 CMD','14 項工具由本機代理轉送，敏感操作需要明確授權。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','顯示代理實際回報的事件與 PowerShell 輸出（本機保存、限量與敏感值遮罩）；不記錄原始指令。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；AUTO 可免 C／R／U／PS 確認，刪除仍須核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
+en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Start the local MCP/OAuth gateways, then configure a trusted HTTPS endpoint.','Download MCP setup CMD','Fourteen tools are available; workspace AUTO can skip CRU/PS prompts, but deleting still requires confirmation.','03 · Verify','AI actions and PowerShell events','Verified agent activity and bounded PS output are stored locally; raw commands are not recorded.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
 fr:['Déconnecté','Connecté','Configuration','Activité','Outils MCP','Services','Initialiser AI Agent','Connectez Local Agent, puis vérifiez MCP/OAuth.','01 · Agent local','Utilisez le CMD de ClusterPowerShell.','Port / URL locale','Jeton de jumelage','Connexion','02 · MCP / OAuth','Démarrer les services MCP/OAuth et configurer HTTPS.','Guide','Les actions sensibles nécessitent votre autorisation.','03 · Vérifier','Actions AI et événements PowerShell','Événements et sorties PowerShell limitées enregistrés localement ; commandes exclues.','Actualiser','Exporter','Aucun événement.','Catalogue MCP','Les outils nécessitent les autorisations v3.','État des services','Réessayer','Déconnecter','Inactif','Non implémenté','Attente','Erreur: '],
 ja:['未接続','接続済み','初期設定','操作記録','MCP ツール','サービス','AI Agent の初期化','Local Agent を接続してください。','01 · Local Agent','PowerShell の CMD で起動します。','ポート / URL','ペアリングトークン','接続','02 · MCP / OAuth','MCP/OAuth ゲートウェイと安全な HTTPS を設定します。','ガイド','危険な操作は承認が必要です。Auto PowerShell は別途許可できます。','03 · 検証','AI と PowerShell の記録','認証されたイベントのみ。','更新','エクスポート','記録なし','MCP ツール','権限なしでは利用できません。','サービス状態','再試行','切断','無効','未実装','待機','接続エラー: '],
 es:['Desconectado','Conectado','Configuración','Actividad','Herramientas MCP','Servicios','Iniciar AI Agent','Conecte el agente local existente.','01 · Agente local','Use el CMD de PowerShell.','Puerto / URL','Token de emparejamiento','Conectar','02 · MCP / OAuth','Inicie MCP/OAuth y configure HTTPS seguro.','Guía','Las acciones sensibles requieren aprobación.','03 · Verificar','Actividad AI y PowerShell','Eventos y salida limitada de PowerShell almacenados localmente.','Actualizar','Exportar','Sin eventos','Herramientas MCP','Requiere permisos del Router.','Estado de servicios','Reintentar','Desconectar','Inactivo','No implementado','Esperando','Error: '],
@@ -445,15 +445,15 @@ const rootLang={
  hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ','लोकल फ़ोल्डर अनुमतियाँ','Local Agent जोड़ें, Windows फ़ोल्डर चुनें और CRUD/PS अधिकार निर्धारित करें।']
 };
 const rl=i=>(rootLang[locale]||rootLang.en)[i];
-const autoPsLabels={
- 'zh-TW':'Auto PowerShell（免逐次確認）',
- en:'Auto PowerShell (skip per-command approval)',
- fr:'PowerShell automatique (sans approbation à chaque commande)',
- ja:'自動 PowerShell（コマンドごとの確認なし）',
- es:'PowerShell automático (sin aprobación por comando)',
- hi:'स्वचालित PowerShell (प्रति कमांड पुष्टि के बिना)'
+const autoLabels={
+ 'zh-TW':['AUTO（C／R／U／PS 免確認；D 仍需確認）','開啟此資料夾的 AUTO？已授權的建立、讀取、修改與 PowerShell 操作將直接執行；刪除仍需逐次確認。'],
+ en:['AUTO (C/R/U/PS without prompts; D still asks)','Enable AUTO for this root? Authorized create, read, update and PowerShell actions run without repeated prompts. Delete still requires confirmation.'],
+ fr:['AUTO (C/R/U/PS sans demande ; D avec confirmation)','Activer AUTO pour ce dossier ? La suppression exige toujours une confirmation.'],
+ ja:['AUTO（C/R/U/PS 自動承認、D は確認）','このフォルダーで AUTO を有効にしますか？削除は毎回確認が必要です。'],
+ es:['AUTO (C/R/U/PS sin aviso; D requiere confirmación)','¿Activar AUTO para esta carpeta? Eliminar siempre requiere confirmación.'],
+ hi:['AUTO (C/R/U/PS स्वतः; D के लिए पुष्टि)','इस फ़ोल्डर के लिए AUTO चालू करें? हटाने के लिए हमेशा पुष्टि आवश्यक है।']
 };
-const rightNames=['read','create','update','delete','powershell','autoPowershell'];
+const rightNames=['read','create','update','delete','powershell','auto'];
 function rootLabels(){
  $('rootHeading').textContent=rl(13);
  if(!connected && !rootHandles.size)$('rootInfo').textContent=rl(14);
@@ -477,19 +477,16 @@ function rootLabels(){
    const label=document.createElement('label'),input=document.createElement('input');
    input.type='checkbox';input.checked=root.rights?.[right]===true;
    const span=document.createElement('span');
-   span.textContent=right==='autoPowershell'?autoPsLabels[locale]||autoPsLabels.en:rl(3+index);
-   if(right==='autoPowershell'){
-    input.disabled=root.rights?.powershell!==true;
-    label.title='Grants future commands within this root without a per-command prompt. Revocable.';
+   span.textContent=right==='auto'?(autoLabels[locale]||autoLabels.en)[0]:rl(3+index);
+   if(right==='auto'){
+    label.title=(autoLabels[locale]||autoLabels.en)[1];
    }
    input.onchange=async()=>{
     const rights={...root.rights,[right]:input.checked};
-    if(right==='powershell'&&!input.checked)rights.autoPowershell=false;
-    if(right==='autoPowershell'&&input.checked){
-     const message=locale==='zh-TW'
-      ?'允許 AI 在此 Root 自動執行 PowerShell 命令，不再逐次確認？此權限可隨時撤銷。'
-      :'Allow AI to execute PowerShell commands in this root without individual prompts? You can revoke this permission at any time.';
-     if(!window.confirm(message)){input.checked=false;return;}
+    if(right==='auto'&&input.checked){
+     if(!window.confirm((autoLabels[locale]||autoLabels.en)[1])){
+      input.checked=false;return;
+     }
     }
     try{
      const saved=await call('/roots/permissions',{id:root.id,rights});
@@ -546,7 +543,10 @@ async function requestApproval(title,details,{nativePath=false,timeout=38000}={}
   $('denyAction').onclick=()=>settle(null,'User denied the requested operation');
  });
 }
-async function ask(message){
+async function ask(message,root,action){
+ // A root's AUTO switch bypasses prompts only for already-granted CRU/PS.
+ // Delete remains an unconditional one-shot approval.
+ if(action!=='delete' && root?.rights?.auto===true)return true;
  return (await requestApproval('Authorize AI tool action',message)).approved;
 }
 async function executeTool(name,args){
@@ -593,25 +593,27 @@ async function executeTool(name,args){
   const filename=String(args.name||'');
   if(!filename||filename.includes('/')||filename.includes('\\')||filename==='..')
    throw Error('Invalid name');
-  if(!await ask('Allow AI to CREATE '+root.absolutePath+'\\'+relative+'\\'+filename+'?'))
+  if(!await ask('Allow AI to CREATE '+root.absolutePath+'\\'+relative+'\\'+filename+'?',root,'create'))
    throw Error('User denied file creation');
   return call('/roots/action',{id:root.id,action:'create',
     relative:[relative,filename].filter(Boolean).join('/')});
  }
  case 'cluster.write_path':{
   const {root,relative}=nativeRoot(String(args.path||''));
-  if(!await ask('Allow AI to OVERWRITE '+root.absolutePath+'\\'+relative+'?'))
+  if(!await ask('Allow AI to OVERWRITE '+root.absolutePath+'\\'+relative+'?',root,'update'))
    throw Error('User denied file overwrite');
   return call('/roots/action',{id:root.id,action:'write',relative,content:args.content});
  }
  case 'cluster.delete_path':{
   const {root,relative}=nativeRoot(String(args.path||''));
-  if(!await ask('Allow AI to DELETE '+root.absolutePath+'\\'+relative+'?'))
+  if(!await ask('Allow AI to DELETE '+root.absolutePath+'\\'+relative+'?',root,'delete'))
    throw Error('User denied deletion');
   return call('/roots/action',{id:root.id,action:'delete',relative});
  }
  case 'cluster.open_powershell':
-  if(!await ask('Allow AI to open a new PowerShell terminal tab?'))throw Error('User denied terminal');
+  if(![...rootHandles.values()].some(r=>r.rights?.powershell===true&&r.rights?.auto===true)
+    && !await ask('Allow AI to open a new PowerShell terminal tab?'))
+   throw Error('User denied terminal');
   parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'open-powershell'},'*');
   return {requested:true};
  case 'cluster.powershell_request':{
@@ -619,7 +621,7 @@ async function executeTool(name,args){
   const {root}=nativeRoot(String(args.path||''));
   if(command.length<1||command.length>2000||root.rights?.powershell!==true)
    throw Error('PowerShell permission or command denied');
-  if(root.rights?.autoPowershell===true)
+  if(root.rights?.auto===true)
    return {approved:true,automatic:true,absolutePath:root.absolutePath};
   const approval=await requestApproval('PowerShell command approval',
    'Run this command as your Windows user?\nFolder: '+root.absolutePath+'\n\n'+command,
