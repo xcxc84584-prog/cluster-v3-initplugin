@@ -132,12 +132,35 @@ hi:['कनेक्ट','साफ़','चलाएँ','लोकल एज�
 let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false;
 const sessions=new Map(),container=$('output');
 const t=i=>(translations[locale]||translations.en)[i];
+const setupLanguages={
+'zh-TW':['未配置','工具 ▾','連線設定','清除輸出','下載快速配置 CMD','下載 CMD，在 Windows 執行；完成後會顯示 Port 和 Token。','配置本地代理','輸入 CMD 顯示的連接埠與 64 字元 Token。','連線驗證','點擊「檢查連線」，成功後直接進入原生 PowerShell 終端。','配置本地代理','尚未連線至 PowerShell Local Agent，此步驟不可執行命令。','預覽安裝指令（CMD）','檢查連線','連接埠或本地 URL','Token','下載完成，請在 Windows 執行 CMD','已連線至本地 PowerShell','下載失敗：'],
+en:['Not configured','Tools ▾','Connection settings','Clear output','Download setup CMD','Run the downloaded CMD on Windows to obtain Port and Token.','Configure local agent','Enter the Port or URL and 64-character Token printed by CMD.','Verify connection','Select Check connection to open the native PowerShell terminal.','Configure local agent','No connection to the local PowerShell agent. Commands are unavailable.','Preview installation commands (CMD)','Check connection','Port or loopback URL','Token','CMD downloaded; run it on Windows','Connected to local PowerShell','Download failed: '],
+fr:['Non configuré','Outils ▾','Connexion','Effacer','Télécharger CMD','Exécutez le CMD sur Windows pour obtenir Port et Token.','Agent local','Saisissez Port et Token.','Vérifier la connexion','Vérifiez pour ouvrir le terminal PowerShell natif.','Agent local','Connexion locale indisponible.','Aperçu des commandes CMD','Vérifier','Port ou URL','Token','CMD téléchargé','Connecté','Échec du téléchargement : '],
+ja:['未設定','ツール ▾','接続設定','出力を消去','CMD をダウンロード','Windows で CMD を実行し Port と Token を取得します。','ローカルエージェント設定','Port と Token を入力してください。','接続確認','接続成功後に PowerShell 端末を開きます。','ローカルエージェント','未接続のためコマンドは実行できません。','CMD コマンドを表示','接続確認','ポートまたは URL','Token','CMD をダウンロードしました','接続しました','ダウンロード失敗：'],
+es:['Sin configurar','Herramientas ▾','Conexión','Borrar salida','Descargar CMD','Ejecute CMD en Windows para obtener Port y Token.','Configurar agente local','Introduzca Port y Token.','Verificar conexión','Al verificar se abrirá PowerShell nativo.','Agente local','Sin conexión; no se pueden ejecutar comandos.','Vista previa de CMD','Verificar','Puerto o URL','Token','CMD descargado','Conectado','Error de descarga: '],
+hi:['कॉन्फ़िगर नहीं','टूल ▾','कनेक्शन सेटिंग','आउटपुट साफ़','सेटअप CMD डाउनलोड','Windows पर CMD चलाकर Port और Token लें।','लोकल एजेंट सेटअप','Port और Token भरें।','कनेक्शन जाँच','सफल कनेक्शन पर मूल PowerShell टर्मिनल खुलेगा।','लोकल एजेंट','कनेक्शन उपलब्ध नहीं।','CMD कमांड पूर्वावलोकन','कनेक्शन जाँचें','पोर्ट या URL','Token','CMD डाउनलोड हो गया','डाउनलोड विफल: ']
+};
+const ui=i=>(setupLanguages[locale]||setupLanguages.en)[i];
 function applyLabels(){
- $('connectToggle').textContent=t(0);$('connect').textContent=t(0);
- $('clear').textContent=t(1);$('hint').textContent=t(3);
- $('setupTitle').textContent=t(10);$('setupStep1').textContent=t(11);
- $('setupStep2').textContent=t(12);$('setupStep3').textContent=t(13);
- $('copySetup').textContent=t(14);document.documentElement.lang=locale;renderTabs();
+ $('connectToggle').textContent=ui(1);$('connect').textContent=t(0);
+ $('clear').textContent=ui(3);
+ $('reconfigure').textContent=ui(2);
+ $('stateLabel').textContent=connected?ui(17):ui(0);
+ $('setupTitle').textContent=ui(4);
+ $('setupStep1').textContent=ui(5);
+ $('configureTitle').textContent=ui(6);
+ $('setupStep2').textContent=ui(7);
+ $('verifyTitle').textContent=ui(8);
+ $('setupStep3').textContent=ui(9);
+ $('statusTitle').textContent=ui(10);
+ if(!connected)$('hint').textContent=ui(11);
+ $('previewTitle').textContent=ui(12);
+ $('verifyConnection').textContent=ui(13);
+ $('portLabel').textContent=ui(14);
+ $('tokenLabel').textContent=ui(15);
+ $('downloadSetup').textContent=ui(4);
+ $('setupPreview').textContent='node --version\nnpm install\nnpm install-scripts approve node-pty\nnode server.cjs';
+ document.documentElement.lang=locale;renderTabs();
 }
 function colors(){
  const css=getComputedStyle(document.documentElement);
@@ -256,26 +279,63 @@ function closeSession(id){
  if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);}
  renderTabs();
 }
-function setConnected(value){connected=value;$('dot').classList.toggle('connected',value);renderTabs();if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');}
+function setConnected(value){
+ connected=value;
+ $('connectPanel').hidden=value;
+ $('terminalArea').hidden=!value;
+ $('stateLabel').textContent=value?ui(17):ui(0);
+ renderTabs();
+ if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');
+}
 $('connect').onclick=async()=>{
  endpoint=$('endpoint').value.trim();token=$('token').value.trim();
+ if(/^[0-9]{1,5}$/.test(endpoint)){
+  const port=Number(endpoint);
+  if(port<1||port>65535){$('hint').textContent='Invalid port';return;}
+  endpoint='http://127.0.0.1:'+port+'/';
+ }
+ if(/^[0-9]{1,5}$/.test(endpoint)){
+  const port=Number(endpoint);
+  if(port<1||port>65535){$('hint').textContent='Invalid port';return;}
+  endpoint='http://127.0.0.1:'+port+'/';
+ }
  try{
   await requestHealth();await ensureAssets();
-  setConnected(true);$('setupGuide').hidden=true;$('connectPanel').hidden=true;
-  $('connectToggle').setAttribute('aria-expanded','false');createSession();
+  setConnected(true);$('psToolMenu').hidden=true;
+  $('connectToggle').setAttribute('aria-expanded','false');
+  createSession();
  }catch(error){
-  setConnected(false);$('setupGuide').hidden=false;$('connectPanel').hidden=false;
+  setConnected(false);
   $('hint').textContent=t(5)+': '+error.message;
  }
 };
+$('verifyConnection').onclick=()=>$('connect').click();
 $('connectToggle').onclick=()=>{
- $('connectPanel').hidden=!$('connectPanel').hidden;
- $('connectToggle').setAttribute('aria-expanded',String(!$('connectPanel').hidden));
+ const open=$('psToolMenu').hidden;
+ $('psToolMenu').hidden=!open;
+ $('connectToggle').setAttribute('aria-expanded',String(open));
 };
-$('clear').onclick=()=>sessions.get(active)?.term.clear();
-$('copySetup').onclick=()=>{
- navigator.clipboard?.writeText('bridge\\Setup-ClusterPowerShell.cmd').catch(()=>{});
+$('reconfigure').onclick=()=>{
+ $('psToolMenu').hidden=true;
+ $('connectPanel').hidden=false;
+ $('terminalArea').hidden=true;
 };
+$('clear').onclick=()=>{
+ sessions.get(active)?.term.clear();
+ $('psToolMenu').hidden=true;
+};
+$('downloadSetup').onclick=()=>{
+ $('downloadStatus').textContent='…';
+ if(parent!==window)parent.postMessage({
+  protocol:'cluster.powershell.setup.v1',type:'download'
+ },'*');
+ else $('downloadStatus').textContent=ui(18)+'Host unavailable';
+};
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.protocol!=='cluster.powershell.setup.v1'||
+    event.data.type!=='download-result')return;
+ $('downloadStatus').textContent=event.data.ok?ui(16):ui(18)+(event.data.error||'Unknown');
+});
 window.addEventListener('pagehide',()=>{for(const id of Array.from(sessions.keys()))closeSession(id);});
 applyLabels();renderTabs();
 })();
