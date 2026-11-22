@@ -193,6 +193,23 @@ const server=http.createServer((req,res)=>{
     json(res,200,{ok:true,mcp:probe('mcp'),oauth:probe('oauth')});
     return;
   }
+  // Clear requires the already-validated origin and local pairing token.
+  // Persist first; do not claim success when the activity file cannot be replaced.
+  if(url.pathname==='/activity/clear'){
+    const previous=activity.splice(0);
+    const tmp=activityFile+'.new';
+    try{
+      fs.writeFileSync(tmp,JSON.stringify({schemaVersion:1,events:[]}),{mode:0o600});
+      fs.renameSync(tmp,activityFile);
+      activitySequence++;
+      json(res,200,{ok:true,cleared:previous.length,cursor:activitySequence});
+    }catch(error){
+      activity.push(...previous);
+      try{fs.unlinkSync(tmp)}catch{}
+      json(res,500,{ok:false,error:'Unable to clear persisted activity'});
+    }
+    return;
+  }
   if(url.pathname==='/activity'){
     json(res,200,{ok:true,events:activity.slice(-100),cursor:activitySequence});
     return;
