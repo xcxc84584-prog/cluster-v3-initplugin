@@ -6,6 +6,9 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import {Readable} from 'node:stream';
 import {runInNewContext,Script} from 'node:vm';
+import {createRequire} from 'node:module';
+const localRequire=createRequire(import.meta.url);
+const {normalizePublicIssuer}=localRequire('../plugins/cluster.powershell/bridge/oauth-origin.cjs');
 
 const folder=new URL('../plugins/cluster.powershell/bridge/',import.meta.url);
 const read=name=>fs.readFileSync(new URL(name,folder),'utf8');
@@ -46,7 +49,8 @@ function harness(script,kind){
  const modules={
   'node:http':http,'node:fs':mockFs,'node:path':path,'node:os':os,
   'node:crypto':crypto,'node:url':{URL,URLSearchParams},
-  './secure-store.cjs':vault
+  './secure-store.cjs':vault,
+  './oauth-origin.cjs':{normalizePublicIssuer}
  };
  const module={exports:{}};
  const processMock={env:{LOCALAPPDATA:'/tmp/test-cluster',
@@ -146,4 +150,20 @@ test('OAuth metadata, authorization code + PKCE, scoped MCP tools and revocation
  assert.equal(revoked.status,200);
  const after=await req('/mcp','POST',{jsonrpc:'2.0',id:11,method:'tools/list'},auth);
  assert.equal(after.status,401);
+});
+
+test('OAuth public issuer parser accepts full HTTPS URLs but rejects GitHub Pages',()=>{
+ assert.equal(normalizePublicIssuer('https://mcp.example.com/my/path/'),
+   'https://mcp.example.com');
+ assert.equal(normalizePublicIssuer(' https://mcp.example.com:8443/mcp '),
+   'https://mcp.example.com:8443');
+ for(const bad of [
+  'https://xcxc84584-prog.github.io/Cluster-v3/',
+  'http://mcp.example.com',
+  'https://localhost:43879',
+  'https://127.0.0.1',
+  'https://user:secret@mcp.example.com',
+  'not a url',
+  '',
+ ])assert.throws(()=>normalizePublicIssuer(bad),bad);
 });
