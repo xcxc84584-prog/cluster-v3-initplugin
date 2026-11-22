@@ -344,3 +344,50 @@ test('Windows DPAPI token, stable loopback and Ctrl C copy semantics',()=>{
  assert.match(page,/pairingVault\.clear\(\)/);
  assert.match(page,/indexedDB/);
 });
+
+test('all 14 browser MCP tools bind real capability handlers with fail-closed approval',()=>{
+ const page=read('plugins/cluster.ai-agent-mcp/index.html');
+ const source=page.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ new Script(source,{filename:'cluster.ai-agent-mcp/index.html'});
+ const names=[
+ 'get_status','get_task_status','list_files','get_editor_state',
+ 'read_file','list_roots','find_root_windows_path','list_directory',
+ 'read_path','create_file','write_path','delete_path',
+ 'open_powershell','powershell_request'
+ ];
+ for(const name of names){
+  assert.match(source,new RegExp("case 'cluster\\."+name+"'"),name);
+ }
+ assert.match(source,/function requestApproval/);
+ assert.match(source,/approvalPending/);
+ assert.match(source,/id="approvalPane"/);
+ assert.match(source,/setTimeout\(\(\)=>settle\(null/);
+ assert.match(source,/window\.showDirectoryPicker/);
+ assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
+ assert.match(source,/document\.dirty===true/);
+ assert.doesNotMatch(source,/window\.confirm\(/);
+ assert.doesNotMatch(source,/window\.prompt\(/);
+ assert.match(source,/type:'tool_result'/);
+ const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
+ assert.match(bridge,/if\(url\.pathname==='\/mcp\/call'\)/);
+ assert.match(bridge,/if\(ws\.isAgent\)/);
+ assert.match(bridge,/runApprovedPowerShell/);
+ assert.match(bridge,/pending\.args\.command,cwd/);
+});
+test('MCP first-run bootstrap includes secure gateway and OAuth scripts',()=>{
+ const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ for(const file of ['secure-store.cjs','mcp-gateway.cjs',
+ 'oauth-mcp-gateway.cjs','Start-Cluster-MCP.cmd','Show-OAuth-Approval.cmd'])
+  assert.ok(onboarding.includes(file),file);
+ const installer=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ assert.match(installer,/CLUSTER_OAUTH_ISSUER/);
+ assert.match(installer,/mcp-gateway\.cjs/);
+ assert.match(installer,/oauth-mcp-gateway\.cjs/);
+ const oauth=read('plugins/cluster.powershell/bridge/oauth-mcp-gateway.cjs');
+ assert.match(oauth,/resourceId=issuer\+'\/mcp'/);
+ assert.match(oauth,/authorization_response_iss_parameter_supported:true/);
+ assert.match(oauth,/if\(route==='\/revoke'/);
+ assert.match(oauth,/DataProtectionScope|secureStore\.loadOrMigrate/);
+ for(const lang of ['zh-TW','en','fr','ja','es','hi'])
+  assert.ok(oauth.includes('"'+lang+'":')||oauth.includes('"'+lang+'"'),lang);
+});
