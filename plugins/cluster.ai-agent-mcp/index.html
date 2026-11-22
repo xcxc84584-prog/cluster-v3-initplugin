@@ -331,7 +331,7 @@ function rootLabels(){
     const rights={...root.rights,[right]:input.checked};
     try{
      const saved=await call('/roots/permissions',{id:root.id,rights});
-     rootHandles.set(root.id,saved);$('rootInfo').textContent=rl(9);
+     rootHandles.set(root.id,saved);rootLabels();$('rootInfo').textContent=rl(9);
     }catch(e){input.checked=!input.checked;$('rootInfo').textContent=e.message;}
    };
    label.append(input,span);controls.append(label);
