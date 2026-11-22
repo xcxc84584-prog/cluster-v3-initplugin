@@ -76,10 +76,12 @@ if(ps&&!loaded){notice.hidden=true;discover();requestCommunityFallback();}
 }
 function closeMenu(){menu.hidden=true;trigger.setAttribute('aria-expanded','false');}
 trigger.onclick=()=>{menu.hidden=!menu.hidden;trigger.setAttribute('aria-expanded',String(!menu.hidden));};
-item.onclick=()=>{closeMenu();select('powershell');};
+item.onclick=()=>{closeMenu();select('powershell');
+window.dispatchEvent(new CustomEvent('cluster-powershell-new-tab'));};
 editorTab.onclick=()=>select('editor');psTab.onclick=()=>select('powershell');
 document.addEventListener('pointerdown',event=>{if(!group.contains(event.target))closeMenu();},true);
 document.addEventListener('focusin',event=>{if(!group.contains(event.target))closeMenu();});
+window.addEventListener('blur',closeMenu);
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu();});
 function discover(){if(window.parent===window)return;
 requestId='cluster-ps-capability-'+Date.now();
