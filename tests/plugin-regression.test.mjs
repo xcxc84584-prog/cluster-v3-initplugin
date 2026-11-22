@@ -212,7 +212,6 @@ test('Editor first-run PowerShell Local Agent guide and CMD download',()=>{
  assert.match(guide,/Setup-ClusterPowerShell\.cmd/);
  assert.match(guide,/cluster\.powershell\.status\.v1/);
  assert.match(terminal,/cluster\.powershell\.status\.v1/);
- for(const language of ['zh-TW','en','fr','ja','es'])
-   assert.ok(guide.includes("'"+language+"'"));
- assert.match(guide,/hi:\[/);
+ for(const language of ['zh-TW','en','fr','ja','es','hi'])
+   assert.ok(guide.includes("'"+language+"':[") || guide.includes(language+':['));
 });
