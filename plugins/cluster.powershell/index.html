@@ -213,6 +213,90 @@ const pairingVault=(()=>{
  };
 })();
 
+
+/* Encrypted, bounded terminal output history. Only received PTY output is stored.
+ * A per-origin non-extractable AES-GCM key keeps transcripts out of plaintext
+ * browser storage; local browser scripts remain trusted and can read this data.
+ */
+const terminalHistory=(()=>{
+ const database='cluster-powershell-history-v1',limit=200000;
+ let buffer='',queued=false,chain=Promise.resolve(),keyPromise=null;
+ const open=()=>new Promise((resolve,reject)=>{
+  const request=indexedDB.open(database,1);
+  request.onupgradeneeded=()=>request.result.createObjectStore('history');
+  request.onerror=()=>reject(request.error);
+  request.onsuccess=()=>resolve(request.result);
+ });
+ async function access(mode,action){
+  const db=await open();
+  try{return await new Promise((resolve,reject)=>{
+   const tx=db.transaction('history',mode),store=tx.objectStore('history');
+   let request;
+   try{request=action(store)}catch(error){reject(error);return;}
+   request.onsuccess=()=>resolve(request.result);
+   request.onerror=()=>reject(request.error);
+  });}finally{db.close();}
+ }
+ async function getKey(){
+  if(!keyPromise)keyPromise=(async()=>{
+   let key=await access('readonly',s=>s.get('key'));
+   if(!key){
+    key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},
+      false,['encrypt','decrypt']);
+    await access('readwrite',s=>s.put(key,'key'));
+   }
+   return key;
+  })().catch(error=>{keyPromise=null;throw error;});
+  return keyPromise;
+ }
+ async function persist(){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const bytes=new TextEncoder().encode(buffer);
+  const data=await crypto.subtle.encrypt({name:'AES-GCM',iv},
+    await getKey(),bytes);
+  await access('readwrite',s=>s.put({
+   iv:Array.from(iv),data:Array.from(new Uint8Array(data))
+  },'transcript'));
+ }
+ const ready=(async()=>{
+  if(!globalThis.indexedDB||!crypto.subtle)return;
+  try{
+   const saved=await access('readonly',s=>s.get('transcript'));
+   if(saved){
+    const bytes=await crypto.subtle.decrypt({name:'AES-GCM',
+      iv:new Uint8Array(saved.iv)},await getKey(),
+      new Uint8Array(saved.data));
+    buffer=new TextDecoder().decode(bytes).slice(-limit);
+   }
+  }catch{/* Browsers without persistent storage still support live output. */}
+ })();
+ function schedule(){
+  if(queued)return;
+  queued=true;
+  setTimeout(()=>{
+   queued=false;
+   chain=chain.then(()=>persist()).catch(()=>{});
+  },500);
+ }
+ return {
+  ready,
+  snapshot:()=>buffer,
+  append(output){
+   if(typeof output!=='string'||!output)return;
+   // Never preserve the active authorization credential in console history.
+   const safe=token?output.split(token).join('[REDACTED TOKEN]'):output;
+   buffer=(buffer+safe).slice(-limit);
+   schedule();
+  },
+  clear(){
+   buffer='';
+   chain=chain.then(()=>access('readwrite',s=>s.delete('transcript')))
+    .catch(()=>{});
+  }
+ };
+})();
+let historyRestored=false;
+
 function colors(){
  const css=getComputedStyle(document.documentElement);
  const get=k=>css.getPropertyValue('--ui-'+k).trim();
@@ -312,17 +396,34 @@ function createSession(){
  const fit=new window.FitAddon.FitAddon();term.loadAddon(fit);term.open(view);
  const wsUrl=new URL(endpoint);wsUrl.protocol='ws:';wsUrl.pathname='/terminal';wsUrl.searchParams.set('token',token);
  const ws=new WebSocket(wsUrl.href);
+ if(!historyRestored){
+  historyRestored=true;
+  const previous=terminalHistory.snapshot();
+  if(previous)term.write(previous+'\r\n[Restored previous output]\r\n');
+ }
  const session={id,name:'PowerShell '+nextLabel++,view,term,fit,ws,ptyId:null};
  sessions.set(id,session);
  ws.addEventListener('open',()=>ws.send(JSON.stringify({type:'create'})));
  ws.addEventListener('message',event=>{
   let message;try{message=JSON.parse(event.data);}catch{return;}
   if(message.type==='created'){session.ptyId=message.sessionId;fit.fit();sendResize(session);}
-  if(message.type==='data'&&typeof message.data==='string')term.write(message.data);
-  if(message.type==='error')term.writeln('\r\n[Local Agent] '+message.error);
-  if(message.type==='exit')term.writeln('\r\n[PowerShell exited: '+message.exitCode+']');
+  if(message.type==='data'&&typeof message.data==='string'){
+   terminalHistory.append(message.data);
+   term.write(message.data);
+  }
+  if(message.type==='error'){
+   const line='\r\n[Local Agent] '+String(message.error||'Unknown')+'\r\n';
+   terminalHistory.append(line);term.write(line);
+  }
+  if(message.type==='exit'){
+   const line='\r\n[PowerShell exited: '+message.exitCode+']\r\n';
+   terminalHistory.append(line);term.write(line);
+  }
  });
- ws.addEventListener('close',()=>term.writeln('\r\n[Local Agent disconnected]'));
+ ws.addEventListener('close',()=>{
+  const line='\r\n[Local Agent disconnected]\r\n';
+  terminalHistory.append(line);term.write(line);
+ });
  // Copy selected terminal output with Ctrl+C; without selection Ctrl+C
  // continues to send the native interrupt to PowerShell/ConPTY.
  term.attachCustomKeyEventHandler(e=>{
@@ -358,7 +459,8 @@ function setConnected(value){
  renderTabs();
  if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');
 }
-$('connect').onclick=async()=>{
+async function connectAgent({automatic=false}={}){
+ if(connected)return;
  endpoint=$('endpoint').value.trim();token=$('token').value.trim();
  if(/^[0-9]{1,5}$/.test(endpoint)){
   const port=Number(endpoint);
@@ -366,9 +468,9 @@ $('connect').onclick=async()=>{
   endpoint='http://127.0.0.1:'+port+'/';
  }
  try{
-  await requestHealth();await ensureAssets();
+  await requestHealth();await ensureAssets();await terminalHistory.ready;
   setConnected(true);$('psToolMenu').hidden=true;
-  if($('rememberPairing').checked){
+  if($('rememberPairing').checked && !automatic){
    pairingVault.save(endpoint,token).catch(()=>{$('credentialNotice').textContent=(secretLabels[locale]||secretLabels.en)[2]});
   }
   $('connectToggle').setAttribute('aria-expanded','false');
@@ -377,7 +479,8 @@ $('connect').onclick=async()=>{
   setConnected(false);
   $('hint').textContent=t(5)+': '+error.message;
  }
-};
+}
+$('connect').onclick=()=>connectAgent();
 $('verifyConnection').onclick=()=>$('connect').click();
 $('forgetPairing').onclick=async()=>{
  try{await pairingVault.clear();$('rememberPairing').checked=false;
@@ -389,6 +492,9 @@ pairingVault.load().then(saved=>{
  if(/^http:\/\/127\.0\.0\.1:\d+\/$/.test(saved.url)&&/^[a-f0-9]{64}$/.test(saved.token)){
   $('endpoint').value=saved.url;$('token').value=saved.token;
   $('rememberPairing').checked=true;
+  // Re-check the live agent on reload; a saved token is never assumed valid.
+  // Failure leaves the setup UI available for manual re-pairing.
+  void connectAgent({automatic:true});
  }
 }).catch(()=>{});
 
@@ -404,6 +510,7 @@ $('reconfigure').onclick=()=>{
 };
 $('clear').onclick=()=>{
  sessions.get(active)?.term.clear();
+ terminalHistory.clear();
  $('psToolMenu').hidden=true;
 };
 $('downloadSetup').onclick=()=>{
