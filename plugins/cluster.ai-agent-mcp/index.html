@@ -36,6 +36,10 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .logbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 12px}
 .log{border:1px solid var(--ui-border);border-radius:8px;overflow:auto;background:var(--ui-background);min-height:200px;max-height:calc(100vh - 175px)}
 .log-row{display:grid;grid-template-columns:90px 82px minmax(0,1fr) 64px;gap:9px;padding:10px 12px;border-bottom:1px solid var(--ui-border);font:11px Consolas,monospace;overflow-wrap:anywhere}
+.ps-execution-details{grid-column:1/-1;border-top:1px solid var(--ui-border);padding:8px 0 3px}
+.ps-execution-details summary{cursor:pointer;color:var(--ui-accent);font:11px system-ui}
+.ps-execution-details pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow:auto;font:11px/1.5 Consolas,monospace}
+.ps-execution-details strong{display:block;margin-top:8px}
 .log-row .time,.log-row .source{color:var(--ui-muted)}.log-row .result{color:var(--ui-accent);text-align:right}
 .note{font-size:10px;color:var(--ui-muted);padding:10px 0}
 .tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
@@ -126,7 +130,7 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const L={
-'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','延續 ClusterOpt2 的分離式 MCP/OAuth。請啟動本機 Gateway，並配置安全 HTTPS 入口。','下載 MCP 快速配置 CMD','14 項工具由本機代理轉送，敏感操作需要明確授權。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','僅顯示代理實際回報的事件；不記錄原始指令、金鑰或輸出文字。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
+'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','延續 ClusterOpt2 的分離式 MCP/OAuth。請啟動本機 Gateway，並配置安全 HTTPS 入口。','下載 MCP 快速配置 CMD','14 項工具由本機代理轉送，敏感操作需要明確授權。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','顯示代理實際回報的事件與 PowerShell 輸出（本機保存、限量與敏感值遮罩）；不記錄原始指令。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
 en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Start the local MCP/OAuth gateways, then configure a trusted HTTPS endpoint.','Download MCP setup CMD','Fourteen tools are available through the browser bridge; sensitive actions require approval.','03 · Verify','AI actions and PowerShell events','Only verified agent activity; raw commands, secrets and output are not logged.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
 fr:['Déconnecté','Connecté','Configuration','Activité','Outils MCP','Services','Initialiser AI Agent','Connectez Local Agent, puis vérifiez MCP/OAuth.','01 · Agent local','Utilisez le CMD de ClusterPowerShell.','Port / URL locale','Jeton de jumelage','Connexion','02 · MCP / OAuth','Démarrer les services MCP/OAuth et configurer HTTPS.','Guide','Les actions sensibles nécessitent votre autorisation.','03 · Vérifier','Actions AI et événements PowerShell','Événements vérifiés uniquement.','Actualiser','Exporter','Aucun événement.','Catalogue MCP','Les outils nécessitent les autorisations v3.','État des services','Réessayer','Déconnecter','Inactif','Non implémenté','Attente','Erreur: '],
 ja:['未接続','接続済み','初期設定','操作記録','MCP ツール','サービス','AI Agent の初期化','Local Agent を接続してください。','01 · Local Agent','PowerShell の CMD で起動します。','ポート / URL','ペアリングトークン','接続','02 · MCP / OAuth','MCP/OAuth ゲートウェイと安全な HTTPS を設定します。','ガイド','危険な操作には毎回承認が必要です。','03 · 検証','AI と PowerShell の記録','認証されたイベントのみ。','更新','エクスポート','記録なし','MCP ツール','権限なしでは利用できません。','サービス状態','再試行','切断','無効','未実装','待機','接続エラー: '],
@@ -241,6 +245,21 @@ function entry(event){
   const span=document.createElement('span');span.textContent=value;row.append(span);
  }
  row.children[0].className='time';row.children[1].className='source';row.children[3].className='result';
+ if(event.action==='ps.execution'&&(event.stdout||event.stderr)){
+  const details=document.createElement('details');
+  details.className='ps-execution-details';
+  const summary=document.createElement('summary');
+  summary.textContent='PowerShell output · Exit '+String(event.exitCode??'?');
+  details.append(summary);
+  for(const [kind,value] of [['STDOUT',event.stdout],['STDERR',event.stderr]]){
+   if(typeof value!=='string'||!value)continue;
+   const title=document.createElement('strong');title.textContent=kind;
+   const pre=document.createElement('pre');pre.textContent=value;
+   details.append(title,pre);
+  }
+  if(event.truncated){const info=document.createElement('small');info.textContent='Output truncated';details.append(info);}
+  row.append(details);
+ }
  return row;
 }
 function renderEvents(){const container=$('activityLog');container.replaceChildren(...events.map(entry));}
@@ -303,7 +322,15 @@ const rootLang={
  hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ','लोकल फ़ोल्डर अनुमतियाँ','Local Agent जोड़ें, Windows फ़ोल्डर चुनें और CRUD/PS अधिकार निर्धारित करें।']
 };
 const rl=i=>(rootLang[locale]||rootLang.en)[i];
-const rightNames=['read','create','update','delete','powershell'];
+const autoPsLabels={
+ 'zh-TW':'Auto PowerShell（免逐次確認）',
+ en:'Auto PowerShell (skip per-command approval)',
+ fr:'PowerShell automatique (sans approbation à chaque commande)',
+ ja:'自動 PowerShell（コマンドごとの確認なし）',
+ es:'PowerShell automático (sin aprobación por comando)',
+ hi:'स्वचालित PowerShell (प्रति कमांड पुष्टि के बिना)'
+};
+const rightNames=['read','create','update','delete','powershell','autoPowershell'];
 function rootLabels(){
  $('rootHeading').textContent=rl(13);
  if(!connected && !rootHandles.size)$('rootInfo').textContent=rl(14);
@@ -326,9 +353,21 @@ function rootLabels(){
   for(const [index,right] of rightNames.entries()){
    const label=document.createElement('label'),input=document.createElement('input');
    input.type='checkbox';input.checked=root.rights?.[right]===true;
-   const span=document.createElement('span');span.textContent=rl(3+index);
+   const span=document.createElement('span');
+   span.textContent=right==='autoPowershell'?autoPsLabels[locale]||autoPsLabels.en:rl(3+index);
+   if(right==='autoPowershell'){
+    input.disabled=root.rights?.powershell!==true;
+    label.title='Grants future commands within this root without a per-command prompt. Revocable.';
+   }
    input.onchange=async()=>{
     const rights={...root.rights,[right]:input.checked};
+    if(right==='powershell'&&!input.checked)rights.autoPowershell=false;
+    if(right==='autoPowershell'&&input.checked){
+     const message=locale==='zh-TW'
+      ?'允許 AI 在此 Root 自動執行 PowerShell 命令，不再逐次確認？此權限可隨時撤銷。'
+      :'Allow AI to execute PowerShell commands in this root without individual prompts? You can revoke this permission at any time.';
+     if(!window.confirm(message)){input.checked=false;return;}
+    }
     try{
      const saved=await call('/roots/permissions',{id:root.id,rights});
      rootHandles.set(root.id,saved);rootLabels();$('rootInfo').textContent=rl(9);
@@ -457,10 +496,12 @@ async function executeTool(name,args){
   const {root}=nativeRoot(String(args.path||''));
   if(command.length<1||command.length>2000||root.rights?.powershell!==true)
    throw Error('PowerShell permission or command denied');
+  if(root.rights?.autoPowershell===true)
+   return {approved:true,automatic:true,absolutePath:root.absolutePath};
   const approval=await requestApproval('PowerShell command approval',
    'Run this command as your Windows user?\nFolder: '+root.absolutePath+'\n\n'+command,
    {timeout:110000});
-  return {approved:approval.approved,absolutePath:root.absolutePath};
+  return {approved:approval.approved,automatic:false,absolutePath:root.absolutePath};
  }
  default:throw Error('Unknown MCP tool '+name);
  }
@@ -512,7 +553,8 @@ $('revokeRoots').onclick=async()=>{
 rootLabels();
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('export').onclick=()=>{
- const payload=events.map(({id,at,source,action,result,detail})=>({id,at,source,action,result,detail}));
+ const payload=events.map(({id,at,source,action,result,detail,exitCode,stdout,stderr,truncated})=>
+  ({id,at,source,action,result,detail,exitCode,stdout,stderr,truncated}));
  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');
  a.download='cluster-ai-agent-activity.json';a.href=url;document.body.append(a);a.click();a.remove();
