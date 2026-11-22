@@ -32,6 +32,14 @@ Cluster-v3 plugin-only project and **does not change the Cluster-v3 Host**.
    issuer. Approve the requested read-only or control scope in the
    OAuth approval page.
 
+**OAuth issuer validation:** Cluster's `https://...github.io/Cluster-v3/`
+GitHub Pages address is a static web app, **not** an OAuth issuer. Use a
+public hostname that actually routes to the running OAuth Gateway through a
+trusted HTTPS reverse proxy. The launcher accepts pasted full URLs and
+normalizes them to the HTTPS origin. If the public proxy does not yet exist,
+set it up before choosing option 2; otherwise choose option 1 (local MCP only).
+
+
 There is no embedded public reverse-proxy installer: you must supply
 the stable HTTPS endpoint, TLS termination and DNS setup yourself.
 
