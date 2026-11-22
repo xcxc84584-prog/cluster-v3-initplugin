@@ -19,7 +19,7 @@ test('native Windows root selection provides canonical absolute path and enforce
  const chosen=await roots.choose();
  assert.equal(chosen.absolutePath,fs.realpathSync.native(folder));
  assert.ok(/^[a-f0-9]{24}$/.test(chosen.id));
- assert.deepEqual(chosen.rights,{create:false,read:false,update:false,delete:false,powershell:false});
+ assert.deepEqual(chosen.rights,{create:false,read:false,update:false,delete:false,powershell:false,autoPowershell:false});
  await assert.rejects(()=>roots.action({id:chosen.id,action:'list',relative:''}),/permission denied/);
  roots.update(chosen.id,{read:true,create:true,update:true,delete:true,powershell:false});
  let list=await roots.action({id:chosen.id,action:'list',relative:''});
@@ -33,6 +33,12 @@ test('native Windows root selection provides canonical absolute path and enforce
  assert.throws(()=>roots.checkPowerShell(chosen.id,folder),/permission denied/);
  roots.update(chosen.id,{read:true,powershell:true});
  assert.equal(roots.checkPowerShell(chosen.id,folder),fs.realpathSync.native(folder));
+ assert.throws(()=>roots.checkPowerShell(chosen.id,folder,{automatic:true}),/permission denied/);
+ roots.update(chosen.id,{read:true,powershell:true,autoPowershell:true});
+ assert.equal(roots.checkPowerShell(chosen.id,folder,{automatic:true}),fs.realpathSync.native(folder));
+ roots.update(chosen.id,{read:true,powershell:false,autoPowershell:true});
+ assert.equal(roots.listing()[0].rights.autoPowershell,false);
+ roots.update(chosen.id,{read:true,powershell:true});
  assert.throws(()=>roots.checkPowerShell(chosen.id,tmp),/differs from granted folder/);
  await assert.rejects(()=>roots.action({id:chosen.id,action:'write',relative:'hello.txt',content:'x'}),/permission denied/);
  roots.remove(chosen.id);
