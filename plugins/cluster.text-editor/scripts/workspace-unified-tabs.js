@@ -25,6 +25,7 @@ pane.insertBefore(tabbar,view);
 const documents=new Map();
 let activeDocument=null,activePowerShell=null,psSessions=[];
 let selected='editor',psOpened=false,psConnected=false,aiOpened=false,serial=0,snapshotTimer=0;
+let documentSnapshotReady=false,psSnapshotReady=false;
 const terminal=()=>Array.from(view.querySelectorAll('iframe')).find(x=>x.title==='ClusterPowerShell');
 function editorRequest(action,params){
 editor.contentWindow?.postMessage({protocol:'cluster.editor.v1',type:'req',
@@ -105,6 +106,7 @@ snapshotTimer=setTimeout(()=>editorRequest('workspace.snapshot',{}),90);
 }
 function updatePowerShell(msg){
 if(!Array.isArray(msg.sessions))return;
+const existing=new Set(psSessions.map(session=>session.id));
 psSessions=msg.sessions.filter(x=>typeof x.id==='string'&&typeof x.name==='string');
 psConnected=msg.connected===true;
 if(msg.activeId&&psSessions.some(x=>x.id===msg.activeId))activePowerShell=msg.activeId;
@@ -112,6 +114,9 @@ else activePowerShell=psSessions[0]?.id||null;
 if(msg.closedLast&&psSessions.length===0){
 psOpened=false;goEditor();return;
 }
+const added=psSnapshotReady&&psSessions.find(session=>!existing.has(session.id));
+psSnapshotReady=true;
+if(added){goPowershell(added.id);return;}
 render();
 }
 // Hide only the duplicated child tab widgets, never its document content or APIs.
@@ -131,6 +136,8 @@ window.addEventListener('cluster-ai-agent-view',event=>{
  else if(selected==='agent'){selected='editor';render();}
 });
 window.addEventListener('cluster-powershell-new-tab',()=>{
+ // Switch immediately, not after the asynchronous terminal creation reply.
+ goPowershell();
  if(psConnected)psRequest('create');
 });
 window.addEventListener('cluster-workspace-select',event=>{
@@ -145,7 +152,10 @@ if(msg.type==='event'){
 if(msg.event==='document.opened'||msg.event==='document.saved'||
    msg.event==='document.changed'||msg.event==='tab.activated'){
 const doc=msg.data?.document;
+const newlyOpened=msg.event==='document.opened'&&doc?.id!=null&&
+ documentSnapshotReady&&!documents.has(String(doc.id));
 if(doc)setDocument(doc);
+if(newlyOpened){goEditor(doc.id);return;}
 if(msg.event==='tab.activated'&&doc){
 activeDocument=String(doc.id);
 if(selected==='powershell')goEditor();
@@ -159,7 +169,8 @@ scheduleSnapshot();render();
 if(msg.type==='rep'&&String(msg.requestId||'').startsWith('unified-view-')&&
   Array.isArray(msg.data?.documents)){
 documents.clear();for(const d of msg.data.documents)setDocument(d);
-activeDocument=msg.data.activeId==null?null:String(msg.data.activeId);render();
+activeDocument=msg.data.activeId==null?null:String(msg.data.activeId);
+documentSnapshotReady=true;render();
 }
 }
 if(event.source===terminal()?.contentWindow&&msg.protocol==='cluster.powershell.tabs.v1'){
