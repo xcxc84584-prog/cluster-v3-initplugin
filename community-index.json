@@ -12,22 +12,22 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.12.1",
-      "description": "Unified Editor with updated native folder and token bootstrap",
+      "version": "2.12.2",
+      "description": "Activate new Editor and PowerShell workspace tabs immediately",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.1",
-      "description": "PowerShell activity persistence with authenticated durable Clear Log endpoint",
+      "version": "0.7.2",
+      "description": "Stdout-only activity history and Clear Log capability detection",
       "directory": "plugins/cluster.powershell"
     },
     {
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
-      "version": "0.3.1",
-      "description": "Stable activity viewport, expandable PowerShell output and localized Clear Log",
+      "version": "0.3.2",
+      "description": "Stdout-only PowerShell activity and Local Agent upgrade guidance",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
   ]
