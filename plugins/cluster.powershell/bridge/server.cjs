@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const {spawn}=require('node:child_process');
 const pty = require('node-pty');
 const secureStore = require('./secure-store.cjs');
 const {WebSocketServer} = require('ws');
@@ -47,6 +48,31 @@ function record(action,result,detail=''){
  const safe=String(detail).replace(/[a-f0-9]{64}/gi,'[redacted]').slice(0,256);
  activity.push({id:++activitySequence,at:new Date().toISOString(),source:'powershell',action,result,detail:safe});
  if(activity.length>200)activity.splice(0,activity.length-200);
+}
+function runApprovedPowerShell(command,cwd){
+ return new Promise((resolve,reject)=>{
+  if(typeof command!=='string'||command.length<1||command.length>2000)throw Error('Invalid PowerShell command');
+  let real;try{real=fs.realpathSync.native(cwd);}catch{throw Error('Root path unavailable')}
+  if(!fs.statSync(real).isDirectory())throw Error('Not an approved root');
+  const encoded=Buffer.from(command,'utf16le').toString('base64');
+  const child=spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{
+   cwd:real,windowsHide:true,stdio:['ignore','pipe','pipe'],shell:false
+  });
+  let stdout='',stderr='',bytes=0,done=false;
+  function append(chunk,err){
+   bytes+=chunk.length;if(bytes>1000000){child.kill();return;}
+   if(err)stderr+=chunk.toString('utf8');else stdout+=chunk.toString('utf8');
+  }
+  const timer=setTimeout(()=>child.kill(),90000);
+  child.stdout.on('data',x=>append(x,false));
+  child.stderr.on('data',x=>append(x,true));
+  child.on('error',error=>{if(done)return;done=true;clearTimeout(timer);reject(error)});
+  child.on('close',exitCode=>{
+   if(done)return;done=true;clearTimeout(timer);
+   resolve({exitCode,stdout:stdout.slice(0,500000),
+     stderr:stderr.slice(0,500000),truncated:bytes>1000000});
+  });
+ });
 }
 const pendingTools=new Map();
 let browserBridge=null;
@@ -124,7 +150,7 @@ const server=http.createServer((req,res)=>{
         pendingTools.delete(requestId);
         json(res,504,{error:'User or plugin response timed out'});
       },request.name==='cluster.powershell_request'?125000:45000);
-      pendingTools.set(requestId,{res,timer,name:request.name});
+      pendingTools.set(requestId,{res,timer,name:request.name,args:request.arguments||{}});
       send(browserBridge,{type:'tool_call',requestId,name:request.name,args:request.arguments||{}});
       record('mcp.request','pending',request.name);
     });
@@ -174,6 +200,20 @@ wss.on('connection',ws=>{
       if(msg.type==='tool_result'&&typeof msg.requestId==='string'){
         const pending=pendingTools.get(msg.requestId);if(!pending||browserBridge!==ws)return;
         pendingTools.delete(msg.requestId);clearTimeout(pending.timer);
+        if(pending.name==='cluster.powershell_request'&&!msg.error){
+          const approved=msg.result?.approved===true;
+          const cwd=msg.result?.absolutePath;
+          if(!approved||typeof cwd!=='string'||!path.win32.isAbsolute(cwd)||
+             path.win32.basename(path.win32.normalize(cwd)).toLowerCase()!==
+              String(pending.args.path||'').toLowerCase()){
+            json(pending.res,403,{error:'PowerShell execution requires approved matching Windows root'});return;
+          }
+          runApprovedPowerShell(pending.args.command,cwd).then(result=>{
+            json(pending.res,200,{result});
+            record('ps.execution','ok','Explicitly approved user action');
+          }).catch(error=>json(pending.res,422,{error:String(error.message).slice(0,240)}));
+          return;
+        }
         const response=msg.error?{error:String(msg.error).slice(0,256)}:{result:msg.result};
         json(pending.res,msg.error?403:200,response);
         record('mcp.response',msg.error?'denied':'ok',pending.name);
