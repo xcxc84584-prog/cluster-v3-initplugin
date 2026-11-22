@@ -19,15 +19,15 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.0",
-      "description": "Persistent redacted PowerShell stdout/stderr and enforced per-root automatic execution",
+      "version": "0.7.1",
+      "description": "PowerShell activity persistence with authenticated durable Clear Log endpoint",
       "directory": "plugins/cluster.powershell"
     },
     {
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
-      "version": "0.3.0",
-      "description": "Per-root Auto PowerShell permission and detailed execution output activity",
+      "version": "0.3.1",
+      "description": "Stable activity viewport, expandable PowerShell output and localized Clear Log",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
   ]
