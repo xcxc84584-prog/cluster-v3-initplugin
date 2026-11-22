@@ -202,6 +202,7 @@ test('Editor first-run PowerShell Local Agent guide and CMD download',()=>{
  assert.match(editorPage,/scripts\/powershell-onboarding\.js/);
  assert.match(guide,/\.editor-pane/);
  assert.match(guide,/agent-onboard/);
+ assert.match(read('plugins/cluster.text-editor/scripts/powershell-tool.js'),/psFrame\.hidden=selected!=='powershell'/);
  assert.match(guide,/agentDownload/);
  assert.match(guide,/ClusterPowerShell-QuickSetup\.cmd/);
  assert.match(guide,/PRMU\.getCommunityConfig/);
