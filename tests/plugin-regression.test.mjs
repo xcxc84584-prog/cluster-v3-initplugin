@@ -360,7 +360,7 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
  }
  assert.match(source,/function requestApproval/);
  assert.match(source,/approvalPending/);
- assert.match(source,/id="approvalPane"/);
+ assert.match(page,/id="approvalPane"/);
  assert.match(source,/setTimeout\(\(\)=>settle\(null/);
  assert.match(source,/window\.showDirectoryPicker/);
  assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
