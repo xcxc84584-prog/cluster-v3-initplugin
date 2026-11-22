@@ -8,7 +8,16 @@ $tunnel=$null;$oauth=$null
 function Owned([int]$processId,[string]$needle){
  if($processId -le 4){return $null}
  try{$p=Get-CimInstance Win32_Process -Filter ("ProcessId="+$processId) -ErrorAction Stop
- if($p -and $p.CommandLine -like ('*'+$needle+'*')){return $p}}catch{}
+ if(!$p){return $null}
+ if($needle -eq 'tunnel'){
+  if($p.Name -ne 'cloudflared.exe' -or
+     $p.CommandLine -notmatch '(?i)\btunnel\b' -or
+     $p.CommandLine -notmatch '127\.0\.0\.1:'){return $null}
+ }else{
+  if($p.Name -ne 'node.exe' -or $p.CommandLine -notlike ('*'+$needle+'*')){return $null}
+ }
+ return $p
+ }catch{}
  return $null
 }
 function CloudflaredExe {
