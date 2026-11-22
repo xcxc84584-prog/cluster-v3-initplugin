@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.ai-agent-mcp",
   "name": "Cluster AI Agent MCP",
-  "version": "0.2.1",
-  "description": "Native Windows folder selection and per-root CRUD/PS permissions",
+  "version": "0.3.0",
+  "description": "Per-root Auto PowerShell permission and detailed execution output activity",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
