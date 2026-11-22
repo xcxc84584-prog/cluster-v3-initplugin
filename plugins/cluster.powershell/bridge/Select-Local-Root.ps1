@@ -1,6 +1,7 @@
 # Opens the Windows native folder picker in the Local Agent user session.
 # Return only the selected absolute path on standard output.
 $ErrorActionPreference='Stop'
+[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 Add-Type -AssemblyName System.Windows.Forms
 $picker=New-Object System.Windows.Forms.FolderBrowserDialog
 $picker.Description='Choose a local workspace folder for Cluster AI Agent'
