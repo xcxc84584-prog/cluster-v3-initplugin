@@ -198,7 +198,7 @@ function closeSession(id){
  if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);}
  renderTabs();
 }
-function setConnected(value){connected=value;$('dot').classList.toggle('connected',value);renderTabs();}
+function setConnected(value){connected=value;$('dot').classList.toggle('connected',value);renderTabs();if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');}
 $('connect').onclick=async()=>{
  endpoint=$('endpoint').value.trim();token=$('token').value.trim();
  try{
