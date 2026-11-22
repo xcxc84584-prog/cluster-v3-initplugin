@@ -42,7 +42,7 @@ menu.append(item);group.append(trigger,menu);
 const toggle=document.getElementById('toggleExplorer');
 toggle.after(group);
 group.hidden=true; // Only installed, PRMU-registered providers expose Tools.
-let language='zh-TW',loaded=false,requestId='',lastContext=null;
+let language='zh-TW',loaded=false,requestId='',lastContext=null,selected='editor';
 const labels={
 'zh-TW':['工具 ▾','PowerShell','編輯器','PowerShell 插件尚未提供 workspace.powershell.v1 能力；請先裝載並啟用插件。'],
 en:['Tools ▾','PowerShell','Editor','PowerShell capability is unavailable. Install and enable the plugin first.'],
@@ -53,6 +53,7 @@ hi:['टूल ▾','PowerShell','एडिटर','पहले PowerShell प�
 };
 function localize(){const l=labels[language]||labels.en;trigger.textContent=l[0];item.textContent=l[1];editorTab.textContent=l[2];psTab.textContent=l[1];}
 function select(which){
+selected=which;
 const ps=which==='powershell';
 editor.hidden=ps;psFrame.hidden=!ps||!loaded;
 notice.hidden=!ps||loaded;
@@ -75,7 +76,7 @@ window.addEventListener('message',event=>{
 const m=event.data;
 if(event.source===parent&&m?.protocol==='cluster.plugin.v1'&&m.type==='response'&&m.requestId===requestId){
 if(!m.ok||typeof m.data?.html!=='string'||m.data.html.length>2000000)return;
-loaded=true;group.hidden=false;psFrame.srcdoc=m.data.html;notice.hidden=true;psFrame.hidden=false;
+loaded=true;group.hidden=false;psFrame.srcdoc=m.data.html;notice.hidden=true;psFrame.hidden=selected!=='powershell';
 psFrame.addEventListener('load',()=>{if(lastContext)psFrame.contentWindow?.postMessage(lastContext,'*');},{once:true});
 }
 if(event.source===parent&&

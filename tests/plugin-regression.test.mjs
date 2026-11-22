@@ -194,3 +194,24 @@ test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
  assert.match(setup,/OpenJS\.NodeJS\.LTS/);
  assert.match(setup,/server\.cjs/);
 });
+
+test('Editor first-run PowerShell Local Agent guide and CMD download',()=>{
+ const guide=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ const terminal=read('plugins/cluster.powershell/index.html');
+ const editorPage=read('plugins/cluster.text-editor/index.html');
+ assert.match(editorPage,/scripts\/powershell-onboarding\.js/);
+ assert.match(guide,/\.editor-pane/);
+ assert.match(guide,/agent-onboard/);
+ assert.match(read('plugins/cluster.text-editor/scripts/powershell-tool.js'),/psFrame\.hidden=selected!=='powershell'/);
+ assert.match(guide,/agentDownload/);
+ assert.match(guide,/ClusterPowerShell-QuickSetup\.cmd/);
+ assert.match(guide,/PRMU\.getCommunityConfig/);
+ assert.match(guide,/PRMU\.getCommunityRepositoryUrl/);
+ assert.match(guide,/URL\.createObjectURL/);
+ assert.match(guide,/Invoke-WebRequest/);
+ assert.match(guide,/Setup-ClusterPowerShell\.cmd/);
+ assert.match(guide,/cluster\.powershell\.status\.v1/);
+ assert.match(terminal,/cluster\.powershell\.status\.v1/);
+ for(const language of ['zh-TW','en','fr','ja','es','hi'])
+   assert.ok(guide.includes("'"+language+"':[") || guide.includes(language+':['));
+});
