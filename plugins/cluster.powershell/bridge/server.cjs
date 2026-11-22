@@ -128,6 +128,19 @@ const server=http.createServer((req,res)=>{
     json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
     return;
   }
+  if(url.pathname==='/gateway/status'){
+    function probe(name){
+      try{
+        const data=JSON.parse(fs.readFileSync(path.join(credentialDir,name+'-port.json'),'utf8'));
+        if(!Number.isInteger(data.port)||data.port<1024||data.port>65535||
+           !Number.isInteger(data.pid)||data.pid<1)return {active:false};
+        process.kill(data.pid,0);
+        return {active:true,port:data.port};
+      }catch{return {active:false}}
+    }
+    json(res,200,{ok:true,mcp:probe('mcp'),oauth:probe('oauth')});
+    return;
+  }
   if(url.pathname==='/activity'){
     json(res,200,{ok:true,events:activity.slice(-100),cursor:activitySequence});
     return;
