@@ -486,7 +486,7 @@ $('gatewayGuide').onclick=()=>{
  'call "%BRIDGE%\\Start-Cluster-MCP.cmd"',
  'if errorlevel 1 echo MCP start failed. Review the output above.',
  'pause'
- ].join('\\r\\n')+'\\r\\n';
+ ].join('\r\n')+'\r\n';
  const url=URL.createObjectURL(new Blob([cmd],{type:'application/octet-stream'}));
  const link=document.createElement('a');
  link.download='Cluster-MCP-QuickSetup.cmd';link.href=url;
