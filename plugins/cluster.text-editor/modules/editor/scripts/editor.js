@@ -58,7 +58,7 @@
   let internalUpdate = false;
   const maxFileBytes = 10 * 1024 * 1024;
   // Public Repository location is supplied by the Host context, never imported.
-  let pluginSiteUrl = null;
+  let pluginManagerUrl = null;
   const EDITOR_PROTOCOL = 'cluster.editor.v1';
   const EDITOR_API_VERSION = '1.0.0';
   const MAX_REQUEST_ID = 128;
@@ -72,16 +72,9 @@
       return candidate.href;
     } catch { return null; }
   };
-  function getPluginSiteUrl() {
-    // The Host publicRepository.getPluginSiteUrl() publishes this through context.
-    // In standalone mode, discover the owning site from the referrer instead.
-    if (pluginSiteUrl) return pluginSiteUrl;
-    try {
-      const host = new URL(document.referrer);
-      if (host.protocol !== 'https:' && host.hostname !== 'localhost') return null;
-      const root = host.pathname.split('/plugin/')[0].replace(/\/$/, '');
-      return VALID_PLUGIN_SITE(new URL(root + '/plugin/?view=home', host.origin).href);
-    } catch { return null; }
+  function getPluginManagerUrl() {
+    // Only PRMU context is authorized to provide this destination.
+    return pluginManagerUrl;
   }
   function emitEditorEvent(name, data = {}) {
     if (window.parent === window) return;
@@ -125,9 +118,9 @@
   }
   function receiveContext(message) {
     if (typeof message?.language === 'string') applyLocale(message.language);
-    // Published read-only by the Host Public Repository (getPluginSiteUrl()).
-    if (typeof message?.pluginSiteUrl === 'string')
-      pluginSiteUrl = VALID_PLUGIN_SITE(message.pluginSiteUrl);
+    // Published read-only by PRMU.getPluginManagerUrl().
+    if (typeof message?.pluginManagerUrl === 'string')
+      pluginManagerUrl = VALID_PLUGIN_SITE(message.pluginManagerUrl);
     for (const [key, color] of Object.entries(message?.palette || {})) {
       if (/^[a-zA-Z][a-zA-Z-]*$/.test(key) && /^#[0-9a-fA-F]{6}$/.test(color))
         document.documentElement.style.setProperty('--ui-' + key, color);
@@ -799,7 +792,7 @@
   }
   function openPlugins() {
     // Never hardcode a Host location in an isolated plugin.
-    const url = getPluginSiteUrl();
+    const url = getPluginManagerUrl();
     if (!url) { toast(t('navigationBlocked'), 9000); return; }
     try {
       if (window.top === window.self) { location.assign(url); return; }
