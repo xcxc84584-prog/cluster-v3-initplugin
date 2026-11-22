@@ -50,6 +50,20 @@ function palette(data){const p=data?.palette||data?.data?.palette; if(p&&typeof 
 const lang=data?.language||data?.data?.language;if(translations[lang]){locale=lang;applyLabels();}}
 window.addEventListener('message',e=>{if(e.source!==parent)return;const m=e.data;if(['cluster.plugin.v1','cluster.settings.context.v1','cluster.public.v1'].includes(m?.protocol)&&['context','snapshot','properties.changed'].includes(m.type))palette(m);});
 if(parent!==window){parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');}
+/* An installed running plugin advertises its UI through PRMU, not a fixed URL. */
+let registrationCounter=0;
+function registerShellCapability(){
+ if(parent===window)return;
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
+  requestId:'powershell-register-'+(++registrationCounter),
+  method:'PRMU.register',args:['capabilities',{
+   key:'workspace.powershell.v1',
+   value:{kind:'ui.embed',version:'1.0.0'},
+   sharedWrite:false,persistent:false
+  }]},'*');
+}
+registerShellCapability();
+
 async function request(action,body){const url=new URL(endpoint);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only 127.0.0.1 HTTP is supported');
 const response=await fetch(new URL('/'+action,url).href,{method:'POST',headers:{'Content-Type':'application/json','X-Cluster-Token':token},body:JSON.stringify(body),signal:AbortSignal.timeout(action==='exec'?120000:7000)});
 const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||String(response.status));return data;}
