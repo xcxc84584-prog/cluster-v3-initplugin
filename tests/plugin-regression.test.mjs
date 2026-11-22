@@ -242,3 +242,39 @@ test('copy-pasted full website URL becomes a strict browser Origin',()=>{
  assert.throws(()=>normalize('http://example.com/anything'));
  assert.throws(()=>normalize('https://user:pass@example.com/path'));
 });
+
+
+test('single workspace tab bar represents files and native PowerShell sessions',()=>{
+ const unified=read('plugins/cluster.text-editor/scripts/workspace-unified-tabs.js');
+ const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
+ const ps=read('plugins/cluster.powershell/index.html');
+ const page=read('plugins/cluster.text-editor/index.html');
+ new Script(unified,{filename:'workspace-unified-tabs.js'});
+ new Script(tool,{filename:'powershell-tool.js'});
+ new Script(ps.match(/<script>([\s\S]*?)<\/script>/)[1],{filename:'powershell-terminal.js'});
+ assert.match(page,/scripts\/workspace-unified-tabs\.js/);
+ assert.match(unified,/className='unified-tabbar'/);
+ assert.match(unified,/pane\.insertBefore\(tabbar,view\)/);
+ assert.match(unified,/documents=new Map\(\)/);
+ assert.match(unified,/cluster\.editor\.v1/);
+ assert.match(unified,/workspace\.snapshot/);
+ assert.match(unified,/tabs\.activate/);
+ assert.match(unified,/document\.close/);
+ assert.match(unified,/cluster\.powershell\.tabs\.v1/);
+ assert.match(unified,/request-state/);
+ assert.match(unified,/psRequest\('create'\)/);
+ assert.match(unified,/nav#tabs\{display:none!important\}/);
+ assert.match(ps,/body\.embedded-unified #tabs\{display:none!important\}/);
+ assert.match(ps,/function publishTabState/);
+ assert.match(ps,/sessions:\[\.\.\.sessions\.values\(\)\]/);
+ assert.match(ps,/msg\.type==='activate'/);
+ assert.match(ps,/msg\.type==='close'/);
+ assert.match(ps,/msg\.type==='create'/);
+ assert.match(tool,/\.cluster-shell-tabs\{display:none!important/);
+ assert.match(tool,/toggle\.before\(group\)/);
+ assert.match(tool,/\.cluster-tool-menu \.menu-glyph/);
+ assert.match(tool,/\.cluster-tool-menu \.menu-detail/);
+ assert.match(tool,/addEventListener\('pointerdown',event=>\{if\(!group\.contains\(event\.target\)\)closeMenu\(\);\},true\)/);
+ assert.match(tool,/addEventListener\('blur',closeMenu\)/);
+ assert.match(tool,/cluster-powershell-new-tab/);
+});

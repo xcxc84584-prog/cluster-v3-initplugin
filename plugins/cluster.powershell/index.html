@@ -69,6 +69,7 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 #terminalArea{flex:1;min-height:0;display:flex;flex-direction:column}
 #terminalArea[hidden],#connectPanel[hidden]{display:none!important}
 @media(max-width:660px){.setup-grid{grid-template-columns:1fr}.setup-workspace{padding:10px}.setup-wrap{max-width:100%}}
+body.embedded-unified #tabs{display:none!important}
 </style></head><body><main>
 <header class="ps-header">
 <strong>PowerShell</strong><span class="grow"></span>
@@ -220,6 +221,12 @@ async function requestHealth(){
  if(!response.ok||!json.ok||json.apiVersion!=='3.0.0')
   throw Error(json.error||'A ConPTY Local Agent v3 is required');
 }
+function publishTabState(closedLast=false){
+ if(parent===window)return;
+ parent.postMessage({protocol:'cluster.powershell.tabs.v1',type:'state',
+  sessions:[...sessions.values()].map(s=>({id:s.id,name:s.name})),
+  activeId:active,connected,closedLast},'*');
+}
 function renderTabs(){
  const bar=$('tabs');bar.replaceChildren();
  for(const session of sessions.values()){
@@ -233,6 +240,7 @@ function renderTabs(){
  const plus=document.createElement('button');plus.type='button';plus.className='new-tab';
  plus.textContent='+';plus.disabled=!connected||sessions.size>=12;
  plus.title=t(8);plus.setAttribute('aria-label',t(8));plus.onclick=createSession;bar.append(plus);
+ publishTabState();
 }
 function activate(id){
  const session=sessions.get(id);if(!session)return;
@@ -278,6 +286,7 @@ function closeSession(id){
  s.ws.close();s.observer.disconnect();s.term.dispose();s.view.remove();sessions.delete(id);
  if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);}
  renderTabs();
+ if(sessions.size===0)publishTabState(true);
 }
 function setConnected(value){
  connected=value;
@@ -345,6 +354,18 @@ window.addEventListener('message',event=>{
   $('downloadStatus').textContent=event.data.ok?ui(16):ui(18)+(event.data.error||'Unknown');
 });
 if(parent!==window)parent.postMessage({protocol:'cluster.powershell.setup.v1',type:'request-bootstrap'},'*');
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.protocol!=='cluster.powershell.tabs.v1')return;
+ const msg=event.data;
+ if(msg.type==='create'&&connected)createSession();
+ if(msg.type==='activate'&&typeof msg.sessionId==='string')activate(msg.sessionId);
+ if(msg.type==='close'&&typeof msg.sessionId==='string')closeSession(msg.sessionId);
+ if(msg.type==='request-state')publishTabState();
+});
+if(parent!==window){
+ document.body.classList.add('embedded-unified');
+ parent.postMessage({protocol:'cluster.powershell.tabs.v1',type:'hello'},'*');
+}
 window.addEventListener('pagehide',()=>{for(const id of Array.from(sessions.keys()))closeSession(id);});
 applyLabels();renderTabs();
 })();
