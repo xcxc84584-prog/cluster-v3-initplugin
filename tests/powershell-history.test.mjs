@@ -40,6 +40,6 @@ test('manifest and community catalog stay synchronized',()=>{
  const catalog=JSON.parse(readFileSync(new URL(
   '../community-index.json',import.meta.url),'utf8'));
  const entry=catalog.plugins.find(item=>item.id===manifest.id);
- assert.equal(manifest.version,'0.7.1');
+ assert.equal(manifest.version,'0.7.2');
  assert.equal(entry?.version,manifest.version);
 });
