@@ -349,8 +349,10 @@ async function executeTool(name,args){
  case 'cluster.get_status':
   return {connected,service:'ClusterPowerShell Local Agent',browserBridge:true,
    roots:[...rootHandles.keys()],toolsAvailable:14};
- case 'cluster.get_task_status':
-  return {tasks:events.slice(-50).map(e=>({action:e.action,result:e.result,at:e.at}))};
+ case 'cluster.get_task_status':{
+  const live=await call('/activity');
+  return {tasks:(live.events||[]).slice(-50).map(e=>({action:e.action,result:e.result,at:e.at}))};
+ }
  case 'cluster.list_files':{
   const data=await editorCall('tabs.list');
   return {files:data.tabs||[],activeId:data.activeId};}
