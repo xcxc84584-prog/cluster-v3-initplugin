@@ -331,7 +331,7 @@ function entry(event){
   const summary=document.createElement('summary');
   summary.textContent='PowerShell output · Exit '+String(event.exitCode??'?');
   details.append(summary);
-  for(const [kind,value] of [['STDOUT',event.stdout]]{
+  for(const [kind,value] of [['STDOUT',event.stdout]]){
    if(typeof value!=='string'||!value)continue;
    const title=document.createElement('strong');title.textContent=kind;
    const pre=document.createElement('pre');pre.textContent=value;
