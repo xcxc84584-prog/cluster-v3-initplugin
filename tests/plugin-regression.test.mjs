@@ -367,9 +367,9 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
  assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
  assert.match(source,/document\?\.dirty===true/);
  // Native confirmation is allowed only when explicitly enabling the persisted
- // per-root Auto PowerShell grant, never as a substitute for MCP approval.
+ // Unified per-root AUTO opt-in is explicit, while delete still requires approval.
  assert.match(source,/if\(right==='auto'&&input\.checked\)\{/);
- assert.match(source,/window\.confirm\(message\)/);
+ assert.match(source,/window\.confirm\(\(autoLabels\[locale\]/);
  assert.match(source,/const approval=await requestApproval\('PowerShell command approval'/);
  assert.doesNotMatch(source,/window\.prompt\(/);
  assert.match(source,/type:'tool_result'/);
