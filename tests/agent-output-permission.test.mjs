@@ -29,9 +29,12 @@ test('agent and plugin runtime syntax is valid',()=>{
 test('agent re-checks auto execution privilege locally',()=>{
  assert.match(server,/const automatic=msg\.result\?\.automatic===true/);
  assert.match(server,/checkPowerShell\(String\(pending\.args\.path\|\|''\),cwd,\{automatic\}\)/);
- assert.match(inline,/root\.rights\?\.autoPowershell===true/);
+ assert.match(inline,/root\.rights\?\.auto===true/);
  assert.match(inline,/automatic:true/);
- assert.match(inline,/window\.confirm\(message\)/);
+ assert.match(inline,/window\.confirm\(\(autoLabels\[locale\]/);
+ assert.match(inline,/action!=='delete'/);
+ assert.match(inline,/root\?\.rights\?\.auto===true/);
+ assert.match(inline,/root,'delete'/);
 });
 
 test('activity stores bounded PowerShell outputs and supports reload',()=>{
