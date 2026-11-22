@@ -12,15 +12,15 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.10.0",
-      "description": "Unified document and PowerShell workspace tabs with polished Tool menu",
+      "version": "2.11.0",
+      "description": "Unified workspace with AI Agent MCP Tool menu and PRMU UI",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.4.0",
-      "description": "Native PowerShell sessions exposed as unified workspace tabs",
+      "version": "0.5.0",
+      "description": "Native PowerShell with Ctrl+C copy and encrypted authorized token memory",
       "directory": "plugins/cluster.powershell"
     },
     {
