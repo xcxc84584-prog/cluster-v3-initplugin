@@ -36,7 +36,7 @@ test('agent re-checks auto execution privilege locally',()=>{
 
 test('activity stores bounded PowerShell outputs and supports reload',()=>{
  assert.match(server,/const activityFile=path\.join\(credentialDir,'agent-activity\.json'\)/);
- assert.match(server,/stdout:sanitizeOutput\(output\.stdout\)/);
+ assert.match(server,/entry\.stdout=sanitizeOutput\(output\.stdout\)/);
  assert.doesNotMatch(server,/entry\.stderr=sanitizeOutput/);
  assert.match(server,/LOG_LIMIT=200,OUTPUT_LIMIT=16384/);
  assert.match(server,/fs\.writeFileSync\(tmp,JSON\.stringify/);
