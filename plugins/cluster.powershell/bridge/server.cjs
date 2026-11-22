@@ -56,8 +56,9 @@ try{
  const saved=JSON.parse(fs.readFileSync(activityFile,'utf8'));
  if(Array.isArray(saved.events))for(const event of saved.events.slice(-LOG_LIMIT)){
   if(event&&typeof event.action==='string'&&Number.isInteger(event.id)){
-   activity.push({...event,detail:sanitizeOutput(event.detail).slice(0,256),
-    stdout:sanitizeOutput(event.stdout),stderr:sanitizeOutput(event.stderr)});
+   const {stderr:_discarded,...metadata}=event;
+   activity.push({...metadata,detail:sanitizeOutput(event.detail).slice(0,256),
+    stdout:sanitizeOutput(event.stdout)});
    activitySequence=Math.max(activitySequence,event.id);
   }
  }
@@ -75,10 +76,9 @@ function record(action,result,detail='',output=null){
   detail:sanitizeOutput(detail).slice(0,256)};
  if(output){
   entry.exitCode=Number.isInteger(output.exitCode)?output.exitCode:null;
-  entry.stdout=sanitizeOutput(output.stdout);entry.stderr=sanitizeOutput(output.stderr);
+  entry.stdout=sanitizeOutput(output.stdout);
   entry.truncated=output.truncated===true||
-    String(output.stdout||'').length>OUTPUT_LIMIT||
-    String(output.stderr||'').length>OUTPUT_LIMIT;
+    String(output.stdout||'').length>OUTPUT_LIMIT;
  }
  activity.push(entry);if(activity.length>LOG_LIMIT)activity.splice(0,activity.length-LOG_LIMIT);
  persistActivity();
@@ -177,7 +177,7 @@ const server=http.createServer((req,res)=>{
     });return;
   }
   if(url.pathname==='/health'){
-    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
+    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.1.0',activityClear:true,activityOutput:'stdout-only',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
     return;
   }
   if(url.pathname==='/gateway/status'){
