@@ -295,7 +295,7 @@ test('AI Agent MCP manifest, PRMU locale palette, setup and actual agent event f
  assert.match(page,/call\('\/activity'\)/);
  assert.match(page,/call\('\/health'\)/);
  assert.match(page,/const tools=\['get_status'/);
- assert.match(page,/v3 Router/);
+ assert.match(page,/cluster\.ai-agent\.editor\.v1/);
  assert.match(page,/indexedDB/);
  assert.match(page,/AES-GCM/);
  assert.match(page,/id="remember"/);
