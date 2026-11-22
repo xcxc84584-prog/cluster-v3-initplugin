@@ -531,7 +531,7 @@ if(parent!==window){
  parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');
  parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId:'ai-agent-register',
  method:'PRMU.register',args:['capabilities',{key:'workspace.ai-agent-mcp.v1',
- value:{kind:'ui.embed',version:'0.1.0'},sharedWrite:false,persistent:false}]},'*');
+ value:{kind:'ui.embed',version:'0.2.0'},sharedWrite:false,persistent:false}]},'*');
 }
 renderLocale();showPage('setup');
 setInterval(()=>{if(connected&&page==='activity')refresh().catch(()=>{});},4000);
