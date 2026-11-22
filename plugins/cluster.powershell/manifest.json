@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.powershell",
   "name": "ClusterPowerShell",
-  "version": "0.6.0",
-  "description": "ConPTY Local Agent with MCP/OAuth gateways, DPAPI and Ctrl+C copy",
+  "version": "0.6.1",
+  "description": "Native authorized folder manager and verified gateway token output",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
