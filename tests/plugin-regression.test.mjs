@@ -18,7 +18,7 @@ test('all plugin runtime JavaScript is syntactically valid', () => {
 
 test('all community versions match their folder manifests', () => {
   const catalog=JSON.parse(read('community-index.json'));
-  assert.equal(catalog.plugins.length,3);
+  assert.equal(catalog.plugins.length,4);
   for(const entry of catalog.plugins){
     const manifest=JSON.parse(read(entry.directory+'/manifest.json'));
     assert.equal(manifest.id,entry.id);
@@ -277,4 +277,69 @@ test('single workspace tab bar represents files and native PowerShell sessions',
  assert.match(tool,/addEventListener\('pointerdown',event=>\{if\(!group\.contains\(event\.target\)\)closeMenu\(\);\},true\)/);
  assert.match(tool,/addEventListener\('blur',closeMenu\)/);
  assert.match(tool,/cluster-powershell-new-tab/);
+});
+
+test('AI Agent MCP manifest, PRMU locale palette, setup and actual agent event feed',()=>{
+ const page=read('plugins/cluster.ai-agent-mcp/index.html');
+ const source=page.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(source);new Script(source,{filename:'ai-agent-mcp.js'});
+ const loader=read('plugins/cluster.text-editor/scripts/ai-agent-tool.js');
+ new Script(loader,{filename:'ai-agent-tool.js'});
+ assert.match(page,/id="railDivider"/);
+ assert.match(page,/setRail\(!railOpen\)/);
+ assert.match(page,/pointermove/);
+ assert.match(page,/localStorage\.setItem\('cluster\.ai-agent\.rail'/);
+ assert.match(page,/cluster\.public\.v1/);
+ assert.match(page,/--ui-/);
+ assert.match(page,/cluster\.powershell\.setup\.v1/);
+ assert.match(page,/call\('\/activity'\)/);
+ assert.match(page,/call\('\/health'\)/);
+ assert.match(page,/const tools=\['get_status'/);
+ assert.match(page,/v3 Router/);
+ assert.match(page,/indexedDB/);
+ assert.match(page,/AES-GCM/);
+ assert.match(page,/id="remember"/);
+ assert.match(page,/id="forget"/);
+ for(const language of ['zh-TW','en','fr','ja','es','hi'])
+   assert.ok(source.includes("'"+language+"'"),'Missing locale '+language);
+ assert.match(loader,/PRMU\.resolveCapability/);
+ assert.match(loader,/workspace\.ai-agent-mcp\.v1/);
+ assert.match(loader,/cluster-ai-agent-view/);
+ assert.match(loader,/community-index\.json/);
+});
+test('Workspace registers AI Agent Tab and themed Tool menu',()=>{
+ const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
+ const tabs=read('plugins/cluster.text-editor/scripts/workspace-unified-tabs.js');
+ const setup=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ const page=read('plugins/cluster.text-editor/index.html');
+ new Script(tool);new Script(tabs);new Script(setup);
+ assert.match(page,/scripts\/ai-agent-tool\.js/);
+ assert.match(tool,/AI Agent MCP/);
+ assert.match(tool,/cluster-ai-agent-open/);
+ assert.match(tabs,/cluster-ai-agent-view/);
+ assert.match(tabs,/selected==='agent'/);
+ assert.match(setup,/Cluster AI Agent MCP/);
+});
+test('Windows DPAPI token, stable loopback and Ctrl C copy semantics',()=>{
+ const server=read('plugins/cluster.powershell/bridge/server.cjs');
+ const secure=read('plugins/cluster.powershell/bridge/secure-store.cjs');
+ const page=read('plugins/cluster.powershell/index.html');
+ new Script(server);new Script(secure);
+ const js=page.match(/<script>([\s\S]*?)<\/script>/)?.[1];new Script(js);
+ assert.match(server,/secureStore\.loadOrMigrate/);
+ assert.match(server,/pairing-token\.dpapi/);
+ assert.match(server,/previousPort/);
+ assert.match(server,/if\(url\.pathname==='\/activity'\)/);
+ assert.match(server,/X-Cluster-Token/);
+ assert.match(server,/Input content withheld/);
+ assert.match(secure,/DataProtectionScope\]::CurrentUser/);
+ assert.match(page,/term\.attachCustomKeyEventHandler/);
+ assert.match(page,/term\.hasSelection\(\)/);
+ assert.match(page,/term\.getSelection\(\)/);
+ assert.match(page,/navigator\.clipboard\?\.writeText/);
+ assert.match(page,/term\.clearSelection\(\);return false/);
+ assert.match(page,/id="rememberPairing"/);
+ assert.match(page,/pairingVault\.save\(endpoint,token\)/);
+ assert.match(page,/pairingVault\.clear\(\)/);
+ assert.match(page,/indexedDB/);
 });
