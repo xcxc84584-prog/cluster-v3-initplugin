@@ -19,7 +19,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ui-accent);outl
 .divider:after{content:'‹';position:absolute;top:50%;left:0;transform:translateY(-50%);font:11px Consolas;color:var(--ui-text)}
 main[data-rail-collapsed=true] .rail{width:0!important}
 main[data-rail-collapsed=true] .divider:after{content:'›'}
-.content{flex:1;min-width:0;overflow:auto;padding:16px 19px}
+.content{flex:1;min-width:0;overflow:auto;overflow-anchor:none;padding:16px 19px}
 .title{display:flex;align-items:center;gap:9px;margin-bottom:13px}.title h1{margin:0;font-size:17px}
 .subtle{color:var(--ui-muted);font-size:11px;line-height:1.6}
 .card{border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel);padding:15px;min-width:0}
@@ -34,7 +34,7 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .status-line{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--ui-border)}
 .status-line:last-child{border:0}.chip{font:10px Consolas,monospace;color:var(--ui-muted)}
 .logbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 12px}
-.log{border:1px solid var(--ui-border);border-radius:8px;overflow:auto;background:var(--ui-background);min-height:200px;max-height:calc(100vh - 175px)}
+.log{overflow-anchor:none;border:1px solid var(--ui-border);border-radius:8px;overflow:auto;background:var(--ui-background);min-height:200px;max-height:calc(100vh - 175px)}
 .log-row{display:grid;grid-template-columns:90px 82px minmax(0,1fr) 64px;gap:9px;padding:10px 12px;border-bottom:1px solid var(--ui-border);font:11px Consolas,monospace;overflow-wrap:anywhere}
 .ps-execution-details{grid-column:1/-1;border-top:1px solid var(--ui-border);padding:8px 0 3px}
 .ps-execution-details summary{cursor:pointer;color:var(--ui-accent);font:11px system-ui}
@@ -167,10 +167,15 @@ function renderLocale(){
  }
 }
 function showPage(name){
+ if(page==='activity')saveActivityView();
  page=name;
  for(const p of ['setup','activity','tools','status']){
   $(p+'Page').hidden=p!==page;
   document.querySelector('[data-page="'+p+'"]').setAttribute('aria-selected',String(p===page));
+ }
+ if(name==='activity'&&activityViewInitialized){
+  activityViewport.scrollTop=storedActivityTop;
+  activityOuter.scrollTop=storedOuterTop;
  }
 }
 for(const button of document.querySelectorAll('[data-page]'))button.onclick=()=>showPage(button.dataset.page);
@@ -239,8 +244,40 @@ const vault=(()=>{
   async forget(){return tx('readwrite',s=>s.delete('pairing'));}
  };
 })();
+const ACTIVITY_VIEW_KEY='cluster.ai-agent.activity-view.v1';
+const activityViewport=$('activityLog'),activityOuter=document.querySelector('.content');
+let activityViewInitialized=false;
+const activityOpenKeys=new Set();
+let storedActivityTop=0,storedOuterTop=0;
+try{
+ const state=JSON.parse(localStorage.getItem(ACTIVITY_VIEW_KEY)||'null');
+ if(state&&state.version===1){
+  storedActivityTop=Number.isFinite(state.logTop)?Math.max(0,state.logTop):0;
+  storedOuterTop=Number.isFinite(state.outerTop)?Math.max(0,state.outerTop):0;
+  for(const key of Array.isArray(state.open)?state.open.slice(0,100):[]){
+   if(typeof key==='string'&&key.length<140)activityOpenKeys.add(key);
+  }
+ }
+}catch{/* Storage may be blocked. */}
+function saveActivityView(){
+ try{
+  localStorage.setItem(ACTIVITY_VIEW_KEY,JSON.stringify({
+   version:1,logTop:activityViewport.scrollTop,
+   outerTop:activityOuter.scrollTop,
+   open:[...activityOpenKeys].slice(-100)
+  }));
+ }catch{/* Browser storage is optional. */}
+}
+activityViewport.addEventListener('scroll',saveActivityView,{passive:true});
+activityOuter.addEventListener('scroll',()=>{
+ if(page==='activity')saveActivityView();
+},{passive:true});
+function activityKey(event){
+ return String(event.id)+'@'+String(event.at);
+}
 function entry(event){
  const row=document.createElement('div');row.className='log-row';
+ row.dataset.eventKey=activityKey(event);
  for(const value of [new Date(event.at).toLocaleTimeString(),event.source,event.action+' · '+(event.detail||''),event.result]){
   const span=document.createElement('span');span.textContent=value;row.append(span);
  }
@@ -248,6 +285,13 @@ function entry(event){
  if(event.action==='ps.execution'&&(event.stdout||event.stderr)){
   const details=document.createElement('details');
   details.className='ps-execution-details';
+  details.open=activityOpenKeys.has(activityKey(event));
+  details.addEventListener('toggle',()=>{
+   const key=activityKey(event);
+   if(details.open)activityOpenKeys.add(key);
+   else activityOpenKeys.delete(key);
+   saveActivityView();
+  });
   const summary=document.createElement('summary');
   summary.textContent='PowerShell output · Exit '+String(event.exitCode??'?');
   details.append(summary);
@@ -262,7 +306,29 @@ function entry(event){
  }
  return row;
 }
-function renderEvents(){const container=$('activityLog');container.replaceChildren(...events.map(entry));}
+function renderEvents(){
+ const container=activityViewport;
+ // Existing DOM nodes and <details> must survive every periodic refresh.
+ // Replacing them resets open state, focus, and nested scroll positions.
+ const logTop=activityViewInitialized?container.scrollTop:storedActivityTop;
+ const outerTop=activityViewInitialized?activityOuter.scrollTop:storedOuterTop;
+ const desired=new Set(events.map(activityKey));
+ for(const row of [...container.children]){
+  if(!desired.has(row.dataset.eventKey))row.remove();
+ }
+ const current=new Map([...container.children].map(row=>[row.dataset.eventKey,row]));
+ for(let index=0;index<events.length;index++){
+  const event=events[index],key=activityKey(event);
+  let row=current.get(key);
+  if(!row){row=entry(event);current.set(key,row);}
+  const at=container.children[index];
+  if(at!==row)container.insertBefore(row,at||null);
+ }
+ container.scrollTop=logTop;
+ activityOuter.scrollTop=outerTop;
+ activityViewInitialized=true;
+ saveActivityView();
+}
 async function call(route,body={},timeout=7000){
  const url=new URL(endpoint);
  if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only loopback HTTP');
