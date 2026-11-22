@@ -45,11 +45,43 @@ const portFile=path.join(credentialDir,'agent-port.json');
 let previousPort=0;
 try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
  if(Number.isInteger(n)&&n>=1024&&n<=65535)previousPort=n;}catch{}
+const activityFile=path.join(credentialDir,'agent-activity.json');
 const activity=[];let activitySequence=0;
-function record(action,result,detail=''){
- const safe=String(detail).replace(/[a-f0-9]{64}/gi,'[redacted]').slice(0,256);
- activity.push({id:++activitySequence,at:new Date().toISOString(),source:action.startsWith('mcp.')?'ai':'powershell',action,result,detail:safe});
- if(activity.length>200)activity.splice(0,activity.length-200);
+const LOG_LIMIT=200,OUTPUT_LIMIT=16384;
+function sanitizeOutput(value){
+ return String(value||'').split(token).join('[REDACTED TOKEN]')
+  .replace(/[a-f0-9]{64}/gi,'[REDACTED HEX SECRET]').slice(0,OUTPUT_LIMIT);
+}
+try{
+ const saved=JSON.parse(fs.readFileSync(activityFile,'utf8'));
+ if(Array.isArray(saved.events))for(const event of saved.events.slice(-LOG_LIMIT)){
+  if(event&&typeof event.action==='string'&&Number.isInteger(event.id)){
+   activity.push({...event,detail:sanitizeOutput(event.detail).slice(0,256),
+    stdout:sanitizeOutput(event.stdout),stderr:sanitizeOutput(event.stderr)});
+   activitySequence=Math.max(activitySequence,event.id);
+  }
+ }
+}catch{/* No historical data. */}
+function persistActivity(){
+ try{
+  const tmp=activityFile+'.new';
+  fs.writeFileSync(tmp,JSON.stringify({schemaVersion:1,events:activity}),{mode:0o600});
+  fs.renameSync(tmp,activityFile);
+ }catch{/* Logging failure must not fail the requested action. */}
+}
+function record(action,result,detail='',output=null){
+ const entry={id:++activitySequence,at:new Date().toISOString(),
+  source:action.startsWith('mcp.')?'ai':'powershell',action,result,
+  detail:sanitizeOutput(detail).slice(0,256)};
+ if(output){
+  entry.exitCode=Number.isInteger(output.exitCode)?output.exitCode:null;
+  entry.stdout=sanitizeOutput(output.stdout);entry.stderr=sanitizeOutput(output.stderr);
+  entry.truncated=output.truncated===true||
+    String(output.stdout||'').length>OUTPUT_LIMIT||
+    String(output.stderr||'').length>OUTPUT_LIMIT;
+ }
+ activity.push(entry);if(activity.length>LOG_LIMIT)activity.splice(0,activity.length-LOG_LIMIT);
+ persistActivity();
 }
 function runApprovedPowerShell(command,cwd){
  return new Promise((resolve,reject)=>{
@@ -235,6 +267,7 @@ wss.on('connection',ws=>{
         pendingTools.delete(msg.requestId);clearTimeout(pending.timer);
         if(pending.name==='cluster.powershell_request'&&!msg.error){
           const approved=msg.result?.approved===true;
+          const automatic=msg.result?.automatic===true;
           const cwd=msg.result?.absolutePath;
           if(!approved||typeof cwd!=='string'||!path.win32.isAbsolute(cwd)||
              !rootAccess.listing().some(r=>(r.id===String(pending.args.path||'') ||
@@ -243,12 +276,16 @@ wss.on('connection',ws=>{
             json(pending.res,403,{error:'PowerShell execution requires approved matching Windows root'});return;
           }
           Promise.resolve().then(()=>{
-            rootAccess.checkPowerShell(String(pending.args.path||''),cwd);
+            rootAccess.checkPowerShell(String(pending.args.path||''),cwd,{automatic});
             return runApprovedPowerShell(pending.args.command,cwd);
           }).then(result=>{
             json(pending.res,200,{result});
-            record('ps.execution','ok','Explicitly approved user action');
-          }).catch(error=>json(pending.res,422,{error:String(error.message).slice(0,240)}));
+            record('ps.execution',result.exitCode===0?'ok':'error',
+              automatic?'Auto PowerShell permission':'Explicitly approved user action',result);
+          }).catch(error=>{
+            record('ps.execution','error','Execution failed: '+String(error.message).slice(0,160));
+            json(pending.res,422,{error:String(error.message).slice(0,240)});
+          });
           return;
         }
         const response=msg.error?{error:String(msg.error).slice(0,256)}:{result:msg.result};
