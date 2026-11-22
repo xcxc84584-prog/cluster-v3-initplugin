@@ -33,3 +33,15 @@ This uses Windows Package Manager (`winget`) and its Microsoft.PowerShell packag
 - The bridge is an intentionally privileged local execution tool; only connect it to a trusted Cluster page. Stop it with Ctrl+C.
 - The shared color palette and interface language are received from the Host PRMU. Port, origin, and token are device-local runtime settings and **must never be stored in the shared public library**.
 - No Cluster-v3 Host changes are made by this package.
+
+## v0.2: independent terminal tabs and quick setup
+
+- In the existing Editor > Tools > PowerShell view, click **+** to create another PowerShell tab.
+- Each tab is backed by a distinct, persistent server-side runspace; variables and current directory belong to that tab alone. Closing a tab disposes its runspace.
+- The Local Agent currently accepts at most 12 sessions and processes API requests sequentially. Several tabs can remain open simultaneously, but long-running commands block execution in the other tabs until they finish. Do not use it for unattended long-running tasks.
+- A browser reload loses the tab state; the Local Agent releases the runspaces on process exit.
+- Without a Local Agent connection, the plugin shows the setup guide and disables terminal execution.
+- On Windows, run the packaged **bridge/Setup-ClusterPowerShell.cmd** from your local plugin Folder package. The CMD offers existing Windows PowerShell or optionally PowerShell 7 via winget; you must approve execution yourself.
+- Enter the exact Cluster web origin when prompted. The CMD prints the loopback URL and session token after startup.
+- Local URL and token are never synchronized with PRMU; UI palette and language still come from the PRMU public context.
+- Windows execution, HTTP browser compatibility, and cross-tab behavior still require real-device E2E verification.
