@@ -24,7 +24,7 @@ if(!view)return;
 pane.insertBefore(tabbar,view);
 const documents=new Map();
 let activeDocument=null,activePowerShell=null,psSessions=[];
-let selected='editor',psOpened=false,serial=0,snapshotTimer=0;
+let selected='editor',psOpened=false,psConnected=false,serial=0,snapshotTimer=0;
 const terminal=()=>Array.from(view.querySelectorAll('iframe')).find(x=>x.title==='ClusterPowerShell');
 function editorRequest(action,params){
 editor.contentWindow?.postMessage({protocol:'cluster.editor.v1',type:'req',
@@ -101,6 +101,7 @@ snapshotTimer=setTimeout(()=>editorRequest('workspace.snapshot',{}),90);
 function updatePowerShell(msg){
 if(!Array.isArray(msg.sessions))return;
 psSessions=msg.sessions.filter(x=>typeof x.id==='string'&&typeof x.name==='string');
+psConnected=msg.connected===true;
 if(msg.activeId&&psSessions.some(x=>x.id===msg.activeId))activePowerShell=msg.activeId;
 else activePowerShell=psSessions[0]?.id||null;
 if(msg.closedLast&&psSessions.length===0){
@@ -120,6 +121,9 @@ inner.head.append(css);
 }catch{/* Cross-origin child keeps native tabs rather than risking document damage. */}
 }
 editor.addEventListener('load',()=>{hideChildTabbar();setTimeout(scheduleSnapshot,125);});
+window.addEventListener('cluster-powershell-new-tab',()=>{
+ if(psConnected)psRequest('create');
+});
 window.addEventListener('cluster-workspace-select',event=>{
 selected=event.detail?.selected==='powershell'?'powershell':'editor';
 if(selected==='powershell')psOpened=true;
@@ -149,8 +153,10 @@ documents.clear();for(const d of msg.data.documents)setDocument(d);
 activeDocument=msg.data.activeId==null?null:String(msg.data.activeId);render();
 }
 }
-if(event.source===terminal()?.contentWindow&&msg.protocol==='cluster.powershell.tabs.v1'&&
-msg.type==='state')updatePowerShell(msg);
+if(event.source===terminal()?.contentWindow&&msg.protocol==='cluster.powershell.tabs.v1'){
+ if(msg.type==='hello')psRequest('request-state');
+ if(msg.type==='state')updatePowerShell(msg);
+}
 });
 hideChildTabbar();
 scheduleSnapshot();
