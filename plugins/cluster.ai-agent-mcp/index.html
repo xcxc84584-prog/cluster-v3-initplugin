@@ -268,7 +268,8 @@ $('connect').onclick=async()=>{
   await refresh();
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
 };
-$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';/* Authenticated browser bridge: user-selected File System Access handles.
+$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';renderLocale();showPage('setup');};
+/* Authenticated browser bridge: user-selected File System Access handles.
  * Editor is reached only through the parent adapter; no cross-frame DOM reading.
  */
 const rootHandles=new Map();
@@ -467,8 +468,6 @@ $('selectRoot').onclick=async()=>{
 };
 $('revokeRoots').onclick=()=>{rootHandles.clear();rootLabels();};
 rootLabels();
-
-renderLocale();showPage('setup');};
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('export').onclick=()=>{
  const payload=events.map(({id,at,source,action,result,detail})=>({id,at,source,action,result,detail}));
