@@ -10,6 +10,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const pty = require('node-pty');
+const secureStore = require('./secure-store.cjs');
 const {WebSocketServer} = require('ws');
 
 if(process.platform !== 'win32') throw Error('ClusterPowerShell currently requires Windows ConPTY');
@@ -27,7 +28,20 @@ const enteredOrigin=process.env.CLUSTER_ALLOWED_ORIGIN;
 const origin=normalizeAllowedOrigin(enteredOrigin);
 if(enteredOrigin.trim()!==origin)console.log('Normalized Cluster website origin: '+origin);
 const shell = process.env.CLUSTER_SHELL === 'pwsh' ? 'pwsh.exe' : 'powershell.exe';
-const token = crypto.randomBytes(32).toString('hex'); // 64 printable characters
+// Only this Windows user can decrypt a retained pairing credential.
+const credentialDir=path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),
+  'ClusterPowerShell');
+fs.mkdirSync(credentialDir,{recursive:true});
+const token = secureStore.loadOrMigrate(
+ path.join(credentialDir,'pairing-token.dpapi'),
+ path.join(credentialDir,'legacy-pairing-token'),
+ value=>/^[a-f0-9]{64}$/.test(value),
+ ()=>crypto.randomBytes(32).toString('hex')
+);
+const portFile=path.join(credentialDir,'agent-port.json');
+let previousPort=0;
+try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
+ if(Number.isInteger(n)&&n>=1024&&n<=65535)previousPort=n;}catch{}
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
@@ -141,11 +155,20 @@ wss.on('connection',ws=>{
 function listen(port=0){
  server.listen(port,'127.0.0.1',()=>{
   const address=server.address();
+  fs.writeFileSync(portFile,JSON.stringify({port:address.port}),{mode:0o600});
   console.log('PORT MESSAGE : http://127.0.0.1:'+address.port+'/ TOKEN '+token);
   console.log('ALLOWED ORIGIN : '+origin);
   console.log('PowerShell engine : '+shell);
   console.log('Close this window / Ctrl+C to stop Local Agent.');
  });
 }
-listen(Number(process.env.CLUSTER_PORT)||0);
+// Keep the browser's remembered endpoint stable whenever possible.
+const configuredPort=Number(process.env.CLUSTER_PORT)||previousPort||0;
+server.on('error',error=>{
+ if(error.code==='EADDRINUSE'&&configuredPort!==0&&!server.listening){
+  console.warn('Previous port occupied; selecting another loopback port.');
+  listen(0);
+ }else{console.error('Local Agent start failed:',error.message);process.exitCode=1;}
+});
+listen(configuredPort);
 process.on('SIGINT',()=>{for(const id of sessions.keys())closeSession(id);server.close();});
