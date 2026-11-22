@@ -46,7 +46,7 @@ try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
 const activity=[];let activitySequence=0;
 function record(action,result,detail=''){
  const safe=String(detail).replace(/[a-f0-9]{64}/gi,'[redacted]').slice(0,256);
- activity.push({id:++activitySequence,at:new Date().toISOString(),source:'powershell',action,result,detail:safe});
+ activity.push({id:++activitySequence,at:new Date().toISOString(),source:action.startsWith('mcp.')?'ai':'powershell',action,result,detail:safe});
  if(activity.length>200)activity.splice(0,activity.length-200);
 }
 function runApprovedPowerShell(command,cwd){
