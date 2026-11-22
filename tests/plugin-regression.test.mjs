@@ -362,7 +362,8 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
  assert.match(source,/approvalPending/);
  assert.match(page,/id="approvalPane"/);
  assert.match(source,/setTimeout\(\(\)=>settle\(null/);
- assert.match(source,/window\.showDirectoryPicker/);
+ assert.match(source,/call\('\/roots\/select',\{\},190000\)/);
+ assert.doesNotMatch(source,/window\.showDirectoryPicker/);
  assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
  assert.match(source,/document\?\.dirty===true/);
  assert.doesNotMatch(source,/window\.confirm\(/);
@@ -432,4 +433,55 @@ test('Opt2-style temporary Cloudflare Tunnel is option three, OAuth-only and ver
  assert.match(setup,/Stop-Process -Id \$oldCloud\.ProcessId/);
  assert.doesNotMatch(setup,/taskkill \/f|Stop-Process -Name|netsh interface/);
  assert.match(readme,/Option \[3\]: temporary Cloudflare Quick Tunnel/);
+});
+
+
+test('Windows folder picker and local CRUD/PS rights are agent-backed',()=>{
+ const page=read('plugins/cluster.ai-agent-mcp/index.html');
+ const source=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+ new Script(source);
+ const server=read('plugins/cluster.powershell/bridge/server.cjs');
+ const manager=read('plugins/cluster.powershell/bridge/root-access.cjs');
+ const picker=read('plugins/cluster.powershell/bridge/Select-Local-Root.ps1');
+ new Script(server);new Script(manager);
+ assert.match(page,/class="root-list"/);
+ assert.match(page,/id="selectRoot"/);
+ assert.match(source,/function nativeRoot/);
+ assert.match(source,/\\/roots\\/permissions/);
+ assert.match(source,/\\/roots\\/action/);
+ assert.match(source,/\\/roots\\/revoke/);
+ assert.match(source,/reloadRoots/);
+ assert.match(source,/rightNames=\['read','create','update','delete','powershell'\]/);
+ assert.doesNotMatch(source,/window\.showDirectoryPicker/);
+ assert.match(picker,/FolderBrowserDialog/);
+ assert.match(picker,/SelectedPath/);
+ assert.match(server,/createRootAccess/);
+ assert.match(server,/rootAccess\.checkPowerShell/);
+ assert.match(server,/url\.pathname\.startsWith\('\/roots\/'\)/);
+ assert.match(manager,/fs\.realpathSync\.native/);
+ assert.match(manager,/requireRight\(root,required\)/);
+ assert.match(manager,/Symlink exits authorized root/);
+});
+test('successful MCP/OAuth CMD verifies gateway and prints local tokens',()=>{
+ const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const quick=read('plugins/cluster.powershell/bridge/Start-Quick-Tunnel.ps1');
+ const reporter=read('plugins/cluster.powershell/bridge/Show-Connection-Tokens.cjs');
+ const waiter=read('plugins/cluster.powershell/bridge/Wait-Cluster-Connection.ps1');
+ const bootstrap=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ new Script(reporter);
+ assert.match(cmd,/Wait-Cluster-Connection\.ps1/);
+ assert.match(cmd,/-Mode mcp/);
+ assert.match(cmd,/-Mode oauth/);
+ assert.match(quick,/Wait-Cluster-Connection\.ps1/);
+ assert.match(waiter,/LASTEXITCODE -eq 0/);
+ assert.match(reporter,/PORT MESSAGE : MCP/);
+ assert.match(reporter,/APPROVAL TOKEN/);
+ assert.match(reporter,/pairing-token/);
+ assert.match(reporter,/remote-mcp-token/);
+ assert.match(reporter,/oauth-approval-password/);
+ assert.match(reporter,/Gateway did not pass startup verification/);
+ for(const file of ['root-access.cjs','Select-Local-Root.ps1',
+  'Show-Connection-Tokens.cjs','Wait-Cluster-Connection.ps1']){
+  assert.ok(bootstrap.includes(file),file);
+ }
 });
