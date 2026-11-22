@@ -12,6 +12,7 @@ const dir=path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','
 const secureStore=require('./secure-store.cjs');
 fs.mkdirSync(dir,{recursive:true});
 const issuer=(process.env.CLUSTER_OAUTH_ISSUER||'').replace(/\/$/,'');
+const resourceId=issuer+'/mcp';
 if(!/^https:\/\/[^/?#]+$/.test(issuer))throw Error('Set CLUSTER_OAUTH_ISSUER to the exact public HTTPS origin (no path).');
 const readonlyTools=new Set([
  'cluster.get_status','cluster.get_task_status','cluster.list_files',
@@ -31,13 +32,13 @@ const secureEqual=(a,b)=>{if(typeof a!=='string'||typeof b!=='string')return fal
 const respond=(res,status,obj,extra={})=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra});res.end(JSON.stringify(obj))};
 const fail=(res,status,error,description)=>respond(res,status,{error,error_description:description||error});
 const html=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const metadata=()=>({issuer,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',revocation_endpoint:issuer+'/revoke',registration_endpoint:issuer+'/register',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none'],scopes_supported:['cluster.read','cluster.control']});
-const resource=()=>({resource:issuer+'/mcp',authorization_servers:[issuer],scopes_supported:['cluster.read','cluster.control'],bearer_methods_supported:['header']});
+const metadata=()=>({issuer,authorization_response_iss_parameter_supported:true,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',revocation_endpoint:issuer+'/revoke',registration_endpoint:issuer+'/register',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none'],scopes_supported:['cluster.read','cluster.control']});
+const resource=()=>({resource:resourceId,authorization_servers:[issuer],scopes_supported:['cluster.read','cluster.control'],bearer_methods_supported:['header']});
 function validRedirect(s){try{const u=new URL(s);return !u.hash&&((u.protocol==='https:'&&!!u.hostname)||(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)));}catch{return false}}
 async function body(req,limit=16384){let b='';for await(const c of req){b+=c;if(Buffer.byteLength(b)>limit)throw Error('request too large')}return b}
 function gc(){for(const m of [codes,tokens,pending])for(const [k,v] of m)if(v.expires<now())m.delete(k)}
 function redirect(res,url){res.writeHead(302,{Location:url,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'});res.end()}
-function oauthErrorRedirect(res,uri,state,error){const u=new URL(uri);u.searchParams.set('error',error);if(state)u.searchParams.set('state',state);redirect(res,u.href)}
+function oauthErrorRedirect(res,uri,state,error){const u=new URL(uri);u.searchParams.set('error',error);if(state)u.searchParams.set('state',state);u.searchParams.set('iss',issuer);redirect(res,u.href)}
 const server=http.createServer(async(req,res)=>{
  try{
   gc();
@@ -59,6 +60,7 @@ const server=http.createServer(async(req,res)=>{
    if(!client||!client.redirects.includes(uri))return fail(res,400,'invalid_request','Unregistered client or redirect URI');
    const state=q.get('state')||'',challenge=q.get('code_challenge')||'';
    if(q.get('response_type')!=='code'||q.get('code_challenge_method')!=='S256'||!/^[A-Za-z0-9_-]{43,128}$/.test(challenge)||!state||state.length>512)return oauthErrorRedirect(res,uri,state,'invalid_request');
+   if(q.get('resource')!==resourceId)return oauthErrorRedirect(res,uri,state,'invalid_target');
    const requested=(q.get('scope')||'cluster.read').trim()
     .split(/\s+/);
    const permitted=new Set(['cluster.read','cluster.control']);
@@ -70,7 +72,7 @@ const server=http.createServer(async(req,res)=>{
    const scope=requested.includes('cluster.control') ?
     'cluster.control' : 'cluster.read';
    const ticket=random();
-   pending.set(ticket,{id,uri,state,challenge,scope,expires:now()+300000});
+   pending.set(ticket,{id,uri,state,challenge,scope,resource:resourceId,expires:now()+300000});
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action "+issuer+" "+new URL(uri).origin+"; base-uri 'none'; frame-ancestors 'none'",'Referrer-Policy':'no-referrer','X-Frame-Options':'DENY'});
    const scopeNotice=scope==='cluster.control'?
     '<p style="padding:12px;border:2px solid #e59b38;color:#ffd7a0">' +
@@ -95,7 +97,7 @@ const server=http.createServer(async(req,res)=>{
    failedApprovals.delete(ticket);
    pending.delete(ticket);
    const code=random();codes.set(code,{...p,expires:now()+60000});
-   const target=new URL(p.uri);target.searchParams.set('code',code);target.searchParams.set('state',p.state);
+   const target=new URL(p.uri);target.searchParams.set('code',code);target.searchParams.set('state',p.state);target.searchParams.set('iss',issuer);
    // Only log the callback route, never the authorization code, state, or password.
    console.log('[OAuth] Approval accepted; redirecting to callback:',target.origin+target.pathname);
    return redirect(res,target.href);
@@ -107,10 +109,12 @@ const server=http.createServer(async(req,res)=>{
    if(!entry||entry.expires<now())return fail(res,400,'invalid_grant');
    codes.delete(code); // one-time, including failed attempts
    const verifier=f.get('code_verifier')||'';
-   if(f.get('client_id')!==entry.id||f.get('redirect_uri')!==entry.uri||!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier))return fail(res,400,'invalid_grant');
+   if(f.get('client_id')!==entry.id||f.get('redirect_uri')!==entry.uri||
+      f.get('resource')!==entry.resource||!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier))return fail(res,400,'invalid_grant');
    const actual=crypto.createHash('sha256').update(verifier).digest('base64url');
    if(!secureEqual(actual,entry.challenge))return fail(res,400,'invalid_grant');
-   const access=random();tokens.set(access,{client:entry.id,scope:entry.scope,expires:now()+3600000});
+   const access=random();tokens.set(access,{client:entry.id,scope:entry.scope,audience:entry.resource,
+    issuer,expires:now()+3600000});
    return respond(res,200,{access_token:access,token_type:'Bearer',expires_in:3600,scope:entry.scope});
   }
   if(route==='/revoke'&&req.method==='POST'){
@@ -123,7 +127,8 @@ const server=http.createServer(async(req,res)=>{
   }
   if(route==='/mcp'){
    const auth=req.headers.authorization||'',token=auth.startsWith('Bearer ')?auth.slice(7):'',session=tokens.get(token);
-   if(!session||session.expires<now())return respond(res,401,{error:'Unauthorized'},{'WWW-Authenticate':'Bearer resource_metadata="'+issuer+'/.well-known/oauth-protected-resource/mcp"'});
+   if(!session||session.expires<now()||session.audience!==resourceId||
+      session.issuer!==issuer)return respond(res,401,{error:'Unauthorized'},{'WWW-Authenticate':'Bearer resource_metadata="'+issuer+'/.well-known/oauth-protected-resource/mcp"'});
    if(!['POST','GET','DELETE'].includes(req.method))return fail(res,405,'method_not_allowed');
    const payload=req.method==='POST'?await body(req,32768):undefined;
    let rpc=null;
