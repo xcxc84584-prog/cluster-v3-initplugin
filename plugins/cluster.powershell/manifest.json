@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.powershell",
   "name": "ClusterPowerShell",
-  "version": "0.2.0",
-  "description": "Multi-tab persistent PowerShell runspaces with Local Agent quick setup",
+  "version": "0.3.0",
+  "description": "Native Windows ConPTY terminal with isolated multi-tabs and guided Local Agent setup",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
