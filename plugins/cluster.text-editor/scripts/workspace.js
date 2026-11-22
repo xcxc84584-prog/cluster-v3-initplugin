@@ -122,13 +122,25 @@
     fileMenu.hidden=!open;
     fileButton.setAttribute('aria-expanded',String(open));
   }
-  let pluginSiteUrl=null;
+  let pluginManagerUrl=null;
+  function navigatePluginManager(url){
+    try {
+      const destination=new URL(url);
+      if(destination.protocol!=='https:' && destination.hostname!=='localhost')
+        throw Error('Unsafe Plugin Manager destination');
+      // Navigate the top-level application, not an iframe or popup.
+      window.top.location.assign(destination.href);
+    } catch(error){
+      console.error('Plugin Manager navigation failed:',error);
+    }
+  }
   function openPluginManager(){
-    if(pluginSiteUrl){window.open(pluginSiteUrl,'_blank','noopener,noreferrer');return;}
-    // Explicitly obtain the canonical URL from PRMU; never guess /plugin.
+    if(pluginManagerUrl){navigatePluginManager(pluginManagerUrl);return;}
+    // All domains and paths are published by the PRMU authority.
     if(parent!==window){
       parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
-        requestId:'workspace-plugin-url',method:'PRMU.getPluginSiteUrl',args:[]},'*');
+        requestId:'workspace-plugin-manager-url',
+        method:'PRMU.getPluginManagerUrl',args:[]},'*');
     }
   }
 
@@ -447,11 +459,11 @@
 
     if (event.source === parent && parent !== window) {
       if(msg.protocol===hostProtocol && msg.type==='response' &&
-         msg.requestId==='workspace-plugin-url') {
-        if(msg.ok && typeof msg.data==='string')pluginSiteUrl=msg.data;
-        else if(msg.ok && typeof msg.data?.pluginSiteUrl==='string')
-          pluginSiteUrl=msg.data.pluginSiteUrl;
-        if(pluginSiteUrl)window.open(pluginSiteUrl,'_blank','noopener,noreferrer');
+         msg.requestId==='workspace-plugin-manager-url') {
+        if(msg.ok && typeof msg.data==='string')pluginManagerUrl=msg.data;
+        else if(msg.ok && typeof msg.data?.pluginManagerUrl==='string')
+          pluginManagerUrl=msg.data.pluginManagerUrl;
+        if(pluginManagerUrl)navigatePluginManager(pluginManagerUrl);
         return;
       }
       if (msg.protocol === hostProtocol && msg.type === 'response') {
@@ -464,7 +476,7 @@
         editor.contentWindow?.postMessage(msg, '*');
       } else if (msg.type === 'context' || msg.protocol === 'cluster.settings.context.v1') {
         lastHostContext = msg;
-        if(typeof msg.pluginSiteUrl==='string')pluginSiteUrl=msg.pluginSiteUrl;
+        if(typeof msg.pluginManagerUrl==='string')pluginManagerUrl=msg.pluginManagerUrl;
         if(typeof msg.language==='string')applyMenuLocale(msg.language);
         explorer.contentWindow?.postMessage(msg, '*');
         editor.contentWindow?.postMessage(msg, '*');
