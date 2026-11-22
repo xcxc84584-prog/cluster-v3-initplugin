@@ -33,6 +33,8 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 #setupGuide code{font:11px Consolas,monospace;overflow-wrap:anywhere}
 .guide-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 [hidden]{display:none!important}
+
+#output{position:relative;padding:0;overflow:hidden}#output .terminal-view{position:absolute;inset:0;padding:7px;overflow:hidden}#output .terminal-view[hidden]{display:none!important}#output .xterm{height:100%}#terminalForm{display:none!important}
 </style></head><body><main>
 <header><span class="dot" id="dot"></span><strong>PowerShell</strong>
 <span class="grow"></span><button id="connectToggle" type="button" aria-expanded="true">Connect</button>
@@ -56,160 +58,168 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 <button id="run" type="submit" disabled>Run</button>
 </form>
 </main><script>
-/* PRMU owns shared palette and language. Connection secrets are memory-only. */
+/* Cluster is only the viewport. Native keyboard, ANSI, shell execution and line editing
+ * are handled by xterm.js -> WebSocket -> Windows ConPTY -> powershell.exe/pwsh.exe.
+ */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
-const labels={
-'zh-TW':['連線','清除','執行','請連接本機 Local Agent。若尚未配置，請依下方引導完成快速配置。','連線成功','連線失敗','執行失敗','未連線','新增 PowerShell','關閉分頁','Local Agent 快速配置','下載插件 Folder 包至 Windows 本機','從插件資料夾執行以下 CMD，確認授權與網站 Origin','複製 CMD 輸出的 Port URL 與 Token 至上方欄位','複製路徑','PowerShell 工作階段'],
-en:['Connect','Clear','Run','Connect to your local agent. If unconfigured, follow the quick-setup guide.','Connected','Connection failed','Execution failed','Not connected','New PowerShell','Close tab','Local Agent quick setup','Download the plugin Folder package to Windows','Run the CMD from its folder and approve the website origin','Paste the printed Port URL and Token above','Copy path','PowerShell session'],
-fr:['Connexion','Effacer','Exécuter','Connectez votre agent local. Sinon, suivez la configuration rapide.','Connecté','Échec de connexion','Erreur d’exécution','Non connecté','Nouveau PowerShell','Fermer','Configuration rapide','Télécharger le dossier du plugin sur Windows','Exécuter le CMD et autoriser l’origine du site','Saisir URL et jeton affichés','Copier le chemin','Session PowerShell'],
-ja:['接続','消去','実行','ローカルエージェントを接続してください。未設定なら簡単設定を参照。','接続済み','接続失敗','実行失敗','未接続','新しい PowerShell','タブを閉じる','簡単設定','プラグインのフォルダーを Windows に保存','CMD を実行しサイトの Origin を許可','表示された URL と Token を入力','パスをコピー','PowerShell セッション'],
-es:['Conectar','Limpiar','Ejecutar','Conecte el agente local. Si falta, siga la configuración rápida.','Conectado','Error de conexión','Error de ejecución','Sin conexión','Nuevo PowerShell','Cerrar pestaña','Configuración rápida','Descargue el paquete Folder a Windows','Ejecute CMD y autorice el origen del sitio','Introduzca URL y Token mostrados','Copiar ruta','Sesión PowerShell'],
-hi:['कनेक्ट','साफ़','चलाएँ','लोकल एजेंट जोड़ें। पहले से सेट नहीं है तो त्वरित सेटअप करें।','कनेक्टेड','कनेक्शन विफल','निष्पादन विफल','कनेक्ट नहीं','नया PowerShell','टैब बंद करें','त्वरित सेटअप','Windows पर प्लगइन फ़ोल्डर डाउनलोड करें','CMD चलाएँ और वेबसाइट Origin स्वीकार करें','दिखाया गया URL और Token भरें','पथ कॉपी करें','PowerShell सत्र']
+const translations={
+'zh-TW':['連線','清除','執行','未連接 Local Agent，請先完成快速配置。','已連線','連線失敗','終端錯誤','未連線','新增 PowerShell','關閉分頁','Local Agent 快速配置','將插件 Folder 包下載至 Windows 電腦','在 bridge 資料夾執行以下 CMD，授權網站 Origin','輸入 CMD 顯示的 Port URL 及 Token','複製路徑'],
+en:['Connect','Clear','Run','Local Agent is not connected. Complete quick setup first.','Connected','Connection failed','Terminal error','Disconnected','New PowerShell','Close tab','Local Agent quick setup','Download the plugin Folder package on Windows','Run the CMD from bridge and authorize the site origin','Enter the CMD Port URL and Token above','Copy path'],
+fr:['Connexion','Effacer','Exécuter','Agent local non connecté. Effectuez la configuration rapide.','Connecté','Échec de connexion','Erreur du terminal','Déconnecté','Nouveau PowerShell','Fermer','Configuration rapide','Télécharger le dossier du plugin sur Windows','Exécutez le CMD dans bridge et autorisez le site','Entrez URL et jeton affichés','Copier le chemin'],
+ja:['接続','消去','実行','ローカルエージェントに接続されていません。設定してください。','接続済み','接続失敗','端末エラー','未接続','新しい PowerShell','閉じる','簡単設定','Windows にプラグインフォルダーをダウンロード','bridge 内の CMD を起動しサイトを許可','表示された URL と Token を入力','パスをコピー'],
+es:['Conectar','Limpiar','Ejecutar','Agente local no conectado. Complete la configuración.','Conectado','Error de conexión','Error de terminal','Desconectado','Nuevo PowerShell','Cerrar','Configuración rápida','Descargue el plugin Folder a Windows','Ejecute CMD desde bridge y autorice el sitio','Introduzca URL y Token indicados','Copiar ruta'],
+hi:['कनेक्ट','साफ़','चलाएँ','लोकल एजेंट कनेक्ट नहीं है। त्वरित सेटअप करें।','कनेक्टेड','कनेक्शन विफल','टर्मिनल त्रुटि','डिस्कनेक्ट','नया PowerShell','टैब बंद','त्वरित सेटअप','Windows पर प्लगइन फ़ोल्डर डाउनलोड करें','bridge का CMD चलाकर वेबसाइट स्वीकार करें','दिखाया गया URL और Token दर्ज करें','पथ कॉपी करें']
 };
-let locale='zh-TW',endpoint='',token='',connected=false,active=null,nextLabel=1;
-const sessions=new Map();
-function t(index){return (labels[locale]||labels.en)[index];}
+let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false;
+const sessions=new Map(),container=$('output');
+const t=i=>(translations[locale]||translations.en)[i];
 function applyLabels(){
-$('connectToggle').textContent=t(0);$('connect').textContent=t(0);
-$('clear').textContent=t(1);$('run').textContent=t(2);$('hint').textContent=t(3);
-$('setupTitle').textContent=t(10);$('setupStep1').textContent=t(11);
-$('setupStep2').textContent=t(12);$('setupStep3').textContent=t(13);
-$('copySetup').textContent=t(14);document.documentElement.lang=locale;renderTabs();
+ $('connectToggle').textContent=t(0);$('connect').textContent=t(0);
+ $('clear').textContent=t(1);$('hint').textContent=t(3);
+ $('setupTitle').textContent=t(10);$('setupStep1').textContent=t(11);
+ $('setupStep2').textContent=t(12);$('setupStep3').textContent=t(13);
+ $('copySetup').textContent=t(14);document.documentElement.lang=locale;renderTabs();
 }
-function escapeOutput(text,error=false){
-const node=document.createElement('div');node.textContent=String(text);
-if(error)node.className='error';return node;
+function colors(){
+ const css=getComputedStyle(document.documentElement);
+ const get=k=>css.getPropertyValue('--ui-'+k).trim();
+ return {background:get('editor')||'#0c0d10',foreground:get('text')||'#e5e9f3',
+ cursor:get('accent')||'#7e9ef4',selectionBackground:get('control')||'#2a2e38'};
 }
-function append(session,text,error=false){
-session.output.push({text:String(text),error});if(session.id===active)showOutput(session);
+function palette(context){
+ const p=context.palette||context.data?.palette;
+ if(p&&typeof p==='object')for(const [k,v] of Object.entries(p)){
+  if(/^[a-z-]+$/.test(k)&&/^#[0-9a-f]{6}$/i.test(v))
+   document.documentElement.style.setProperty('--ui-'+k,v);
+ }
+ const lang=context.language||context.data?.language;
+ if(translations[lang]){locale=lang;applyLabels();}
+ for(const session of sessions.values())session.term.options.theme=colors();
 }
-function showOutput(session){
-const area=$('output');area.replaceChildren(...session.output.map(x=>escapeOutput(x.text,x.error)));
-area.scrollTop=area.scrollHeight;
-}
-function renderTabs(){
-const bar=$('tabs');bar.replaceChildren();
-for(const session of sessions.values()){
-const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');
-button.dataset.id=session.id;button.setAttribute('aria-selected',String(session.id===active));
-button.textContent=session.name+(session.busy?' …':'');button.onclick=()=>activate(session.id);
-bar.append(button);
-const close=document.createElement('button');close.type='button';close.className='close-tab';
-close.textContent='×';close.title=t(9);close.setAttribute('aria-label',t(9)+' '+session.name);
-close.onclick=()=>closeSession(session.id);bar.append(close);
-}
-const add=document.createElement('button');add.type='button';add.className='new-tab';
-add.textContent='+';add.disabled=!connected;add.title=t(8);add.setAttribute('aria-label',t(8));
-add.onclick=createSession;bar.append(add);
-}
-function activate(id){
-const s=sessions.get(id);if(!s)return;
-if(active&&sessions.has(active))sessions.get(active).draft=$('command').value;
-active=id;$('command').value=s.draft||'';showOutput(s);renderTabs();syncInput();
-}
-function syncInput(){
-const s=sessions.get(active),enabled=connected&&!!s&&!s.busy;
-$('command').disabled=!enabled;$('run').disabled=!enabled;
-$('dot').classList.toggle('connected',connected);
-}
-async function request(action,body){
-const url=new URL(endpoint);
-if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only 127.0.0.1 HTTP is supported');
-const response=await fetch(new URL('/'+action,url).href,{
-method:'POST',headers:{'Content-Type':'application/json','X-Cluster-Token':token},
-body:JSON.stringify(body),signal:AbortSignal.timeout(action==='exec'?120000:10000)
-});
-let data;try{data=await response.json();}catch{throw Error('Invalid Local Agent response');}
-if(!response.ok||!data.ok)throw Error(data.error||String(response.status));return data;
-}
-async function createSession(){
-if(!connected)return;
-try{
-const result=await request('session/create',{});
-if(typeof result.sessionId!=='string'||!result.sessionId)throw Error('Invalid session ID');
-const s={id:result.sessionId,name:'PowerShell '+nextLabel++,output:[],draft:'',busy:false};
-sessions.set(s.id,s);activate(s.id);$('command').focus();
-}catch(error){showError(error);}
-}
-async function closeSession(id){
-const s=sessions.get(id);if(!s||s.busy)return;
-try{if(connected)await request('session/close',{sessionId:id});}
-catch(error){showError(error);return;}
-sessions.delete(id);
-if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);else{$('output').textContent='';$('command').value='';}}
-renderTabs();syncInput();
-}
-function showError(error){const s=sessions.get(active);if(s)append(s,t(6)+': '+error.message,true);else $('output').append(escapeOutput(t(6)+': '+error.message,true));}
-function palette(data){
-const p=data?.palette||data?.data?.palette;
-if(p&&typeof p==='object')for(const [k,v] of Object.entries(p))
-if(/^[a-z-]+$/.test(k)&&/^#[0-9a-f]{6}$/i.test(v))
-document.documentElement.style.setProperty('--ui-'+k,v);
-const lang=data?.language||data?.data?.language;
-if(labels[lang]){locale=lang;applyLabels();}
-}
-window.addEventListener('message',e=>{
-if(e.source!==parent)return;const m=e.data;
-if(['cluster.plugin.v1','cluster.settings.context.v1','cluster.public.v1'].includes(m?.protocol)
-&&['context','snapshot','properties.changed'].includes(m.type))palette(m);
+window.addEventListener('message',event=>{
+ if(event.source!==parent)return;const m=event.data;
+ if(['cluster.plugin.v1','cluster.settings.context.v1','cluster.public.v1'].includes(m?.protocol)&&
+ ['context','snapshot','properties.changed'].includes(m.type))palette(m);
 });
 if(parent!==window){
-parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');
-parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');
+ parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId:'powershell-capability-register',
+  method:'PRMU.register',args:['capabilities',{
+   key:'workspace.powershell.v1',value:{kind:'ui.embed',version:'3.0.0'},
+   sharedWrite:false,persistent:false
+  }]},'*');
 }
-let registrationCounter=0;
-function registerShellCapability(){
-if(parent===window)return;
-parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
-requestId:'powershell-register-'+(++registrationCounter),
-method:'PRMU.register',args:['capabilities',{
-key:'workspace.powershell.v1',value:{kind:'ui.embed',version:'2.0.0'},
-sharedWrite:false,persistent:false}]},'*');
+function loadScript(src){
+ return new Promise((resolve,reject)=>{
+ const script=document.createElement('script');
+ script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Failed to load terminal assets'));
+ document.head.append(script);
+ });
 }
-registerShellCapability();
+async function ensureAssets(){
+ if(assetsReady)return;
+ const base=new URL(endpoint);
+ const css=document.createElement('link');css.rel='stylesheet';css.href=new URL('/assets/xterm.css',base).href;document.head.append(css);
+ await loadScript(new URL('/assets/xterm.js',base).href);
+ await loadScript(new URL('/assets/fit.js',base).href);
+ if(typeof window.Terminal!=='function'||!window.FitAddon?.FitAddon)
+  throw Error('Native terminal assets not available');
+ assetsReady=true;
+}
+async function requestHealth(){
+ const url=new URL(endpoint);
+ if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')
+  throw Error('Only loopback HTTP URLs are accepted');
+ const response=await fetch(new URL('/health',url).href,{
+  method:'POST',headers:{'Content-Type':'application/json','X-Cluster-Token':token},
+  body:'{}',signal:AbortSignal.timeout(8000)});
+ const json=await response.json();
+ if(!response.ok||!json.ok||json.apiVersion!=='3.0.0')
+  throw Error(json.error||'A ConPTY Local Agent v3 is required');
+}
+function renderTabs(){
+ const bar=$('tabs');bar.replaceChildren();
+ for(const session of sessions.values()){
+  const tab=document.createElement('button');tab.type='button';tab.setAttribute('role','tab');
+  tab.dataset.id=session.id;tab.setAttribute('aria-selected',String(session.id===active));
+  tab.textContent=session.name;tab.onclick=()=>activate(session.id);bar.append(tab);
+  const close=document.createElement('button');close.type='button';close.className='close-tab';
+  close.textContent='×';close.title=t(9);close.setAttribute('aria-label',t(9)+' '+session.name);
+  close.onclick=()=>closeSession(session.id);bar.append(close);
+ }
+ const plus=document.createElement('button');plus.type='button';plus.className='new-tab';
+ plus.textContent='+';plus.disabled=!connected||sessions.size>=12;
+ plus.title=t(8);plus.setAttribute('aria-label',t(8));plus.onclick=createSession;bar.append(plus);
+}
+function activate(id){
+ const session=sessions.get(id);if(!session)return;
+ active=id;for(const s of sessions.values())s.view.hidden=s.id!==id;
+ session.fit.fit();session.term.focus();renderTabs();sendResize(session);
+}
+function sendResize(session){
+ if(session.ws.readyState===WebSocket.OPEN)
+  session.ws.send(JSON.stringify({type:'resize',cols:session.term.cols,rows:session.term.rows}));
+}
+function createSession(){
+ if(!connected || sessions.size>=12)return;
+ const id='tab-'+crypto.randomUUID();
+ const view=document.createElement('div');view.className='terminal-view';view.hidden=true;container.append(view);
+ const term=new window.Terminal({
+  cursorBlink:true,allowProposedApi:false,convertEol:false,fontSize:13,
+  fontFamily:'Cascadia Mono, Consolas, monospace',scrollback:5000,theme:colors()
+ });
+ const fit=new window.FitAddon.FitAddon();term.loadAddon(fit);term.open(view);
+ const wsUrl=new URL(endpoint);wsUrl.protocol='ws:';wsUrl.pathname='/terminal';wsUrl.searchParams.set('token',token);
+ const ws=new WebSocket(wsUrl.href);
+ const session={id,name:'PowerShell '+nextLabel++,view,term,fit,ws,ptyId:null};
+ sessions.set(id,session);
+ ws.addEventListener('open',()=>ws.send(JSON.stringify({type:'create'})));
+ ws.addEventListener('message',event=>{
+  let message;try{message=JSON.parse(event.data);}catch{return;}
+  if(message.type==='created'){session.ptyId=message.sessionId;fit.fit();sendResize(session);}
+  if(message.type==='data'&&typeof message.data==='string')term.write(message.data);
+  if(message.type==='error')term.writeln('\r\n[Local Agent] '+message.error);
+  if(message.type==='exit')term.writeln('\r\n[PowerShell exited: '+message.exitCode+']');
+ });
+ ws.addEventListener('close',()=>term.writeln('\r\n[Local Agent disconnected]'));
+ term.onData(data=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'input',data}));});
+ term.onResize(()=>sendResize(session));
+ const observer=new ResizeObserver(()=>{if(id===active)fit.fit();});
+ observer.observe(view);
+ session.observer=observer;
+ activate(id);
+}
+function closeSession(id){
+ const s=sessions.get(id);if(!s)return;
+ try{s.ws.send(JSON.stringify({type:'close'}));}catch{}
+ s.ws.close();s.observer.disconnect();s.term.dispose();s.view.remove();sessions.delete(id);
+ if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);}
+ renderTabs();
+}
+function setConnected(value){connected=value;$('dot').classList.toggle('connected',value);renderTabs();}
 $('connect').onclick=async()=>{
-endpoint=$('endpoint').value.trim();token=$('token').value.trim();
-try{
-const reply=await request('health',{});
-if(reply.apiVersion!=='2.0.0')throw Error('Update Local Agent to version 2');
-connected=true;$('setupGuide').hidden=true;
-$('connectPanel').hidden=true;$('connectToggle').setAttribute('aria-expanded','false');
-await createSession();
-const session=sessions.get(active);if(session)append(session,t(4));
-}catch(error){
-connected=false;syncInput();showError(error);
-$('setupGuide').hidden=false;$('connectPanel').hidden=false;
-}
+ endpoint=$('endpoint').value.trim();token=$('token').value.trim();
+ try{
+  await requestHealth();await ensureAssets();
+  setConnected(true);$('setupGuide').hidden=true;$('connectPanel').hidden=true;
+  $('connectToggle').setAttribute('aria-expanded','false');createSession();
+ }catch(error){
+  setConnected(false);$('setupGuide').hidden=false;$('connectPanel').hidden=false;
+  $('hint').textContent=t(5)+': '+error.message;
+ }
 };
 $('connectToggle').onclick=()=>{
-$('connectPanel').hidden=!$('connectPanel').hidden;
-$('connectToggle').setAttribute('aria-expanded',String(!$('connectPanel').hidden));
+ $('connectPanel').hidden=!$('connectPanel').hidden;
+ $('connectToggle').setAttribute('aria-expanded',String(!$('connectPanel').hidden));
 };
+$('clear').onclick=()=>sessions.get(active)?.term.clear();
 $('copySetup').onclick=()=>{
-if(navigator.clipboard?.writeText)navigator.clipboard.writeText('bridge\\Setup-ClusterPowerShell.cmd').catch(()=>{});
+ navigator.clipboard?.writeText('bridge\\Setup-ClusterPowerShell.cmd').catch(()=>{});
 };
-$('clear').onclick=()=>{
-const s=sessions.get(active);if(s){s.output=[];showOutput(s);}
-};
-$('terminalForm').onsubmit=async event=>{
-event.preventDefault();const s=sessions.get(active);
-if(!s||s.busy||!connected)return;
-const source=$('command').value.trim();if(!source)return;
-s.draft='';$('command').value='';s.busy=true;
-append(s,'PS> '+source);renderTabs();syncInput();
-try{
-const result=await request('exec',{sessionId:s.id,command:source});
-if(result.output)append(s,result.output);
-if(result.error)append(s,result.error,true);
-}catch(error){append(s,t(6)+': '+error.message,true);}
-finally{s.busy=false;renderTabs();syncInput();}
-};
-window.addEventListener('pagehide',()=>{
-if(!connected)return;
-for(const id of sessions.keys())request('session/close',{sessionId:id}).catch(()=>{});
-});
-applyLabels();syncInput();
-$('output').append(escapeOutput('ClusterPowerShell · Local Agent'));
+window.addEventListener('pagehide',()=>{for(const id of Array.from(sessions.keys()))closeSession(id);});
+applyLabels();renderTabs();
 })();
+
 </script></body></html>
