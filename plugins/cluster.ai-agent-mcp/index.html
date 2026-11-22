@@ -118,8 +118,8 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const L={
-'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','參考 ClusterOpt2 的分離式安裝流程。MCP 遠端功能尚須 v3 Router 適配。','查看配置說明','安全模式：尚未開放未驗證的遠端 MCP 操作。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','僅顯示代理實際回報的事件；不記錄原始指令、金鑰或輸出文字。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
-en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Follow the separated ClusterOpt2 setup. Remote MCP still requires v3 Router adapters.','View setup guide','Safety gate: unverified remote MCP operations are disabled.','03 · Verify','AI actions and PowerShell events','Only verified agent activity; raw commands, secrets and output are not logged.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
+'zh-TW':['尚未連線','已連線','初始化配置','操作紀錄','MCP 工具','服務狀態','初始化 AI Agent','先配置既有 ClusterPowerShell Local Agent，再檢查 MCP/OAuth 連線。','01 · 本機代理','使用 PowerShell 的快速配置 CMD；此處只連結已授權的本機代理。','本機 Port / URL','Pairing Token（不會傳入公共庫）','連線','02 · MCP / OAuth Gateway','參考 ClusterOpt2 的分離式安裝流程。MCP 遠端功能尚須 v3 Router 適配。','下載 MCP 快速配置 CMD','安全模式：尚未開放未驗證的遠端 MCP 操作。','03 · 連線驗證','AI 動作與 PowerShell 紀錄','僅顯示代理實際回報的事件；不記錄原始指令、金鑰或輸出文字。','更新','匯出','目前無可用事件。','MCP 工具目錄','工具透過本機 MCP Gateway 與使用者授權執行。讀寫本地檔案前須選取資料夾；敏感動作逐次核准。','服務狀態','重新檢查','中斷連線','未啟用','未實作','等待回應','連線失敗：'],
+en:['Disconnected','Connected','Setup','Activity','MCP Tools','Services','Initialize AI Agent','Pair the existing ClusterPowerShell Local Agent, then check MCP/OAuth connectivity.','01 · Local Agent','Use the PowerShell quick setup CMD, then connect this authorized local instance.','Port / local URL','Pairing token (never shared through PRMU)','Connect','02 · MCP / OAuth Gateway','Follow the separated ClusterOpt2 setup. Remote MCP still requires v3 Router adapters.','Download MCP setup CMD','Safety gate: unverified remote MCP operations are disabled.','03 · Verify','AI actions and PowerShell events','Only verified agent activity; raw commands, secrets and output are not logged.','Refresh','Export','No observed events yet.','MCP tool catalog','Tools run through the local MCP Gateway and your browser approvals. Select a folder first; sensitive operations require confirmation.','Service status','Retry','Disconnect','Inactive','Not implemented','Awaiting response','Connection failed: '],
 fr:['Déconnecté','Connecté','Configuration','Activité','Outils MCP','Services','Initialiser AI Agent','Connectez Local Agent, puis vérifiez MCP/OAuth.','01 · Agent local','Utilisez le CMD de ClusterPowerShell.','Port / URL locale','Jeton de jumelage','Connexion','02 · MCP / OAuth','Intégration v3 en attente.','Guide','Opérations distantes désactivées.','03 · Vérifier','Actions AI et événements PowerShell','Événements vérifiés uniquement.','Actualiser','Exporter','Aucun événement.','Catalogue MCP','Les outils nécessitent les autorisations v3.','État des services','Réessayer','Déconnecter','Inactif','Non implémenté','Attente','Erreur: '],
 ja:['未接続','接続済み','初期設定','操作記録','MCP ツール','サービス','AI Agent の初期化','Local Agent を接続してください。','01 · Local Agent','PowerShell の CMD で起動します。','ポート / URL','ペアリングトークン','接続','02 · MCP / OAuth','v3 ルーター接続は未実装です。','ガイド','リモート実行は無効です。','03 · 検証','AI と PowerShell の記録','認証されたイベントのみ。','更新','エクスポート','記録なし','MCP ツール','権限なしでは利用できません。','サービス状態','再試行','切断','無効','未実装','待機','接続エラー: '],
 es:['Desconectado','Conectado','Configuración','Actividad','Herramientas MCP','Servicios','Iniciar AI Agent','Conecte el agente local existente.','01 · Agente local','Use el CMD de PowerShell.','Puerto / URL','Token de emparejamiento','Conectar','02 · MCP / OAuth','Adaptación del Router v3 pendiente.','Guía','Control remoto deshabilitado.','03 · Verificar','Actividad AI y PowerShell','Solo eventos verificados.','Actualizar','Exportar','Sin eventos','Herramientas MCP','Requiere permisos del Router.','Estado de servicios','Reintentar','Desconectar','Inactivo','No implementado','Esperando','Error: '],
@@ -476,7 +476,23 @@ $('export').onclick=()=>{
  setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
 $('gatewayGuide').onclick=()=>{
- $('setupError').textContent='Start-Cluster-MCP.cmd / Show-OAuth-Approval.cmd (Windows); configure a trusted HTTPS OAuth issuer and proxy ONLY the OAuth port.';
+ const cmd=[
+ '@echo off','setlocal EnableExtensions DisableDelayedExpansion',
+ 'title Cluster AI Agent MCP Setup',
+ 'set "BRIDGE=%LOCALAPPDATA%\\ClusterPowerShell\\bridge"',
+ 'if not exist "%BRIDGE%\\Start-Cluster-MCP.cmd" (',
+ 'echo Local Agent components missing. Run ClusterPowerShell QuickSetup first.',
+ 'pause','exit /b 1',')',
+ 'call "%BRIDGE%\\Start-Cluster-MCP.cmd"',
+ 'if errorlevel 1 echo MCP start failed. Review the output above.',
+ 'pause'
+ ].join('\\r\\n')+'\\r\\n';
+ const url=URL.createObjectURL(new Blob([cmd],{type:'application/octet-stream'}));
+ const link=document.createElement('a');
+ link.download='Cluster-MCP-QuickSetup.cmd';link.href=url;
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+ $('setupError').textContent='Start-Cluster-MCP.cmd uses local-only MCP and OAuth ports. Expose ONLY OAuth through trusted HTTPS.';
 };
 $('downloadAgent').onclick=()=>{
  if(!bootstrap){$('pairingNote').textContent='PRMU bootstrap unavailable';return;}
