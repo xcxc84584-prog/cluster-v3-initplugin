@@ -34,15 +34,15 @@ return [
 'endlocal'].join('\r\n')+'\r\n';
 }
 
-function shellFrame(){
+function setupFrames(){
  return Array.from(document.querySelectorAll('iframe'))
-  .find(frame=>frame.title==='ClusterPowerShell');
+  .filter(frame=>['ClusterPowerShell','Cluster AI Agent MCP'].includes(frame.title));
 }
 function publishBootstrap(){
  if(!ready)return;
- const frame=shellFrame();
- frame?.contentWindow?.postMessage({protocol:'cluster.powershell.setup.v1',
-  type:'bootstrap-ready',content:bootstrap()},'*');
+ for(const frame of setupFrames())
+  frame.contentWindow?.postMessage({protocol:'cluster.powershell.setup.v1',
+   type:'bootstrap-ready',content:bootstrap()},'*');
 }
 function reply(frame,ok,error){
  frame?.contentWindow?.postMessage({
@@ -74,8 +74,8 @@ window.addEventListener('message',event=>{
   }
   return;
  }
- const frame=shellFrame();
- if(frame&&event.source===frame.contentWindow&&
+ const frame=setupFrames().find(frame=>event.source===frame.contentWindow);
+ if(frame&&
    msg?.protocol==='cluster.powershell.setup.v1'&&
    (msg.type==='download'||msg.type==='request-bootstrap')){
   if(msg.type==='request-bootstrap'){
