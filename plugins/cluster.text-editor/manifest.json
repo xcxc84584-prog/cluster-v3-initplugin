@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.9.2",
-  "description": "Editor with PRMU-governed Plugin Manager navigation, persisted tabs and workspace state",
+  "version": "2.9.3",
+  "description": "Editor with native PowerShell inline onboarding, public properties and persisted workspace",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
