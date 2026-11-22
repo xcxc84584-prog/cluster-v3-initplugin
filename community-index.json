@@ -12,22 +12,22 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.11.0",
-      "description": "Unified workspace with AI Agent MCP Tool menu and PRMU UI",
+      "version": "2.12.0",
+      "description": "Unified workspace with AI Agent MCP tool relay and native PowerShell",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.5.0",
-      "description": "Native PowerShell with Ctrl+C copy and encrypted authorized token memory",
+      "version": "0.6.0",
+      "description": "ConPTY Local Agent with MCP/OAuth gateways, DPAPI and Ctrl+C copy",
       "directory": "plugins/cluster.powershell"
     },
     {
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
-      "version": "0.1.0",
-      "description": "PRMU-themed AI Agent setup, native terminal activity and gated MCP catalog",
+      "version": "0.2.0",
+      "description": "14 MCP tools with user approvals, OAuth 2.1 PKCE and native activity",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
   ]
