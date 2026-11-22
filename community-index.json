@@ -19,8 +19,8 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.1.0",
-      "description": "Local PowerShell bridge with PRMU-governed UI palette and six languages",
+      "version": "0.2.0",
+      "description": "Multi-tab persistent PowerShell runspaces with Local Agent quick setup",
       "directory": "plugins/cluster.powershell"
     }
   ]
