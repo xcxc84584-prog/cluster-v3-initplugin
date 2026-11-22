@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.powershell",
   "name": "ClusterPowerShell",
-  "version": "0.6.2",
-  "description": "Encrypted PowerShell output history and automatic saved-token reconnect",
+  "version": "0.7.0",
+  "description": "Persistent redacted PowerShell stdout/stderr and enforced per-root automatic execution",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
