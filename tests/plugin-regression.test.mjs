@@ -180,7 +180,7 @@ test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
  assert.match(terminal,/type:'resize'/);
  assert.match(terminal,/type:'create'/);
  assert.match(terminal,/role="tablist"/);
- assert.match(terminal,/setupGuide/);
+ assert.match(terminal,/class="setup-workspace"/);
  assert.match(bridge,/require\('node-pty'\)/);
  assert.match(bridge,/pty\.spawn\(shell/);
  assert.match(bridge,/useConpty:true/);
@@ -228,6 +228,8 @@ test('PowerShell setup is inline, not an overlay, and transitions to terminal vi
  assert.match(setup,/require\('node-pty'\)/);
  assert.match(bridge,/normalizeAllowedOrigin/);
  assert.match(bridge,/parsed\.origin/);
+ assert.match(bridge,/Access-Control-Allow-Private-Network/);
+ assert.match(bridge,/randomBytes\(32\)\.toString\('hex'\)/);
 });
 test('copy-pasted full website URL becomes a strict browser Origin',()=>{
  const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
