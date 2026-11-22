@@ -272,7 +272,7 @@ $('connect').onclick=async()=>{
  try{
   const health=await call('/health');
   if(health.agent!=='ClusterPowerShell')throw Error('Incorrect Local Agent');
-  connected=true;renderLocale();showPage('activity');connectAgentSocket();
+  connected=true;renderLocale();showPage('activity');connectAgentSocket();await reloadRoots();
   if($('remember').checked)vault.save(endpoint,token).catch(()=>{$('pairingNote').textContent=sl(3)});
   await refresh();
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
@@ -407,68 +407,58 @@ async function executeTool(name,args){
    throw Error('Document contains unsaved changes; save it before MCP reads');
   return {document:data.document,content:data.content};}
  case 'cluster.list_roots':
-  return {roots:[...rootHandles.keys()].map(name=>({name,authorized:true,source:'user-picker'}))};
+  return {roots:[...rootHandles.values()].filter(root=>root.rights?.read===true)
+   .map(root=>({id:root.id,name:root.name,absolutePath:root.absolutePath,
+     rights:root.rights,verified:true,source:'local-agent'}))};
  case 'cluster.find_root_windows_path':{
-  const root=String(args.root||'');
-  if(!rootHandles.has(root))throw Error('Root not authorized in browser');
-  const approval=await requestApproval('Confirm Windows root path',
-   'This path cannot be verified against the browser folder handle. Confirm only if you selected this exact directory: '+root,
-   {nativePath:true});
-  const pathText=approval.absolutePath;
-  if(pathText.length>1024)throw Error('Invalid Windows path');
-  return {root,absolutePath:pathText,verified:false,
-   confirmedByUser:true,reason:'BROWSER_HANDLE_IDENTITY_NOT_PROVABLE'};
+  const {root}=nativeRoot(String(args.root||''));
+  if(!root.rights.read)throw Error('Read right required');
+  return {root:root.id,absolutePath:root.absolutePath,verified:true,source:'native-picker'};
  }
  case 'cluster.list_directory':{
-  const p=await rootFor(args.path||'');
-  const dir=await directoryFor(p,false);
-  const files=[];for await(const [name,handle] of dir.entries()){
-   files.push({name,kind:handle.kind});if(files.length>500)break;
-  }return {path:args.path,entries:files,truncated:files.length>500};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  return call('/roots/action',{id:root.id,action:'list',relative});
+ }
  case 'cluster.read_path':{
-  const file=await fileAt(args.path||'');
-  const data=await (await file.parentDir.getFileHandle(file.filename)).getFile();
-  const offset=Number(args.offset||0),length=Number(args.length||65536);
-  if(!Number.isInteger(offset)||offset<0||!Number.isInteger(length)||length<1||length>262144)
-   throw Error('Invalid read range');
-  const text=await data.slice(offset,offset+length).text();
-  return {path:args.path,offset,length:text.length,content:text,totalBytes:data.size};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  return call('/roots/action',{id:root.id,action:'read',relative,
+    offset:args.offset||0,length:args.length||65536});
+ }
  case 'cluster.create_file':{
-  const p=await rootFor(args.path||'');assertBasename(args.name);
-  if(!await ask('Allow AI to CREATE file '+args.path+'/'+args.name+'?'))throw Error('User denied create');
-  const dir=await directoryFor(p,false);
-  try{await dir.getFileHandle(args.name);throw Error('File already exists');}
-  catch(e){if(e.message==='File already exists')throw e;
-    if(e.name!=='NotFoundError')throw e;}
-  const handle=await dir.getFileHandle(args.name,{create:true});
-  return {created:handle.name};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  const filename=String(args.name||'');
+  if(!filename||filename.includes('/')||filename.includes('\\')||filename==='..')
+   throw Error('Invalid name');
+  if(!await ask('Allow AI to CREATE '+root.absolutePath+'\\'+relative+'\\'+filename+'?'))
+   throw Error('User denied file creation');
+  return call('/roots/action',{id:root.id,action:'create',
+    relative:[relative,filename].filter(Boolean).join('/')});
+ }
  case 'cluster.write_path':{
-  const file=await fileAt(args.path||'');
-  if(typeof args.content!=='string'||new Blob([args.content]).size>1048576)
-   throw Error('Content too large');
-  if(!await ask('Allow AI to OVERWRITE '+args.path+' ('+args.content.length+' characters)?'))
-   throw Error('User denied write');
-  const handle=await file.parentDir.getFileHandle(file.filename);
-  const writable=await handle.createWritable();
-  await writable.write(args.content);await writable.close();
-  return {written:true,path:args.path};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  if(!await ask('Allow AI to OVERWRITE '+root.absolutePath+'\\'+relative+'?'))
+   throw Error('User denied file overwrite');
+  return call('/roots/action',{id:root.id,action:'write',relative,content:args.content});
+ }
  case 'cluster.delete_path':{
-  const file=await fileAt(args.path||'');
-  if(!await ask('Allow AI to DELETE '+args.path+' permanently?'))throw Error('User denied delete');
-  await file.parentDir.removeEntry(file.filename);
-  return {deleted:true,path:args.path};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  if(!await ask('Allow AI to DELETE '+root.absolutePath+'\\'+relative+'?'))
+   throw Error('User denied deletion');
+  return call('/roots/action',{id:root.id,action:'delete',relative});
+ }
  case 'cluster.open_powershell':
   if(!await ask('Allow AI to open a new PowerShell terminal tab?'))throw Error('User denied terminal');
   parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'open-powershell'},'*');
   return {requested:true};
  case 'cluster.powershell_request':{
-  const command=String(args.command||''),label=String(args.path||'');
-  if(command.length<1||command.length>2000||!rootHandles.has(label))
-   throw Error('PowerShell command or root invalid');
+  const command=String(args.command||'');
+  const {root}=nativeRoot(String(args.path||''));
+  if(command.length<1||command.length>2000||root.rights?.powershell!==true)
+   throw Error('PowerShell permission or command denied');
   const approval=await requestApproval('PowerShell command approval',
-   'Run this exact command as your Windows user?\nRoot: '+label+'\n\n'+command,
-   {nativePath:true,timeout:110000});
-  return {approved:approval.approved,absolutePath:approval.absolutePath};
+   'Run this command as your Windows user?\nFolder: '+root.absolutePath+'\n\n'+command,
+   {timeout:110000});
+  return {approved:approval.approved,absolutePath:root.absolutePath};
  }
  default:throw Error('Unknown MCP tool '+name);
  }
@@ -500,13 +490,23 @@ window.addEventListener('message',event=>{
  else call.reject(Error(event.data.error||'Editor refused request'));
 });
 $('selectRoot').onclick=async()=>{
- if(!window.showDirectoryPicker){$('rootInfo').textContent='File System Access API not available';return;}
+ if(!connected){$('rootInfo').textContent=rl(10);showPage('setup');return;}
+ $('selectRoot').disabled=true;$('rootInfo').textContent=rl(11);
  try{
-  const handle=await window.showDirectoryPicker({mode:'readwrite'});
-  rootHandles.set(handle.name,handle);rootLabels();
- }catch(error){$('rootInfo').textContent=String(error.message).slice(0,120);}
+  const selected=await call('/roots/select',{},190000);
+  rootHandles.set(selected.id,selected);rootLabels();
+  $('rootInfo').textContent=selected.absolutePath;
+ }catch(error){$('rootInfo').textContent=rl(12)+error.message;}
+ finally{$('selectRoot').disabled=false;}
 };
-$('revokeRoots').onclick=()=>{rootHandles.clear();rootLabels();};
+$('revokeRoots').onclick=async()=>{
+ if(!connected){$('rootInfo').textContent=rl(10);return;}
+ for(const id of [...rootHandles.keys()]){
+  try{await call('/roots/revoke',{id});rootHandles.delete(id);}
+  catch(e){$('rootInfo').textContent=e.message;}
+ }
+ rootLabels();
+};
 rootLabels();
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('export').onclick=()=>{
