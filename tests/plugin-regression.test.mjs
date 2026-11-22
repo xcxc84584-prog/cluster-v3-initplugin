@@ -301,7 +301,8 @@ test('AI Agent MCP manifest, PRMU locale palette, setup and actual agent event f
  assert.match(page,/id="remember"/);
  assert.match(page,/id="forget"/);
  for(const language of ['zh-TW','en','fr','ja','es','hi'])
-   assert.ok(source.includes("'"+language+"'"),'Missing locale '+language);
+   assert.ok(source.includes("'"+language+"':")||source.includes(language+':'),
+     'Missing locale '+language);
  assert.match(loader,/PRMU\.resolveCapability/);
  assert.match(loader,/workspace\.ai-agent-mcp\.v1/);
  assert.match(loader,/cluster-ai-agent-view/);
