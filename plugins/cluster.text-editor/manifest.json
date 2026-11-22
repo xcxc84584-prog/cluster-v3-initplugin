@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.12.1",
-  "description": "Unified Editor with updated Local Agent bootstrap, native roots and token reporter",
+  "version": "2.12.2",
+  "description": "Activate new Editor and PowerShell workspace tabs immediately",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
