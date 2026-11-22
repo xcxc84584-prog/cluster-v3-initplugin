@@ -1,14 +1,10 @@
 /* Editor first-run Local Agent onboarding. PRMU owns remote repository and locale. */
 (()=>{'use strict';
 const pane=document.querySelector('.editor-pane');
-const header=document.querySelector('.workbench-header');
-if(!pane||!header)return;
+if(!pane)return;
 const style=document.createElement('style');
 style.textContent=[
-'.agent-entry{display:flex;align-items:center;gap:7px;white-space:nowrap}',
-'.agent-entry .status{width:7px;height:7px;border-radius:50%;background:var(--ui-muted)}',
-'.agent-entry[data-connected=true] .status{background:var(--ui-accent)}',
-'.agent-onboard{position:absolute;z-index:25;right:20px;bottom:34px;width:min(425px,calc(100% - 25px));max-height:calc(100% - 55px);overflow-y:auto;background:var(--ui-panel);color:var(--ui-on-panel,var(--ui-text));border:1px solid var(--ui-border);border-radius:9px;box-shadow:0 18px 44px #0008;font-size:12px}',
+'.agent-onboard{position:absolute;z-index:25;right:18px;top:18px;width:min(425px,calc(100% - 35px));max-height:calc(100% - 36px);overflow-y:auto;background:var(--ui-panel);color:var(--ui-on-panel,var(--ui-text));border:1px solid var(--ui-border);border-radius:9px;box-shadow:0 18px 44px #0008;font-size:12px}',
 '.agent-onboard[hidden]{display:none}',
 '.agent-onboard header{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--ui-border);background:var(--ui-surface)}',
 '.agent-onboard header strong{font-size:13px}',
@@ -24,10 +20,8 @@ style.textContent=[
 '@media(max-width:600px){.agent-onboard{right:7px;bottom:32px;width:calc(100% - 14px)}}'
 ].join('\n');
 document.head.append(style);
-if(getComputedStyle(pane).position==='static')pane.style.position='relative';
-const entry=document.createElement('button');entry.type='button';entry.className='tool agent-entry';
-const dot=document.createElement('span');dot.className='status';const label=document.createElement('span');
-entry.append(dot,label);header.append(entry);
+const workArea=pane.querySelector('.cluster-shell-view')||pane;
+if(getComputedStyle(workArea).position==='static')workArea.style.position='relative';
 const panel=document.createElement('section');panel.className='agent-onboard';
 panel.setAttribute('aria-label','Local Agent Setup');
 panel.innerHTML='<header><strong id="agentTitle"></strong><button id="agentClose" type="button" aria-label="Close">×</button></header>'+
@@ -36,7 +30,8 @@ panel.innerHTML='<header><strong id="agentTitle"></strong><button id="agentClose
 '<div class="agent-actions"><button id="agentDownload" disabled type="button"></button>'+
 '<button id="agentOpen" type="button"></button></div>'+
 '<div class="agent-notice" id="agentNotice" aria-live="polite"></div></div>';
-pane.append(panel);
+workArea.append(panel);
+panel.hidden=true; // Shown only after entering the PowerShell view.
 const $=id=>document.getElementById(id);
 const labels={
 'zh-TW':['Local Agent','Local Agent 快速配置','首次使用請下載快速配置 CMD，依指引配置本機環境，再於 PowerShell 視窗連線。','下載快速配置 CMD 到 Windows 電腦','執行 CMD，自動檢查 Node.js 與終端環境，必要時安裝','依照 CMD 提示設定允許的網站，取得 Port URL 和 Token','點選 Tool → PowerShell，輸入 Port URL 和 Token','下載快速配置 CMD','開啟 PowerShell','正在讀取公共庫下載來源…','找不到公共庫下載來源，請檢查 Host 連線','已下載 CMD，請到本機執行','Local Agent 已連線','Local Agent 尚未配置'],
@@ -46,10 +41,9 @@ ja:['Local Agent','Local Agent の初期設定','CMD をダウンロードして
 es:['Agente local','Configuración de agente local','Descargue CMD y configure Windows antes de conectar.','Descargar CMD','Ejecutar CMD e instalar dependencias','Autorizar sitio y copiar URL y Token','Abrir Tool → PowerShell','Descargar CMD','Abrir PowerShell','Cargando PRMU…','PRMU no disponible','CMD descargado','Conectado','No configurado'],
 hi:['लोकल एजेंट','लोकल एजेंट सेटअप','CMD डाउनलोड करें और Windows पर कॉन्फ़िगर करें।','CMD डाउनलोड करें','CMD चलाकर आवश्यक निर्भरताएँ स्थापित करें','वेबसाइट स्वीकार करके URL और Token लें','Tool → PowerShell खोलें','सेटअप CMD डाउनलोड','PowerShell खोलें','PRMU लोड हो रहा है…','PRMU अनुपलब्ध','CMD डाउनलोड किया गया','कनेक्टेड','कॉन्फ़िगर नहीं']
 };
-let lang='zh-TW',connected=false,repo=null,ref='main',ready=false,serial=0;
+let lang='zh-TW',connected=false,isPowerShellView=false,repo=null,ref='main',ready=false,serial=0;
 const t=i=>(labels[lang]||labels.en)[i];
 function render(){
-label.textContent=connected?t(12):t(13);
 $('agentTitle').textContent=t(1);$('agentIntro').textContent=t(2);
 for(let i=1;i<=4;i++)$('agentStep'+i).textContent=t(i+2);
 $('agentDownload').textContent=t(7);$('agentOpen').textContent=t(8);
@@ -92,13 +86,12 @@ const link=document.createElement('a');link.href=url;link.download='ClusterPower
 document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
 $('agentNotice').textContent=t(11);
 };
-$('agentClose').onclick=()=>panel.hidden=true;
-entry.onclick=()=>panel.hidden=!panel.hidden;
+$('agentClose').onclick=()=>{ panel.hidden=true; };
 $('agentOpen').onclick=()=>{
 const group=document.querySelector('.cluster-tool-group');
 const trigger=group?.querySelector('button');
 const item=group?.querySelector('.cluster-tool-menu button');
-if(group&&!group.hidden&&trigger&&item){trigger.click();item.click();panel.hidden=true;}
+if(group&&!group.hidden&&trigger&&item){trigger.click();item.click();}
 else $('agentNotice').textContent=t(10);
 };
 window.addEventListener('message',event=>{
@@ -109,9 +102,14 @@ const locale=m.language||m.data?.language;if(labels[locale]){lang=locale;render(
 }
 const terminal=Array.from(pane.querySelectorAll('iframe')).find(x=>x.title==='ClusterPowerShell');
 if(terminal&&event.source===terminal.contentWindow&&m.protocol==='cluster.powershell.status.v1'){
-connected=m.connected===true;entry.dataset.connected=String(connected);
-panel.hidden=connected;if(!connected)panel.hidden=false;render();
+connected=m.connected===true;
+panel.hidden=connected || !isPowerShellView;render();
 }
+});
+window.addEventListener('cluster-powershell-view',event=>{
+ isPowerShellView=event.detail?.selected===true;
+ panel.hidden=!isPowerShellView||connected;
+ if(isPowerShellView&&!connected)render();
 });
 render();
 if(parent!==window){
