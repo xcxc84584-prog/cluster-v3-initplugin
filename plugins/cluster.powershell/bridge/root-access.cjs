@@ -6,12 +6,13 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const {execFile}=require('node:child_process');
-const RIGHTS=['create','read','update','delete','powershell','autoPowershell'];
+const RIGHTS=['create','read','update','delete','powershell','auto'];
 function normalizeRights(input){
  const obj={};
  for(const key of RIGHTS)obj[key]=input&&input[key]===true;
- // Automatic execution is a separate, explicitly granted per-root privilege.
- if(!obj.powershell)obj.autoPowershell=false;
+ // Migrate the legacy PS-only grant to the single per-root AUTO switch.
+ // AUTO never grants an action: each operation still checks its own right.
+ obj.auto=obj.auto||input?.autoPowershell===true;
  return obj;
 }
 function createRootAccess({directory,platform=process.platform,picker}={}){
@@ -146,7 +147,7 @@ function createRootAccess({directory,platform=process.platform,picker}={}){
  }
  function checkPowerShell(rootId,absolutePath,{automatic=false}={}){
   const root=find(rootId);requireRight(root,'powershell');
-  if(automatic)requireRight(root,'autoPowershell');
+  if(automatic)requireRight(root,'auto');
   const actual=fs.realpathSync.native(absolutePath);
   if(actual.toLowerCase()!==root.absolutePath.toLowerCase())throw Error('PowerShell cwd differs from granted folder');
   return actual;
