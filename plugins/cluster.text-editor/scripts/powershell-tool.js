@@ -41,6 +41,7 @@ const item=document.createElement('button');item.type='button';item.setAttribute
 menu.append(item);group.append(trigger,menu);
 const toggle=document.getElementById('toggleExplorer');
 toggle.after(group);
+group.hidden=true; // Only installed, PRMU-registered providers expose Tools.
 let language='zh-TW',loaded=false,requestId='',lastContext=null;
 const labels={
 'zh-TW':['工具 ▾','PowerShell','編輯器','PowerShell 插件尚未提供 workspace.powershell.v1 能力；請先裝載並啟用插件。'],
@@ -74,7 +75,7 @@ window.addEventListener('message',event=>{
 const m=event.data;
 if(event.source===parent&&m?.protocol==='cluster.plugin.v1'&&m.type==='response'&&m.requestId===requestId){
 if(!m.ok||typeof m.data?.html!=='string'||m.data.html.length>2000000)return;
-loaded=true;psFrame.srcdoc=m.data.html;notice.hidden=true;psFrame.hidden=false;
+loaded=true;group.hidden=false;psFrame.srcdoc=m.data.html;notice.hidden=true;psFrame.hidden=false;
 psFrame.addEventListener('load',()=>{if(lastContext)psFrame.contentWindow?.postMessage(lastContext,'*');},{once:true});
 }
 if(event.source===parent&&
@@ -88,4 +89,5 @@ if(loaded)psFrame.contentWindow?.postMessage(m,'*');
 }
 });
 localize();
+discover();
 })();
