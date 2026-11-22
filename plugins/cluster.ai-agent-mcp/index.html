@@ -41,6 +41,14 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
 .tool-row:last-child{border:0}.tool-row code{font:11px Consolas,monospace}
 .fine{font-size:10px;color:var(--ui-muted)}
+.root-list{display:grid;gap:8px;margin-top:9px}
+.root-card{background:var(--ui-background);border:1px solid var(--ui-border);border-radius:8px;padding:10px;display:grid;gap:8px}
+.root-path{font:11px Consolas,monospace;overflow-wrap:anywhere;color:var(--ui-text)}
+.root-rights{display:flex;flex-wrap:wrap;gap:8px}
+.root-rights label{display:flex;align-items:center;gap:4px;font:11px system-ui;color:var(--ui-muted)}
+.root-rights input{accent-color:var(--ui-accent)}
+.root-actions{display:flex;gap:8px;align-items:center;justify-content:space-between}
+
 .approval{position:sticky;top:0;z-index:30;border-color:var(--ui-accent);margin-bottom:12px;box-shadow:0 8px 22px #0007}
 .approval p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
 .remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
@@ -89,7 +97,7 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
      <p id="rootInfo">Select a local directory to authorize Explorer file actions. Nothing is accessed before user approval.</p>
      <div class="actions"><button id="selectRoot" type="button">Select local folder</button>
       <button id="revokeRoots" type="button">Revoke folders</button></div>
-     <div id="rootList" class="fine"></div>
+     <div id="rootList" class="root-list"></div>
     </div>
     <div class="card"><h3 id="verifyTitle"></h3>
      <div class="status-line"><span>Local Agent</span><span class="chip" id="agentStatus">–</span></div>
@@ -145,6 +153,7 @@ function renderLocale(){
  $('agentStatus').textContent=connected?t(1):t(0);
  $('mcpStatus').textContent=gateways.mcp.active?t(1):t(28);
  $('oauthStatus').textContent=gateways.oauth.active?t(1):t(28);
+ rootLabels();
  $('toolCatalog').replaceChildren();
  for(const name of tools){
   const row=document.createElement('div');row.className='tool-row';
@@ -235,12 +244,12 @@ function entry(event){
  return row;
 }
 function renderEvents(){const container=$('activityLog');container.replaceChildren(...events.map(entry));}
-async function call(route){
+async function call(route,body={},timeout=7000){
  const url=new URL(endpoint);
  if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only loopback HTTP');
  const response=await fetch(new URL(route,url),{method:'POST',
   headers:{'Content-Type':'application/json','X-Cluster-Token':token},
-  body:'{}',signal:AbortSignal.timeout(7000)});
+  body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});
  const result=await response.json();
  if(!response.ok||!result.ok)throw Error(result.error||'HTTP '+response.status);
  return result;
@@ -285,33 +294,64 @@ function editorCall(action,params={}){
    requestId,action,params},'*');
  });
 }
+const rootLang={
+ 'zh-TW':['選擇本機資料夾','撤銷全部資料夾','尚未授權任何資料夾','讀取 R','建立 C','修改 U','刪除 D','PowerShell','撤銷','權限已更新','本機 Agent 尚未連線，請先配置連線。','Windows 對話框已開啟，請在電腦上選取資料夾。','本機資料夾選取失敗：'],
+ en:['Select local folder','Revoke all folders','No folders authorized','Read R','Create C','Update U','Delete D','PowerShell','Revoke','Permissions saved','Connect the Local Agent first.','Choose a folder in the native Windows dialog.','Local folder selection failed: '],
+ fr:['Choisir un dossier','Révoquer tous les dossiers','Aucun dossier autorisé','Lire R','Créer C','Modifier U','Supprimer D','PowerShell','Révoquer','Autorisations enregistrées','Connectez Local Agent.','Choisissez un dossier Windows.','Échec de sélection : '],
+ ja:['ローカルフォルダーを選択','すべて取り消し','許可されたフォルダーなし','読み取り R','作成 C','更新 U','削除 D','PowerShell','取り消し','権限を保存','Local Agent に接続してください。','Windows でフォルダーを選択してください。','フォルダー選択エラー: '],
+ es:['Elegir carpeta local','Revocar carpetas','Sin carpetas autorizadas','Leer R','Crear C','Actualizar U','Eliminar D','PowerShell','Revocar','Permisos guardados','Conecte Local Agent.','Seleccione la carpeta de Windows.','Error al seleccionar: '],
+ hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ']
+};
+const rl=i=>(rootLang[locale]||rootLang.en)[i];
+const rightNames=['read','create','update','delete','powershell'];
 function rootLabels(){
- $('rootList').textContent=[...rootHandles.keys()].join(' · ')||'No folders selected';
-}
-async function rootFor(raw){
- if(typeof raw!=='string'||!raw||raw.length>1024||
-  raw.startsWith('/')||raw.includes('\\')||raw.split('/').some(x=>x==='..'||x==='.'||!x))
-  throw Error('Invalid path');
- const [name,...rest]=raw.split('/'),root=rootHandles.get(name);
- if(!root)throw Error('Root not authorized: select a local folder first');
- return {root,segments:rest,rootName:name};
-}
-async function directoryFor(parts,create=false){
- let dir=parts.root;
- for(const name of parts.segments){
-  dir=await dir.getDirectoryHandle(name,{create});
+ $('selectRoot').textContent=rl(0);
+ $('revokeRoots').textContent=rl(1);
+ const list=$('rootList');list.replaceChildren();
+ if(!rootHandles.size){list.textContent=rl(2);return;}
+ for(const root of rootHandles.values()){
+  const card=document.createElement('div');card.className='root-card';
+  const header=document.createElement('div');header.className='root-actions';
+  const location=document.createElement('code');location.className='root-path';
+  location.textContent=root.absolutePath;
+  const revoke=document.createElement('button');revoke.type='button';revoke.textContent=rl(8);
+  revoke.onclick=async()=>{
+   try{await call('/roots/revoke',{id:root.id});rootHandles.delete(root.id);rootLabels();}
+   catch(e){$('rootInfo').textContent=e.message;}
+  };
+  header.append(location,revoke);card.append(header);
+  const controls=document.createElement('div');controls.className='root-rights';
+  for(const [index,right] of rightNames.entries()){
+   const label=document.createElement('label'),input=document.createElement('input');
+   input.type='checkbox';input.checked=root.rights?.[right]===true;
+   const span=document.createElement('span');span.textContent=rl(3+index);
+   input.onchange=async()=>{
+    const rights={...root.rights,[right]:input.checked};
+    try{
+     const saved=await call('/roots/permissions',{id:root.id,rights});
+     rootHandles.set(root.id,saved);$('rootInfo').textContent=rl(9);
+    }catch(e){input.checked=!input.checked;$('rootInfo').textContent=e.message;}
+   };
+   label.append(input,span);controls.append(label);
+  }
+  card.append(controls);list.append(card);
  }
- return dir;
 }
-function assertBasename(value){
- if(typeof value!=='string'||!value||value.length>255||
-  value==='.'||value==='..'||/[\\/:\0]/.test(value))throw Error('Invalid name');
+async function reloadRoots(){
+ if(!connected)return;
+ const response=await call('/roots/list');
+ rootHandles.clear();
+ for(const root of response.roots||[])rootHandles.set(root.id,root);
+ rootLabels();
 }
-async function fileAt(raw){
- const p=await rootFor(raw),filename=p.segments.pop();
- assertBasename(filename);
- const parentDir=await directoryFor(p,false);
- return {parentDir,filename};
+function nativeRoot(raw){
+ if(typeof raw!=='string'||raw.length>1024||raw.startsWith('/')||raw.includes('\\'))throw Error('Invalid local relative path');
+ const segments=raw.split('/').filter(Boolean);
+ if(segments.some(x=>x==='.'||x==='..'||x.includes(':')))throw Error('Unsafe relative path');
+ const [label,...rest]=segments;
+ const root=[...rootHandles.values()].find(r=>r.id===label||r.name===label);
+ if(!root)throw Error('Root is not authorized');
+ return {root,relative:rest.join('/')};
 }
 async function requestApproval(title,details,{nativePath=false,timeout=38000}={}){
  if(approvalPending)throw Error('Another approval is pending');
