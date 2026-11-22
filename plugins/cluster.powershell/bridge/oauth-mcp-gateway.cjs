@@ -18,10 +18,12 @@ const readonlyTools=new Set([
  'cluster.get_editor_state','cluster.read_file'
 ]);
 const port=Number(process.env.CLUSTER_OAUTH_PORT||0);
-const adminPath=path.join(dir,'oauth-approval-password');
+const adminPath=path.join(dir,'oauth-approval-password.dpapi');
 const bearerPath=path.join(dir,'remote-mcp-token.dpapi');
-if(!fs.existsSync(adminPath))fs.writeFileSync(adminPath,crypto.randomBytes(24).toString('base64url')+'\n',{mode:0o600,flag:'wx'});
-const password=fs.readFileSync(adminPath,'utf8').trim();
+const password=secureStore.loadOrMigrate(adminPath,
+ path.join(dir,'legacy-oauth-approval-password'),
+ value=>typeof value==='string'&&value.length>=24&&value.length<=128,
+ ()=>crypto.randomBytes(24).toString('base64url'));
 const clients=new Map(),codes=new Map(),tokens=new Map(),pending=new Map();
 const failedApprovals=new Map();
 const now=()=>Date.now(),random=()=>crypto.randomBytes(32).toString('base64url');
@@ -29,7 +31,7 @@ const secureEqual=(a,b)=>{if(typeof a!=='string'||typeof b!=='string')return fal
 const respond=(res,status,obj,extra={})=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra});res.end(JSON.stringify(obj))};
 const fail=(res,status,error,description)=>respond(res,status,{error,error_description:description||error});
 const html=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const metadata=()=>({issuer,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',registration_endpoint:issuer+'/register',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none'],scopes_supported:['cluster.read','cluster.control']});
+const metadata=()=>({issuer,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',revocation_endpoint:issuer+'/revoke',registration_endpoint:issuer+'/register',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],token_endpoint_auth_methods_supported:['none'],scopes_supported:['cluster.read','cluster.control']});
 const resource=()=>({resource:issuer+'/mcp',authorization_servers:[issuer],scopes_supported:['cluster.read','cluster.control'],bearer_methods_supported:['header']});
 function validRedirect(s){try{const u=new URL(s);return !u.hash&&((u.protocol==='https:'&&!!u.hostname)||(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)));}catch{return false}}
 async function body(req,limit=16384){let b='';for await(const c of req){b+=c;if(Buffer.byteLength(b)>limit)throw Error('request too large')}return b}
@@ -111,6 +113,14 @@ const server=http.createServer(async(req,res)=>{
    const access=random();tokens.set(access,{client:entry.id,scope:entry.scope,expires:now()+3600000});
    return respond(res,200,{access_token:access,token_type:'Bearer',expires_in:3600,scope:entry.scope});
   }
+  if(route==='/revoke'&&req.method==='POST'){
+   const f=new URLSearchParams(await body(req));
+   const candidate=f.get('token'),client=f.get('client_id');
+   const entry=tokens.get(candidate);
+   // RFC 7009 gives a generic successful response even for unknown tokens.
+   if(entry&&entry.client===client)tokens.delete(candidate);
+   return respond(res,200,{});
+  }
   if(route==='/mcp'){
    const auth=req.headers.authorization||'',token=auth.startsWith('Bearer ')?auth.slice(7):'',session=tokens.get(token);
    if(!session||session.expires<now())return respond(res,401,{error:'Unauthorized'},{'WWW-Authenticate':'Bearer resource_metadata="'+issuer+'/.well-known/oauth-protected-resource/mcp"'});
@@ -160,6 +170,6 @@ server.listen(port,'127.0.0.1',()=>{
  fs.writeFileSync(path.join(dir,'oauth-port.json'),JSON.stringify({port:bound,pid:process.pid}),{mode:0o600});
  console.log('Cluster OAuth MCP gateway: http://127.0.0.1:'+bound+'/mcp');
  console.log('Public issuer: '+issuer);
- console.log('Local approval password file: '+adminPath);
+ console.log('Local approval password encrypted in Windows DPAPI: '+adminPath);
  console.log('Only tunnel the approved OAuth gateway after configuring stable HTTPS termination.');
 });
