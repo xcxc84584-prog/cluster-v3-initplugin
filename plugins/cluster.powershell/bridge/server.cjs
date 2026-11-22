@@ -50,7 +50,10 @@ function json(res,status,obj) {
 const server=http.createServer((req,res)=>{
   headers(res,req);
   const url=new URL(req.url,'http://127.0.0.1');
-  if(req.headers.origin !== origin){
+  // Non-sensitive terminal JS/CSS may be loaded as classic scripts without an Origin header.
+  if(req.method==='GET' && assets.has(url.pathname)){
+    // The assets are read-only packaged third-party files, never terminal data.
+  } else if(req.headers.origin !== origin){
     json(res,403,{ok:false,error:'Origin denied'});return;
   }
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
