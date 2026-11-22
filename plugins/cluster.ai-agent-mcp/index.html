@@ -40,7 +40,7 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .note{font-size:10px;color:var(--ui-muted);padding:10px 0}
 .tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
 .tool-row:last-child{border:0}.tool-row code{font:11px Consolas,monospace}
-.fine{font-size:10px;color:var(--ui-muted)}
+.fine{font-size:10px;color:var(--ui-muted)}.remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
 @media(max-width:650px){.cards{grid-template-columns:1fr}.content{padding:10px}.rail{width:145px}.log-row{grid-template-columns:75px 55px minmax(0,1fr)}.log-row .result{display:none}}
 </style></head><body>
 <main id="app" data-rail-collapsed="false">
@@ -62,7 +62,9 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
      <div class="card"><h3 id="agentSetupTitle"></h3><p id="agentSetupDesc"></p>
       <div class="field"><label id="portTitle" for="port"></label><input id="port" placeholder="43881" autocomplete="off" spellcheck="false"></div>
       <div class="field"><label id="tokenTitle" for="pairToken"></label><input type="password" id="pairToken" autocomplete="off"></div>
-      <div class="actions"><button id="connect" type="button" class="action-primary"></button></div>
+      <div class="actions"><button id="connect" type="button" class="action-primary"></button><button id="downloadAgent" type="button"></button></div>
+      <label class="remember"><input id="remember" type="checkbox"><span id="rememberCaption"></span></label>
+      <button id="forget" type="button"></button><span class="fine" id="pairingNote" role="status"></span>
      </div>
      <div class="card"><h3 id="gatewayTitle"></h3><p id="gatewayDesc"></p>
       <div class="actions"><button id="gatewayGuide" type="button"></button></div>
@@ -104,12 +106,22 @@ es:['Desconectado','Conectado','Configuración','Actividad','Herramientas MCP','
 hi:['डिस्कनेक्ट','कनेक्टेड','सेटअप','गतिविधि','MCP टूल','सेवाएँ','AI Agent सेटअप','स्थानीय Agent कनेक्ट करें।','01 · लोकल एजेंट','PowerShell CMD चलाएँ।','पोर्ट / URL','पेयरिंग टोकन','कनेक्ट','02 · MCP / OAuth','v3 Router एकीकरण शेष है।','निर्देश','रिमोट नियंत्रण बंद है।','03 · सत्यापन','AI और PowerShell रिकॉर्ड','केवल सत्यापित घटनाएँ।','रीफ़्रेश','निर्यात','कोई घटना नहीं','MCP टूल सूची','Router की अनुमति आवश्यक है।','सेवा स्थिति','पुन: प्रयास','डिस्कनेक्ट','निष्क्रिय','लागू नहीं','प्रतीक्षा','त्रुटि: ']
 };
 const tools=['get_status','get_task_status','list_files','get_editor_state','read_file','list_roots','find_root_windows_path','list_directory','read_path','create_file','write_path','delete_path','open_powershell','powershell_request'];
-let locale='zh-TW',endpoint='',token='',connected=false,page='setup',events=[],railOpen=true,railWidth=190,drag=null;
+let locale='zh-TW',endpoint='',token='',connected=false,page='setup',events=[],railOpen=true,railWidth=190,drag=null,bootstrap='';
+const secretLabels={
+ 'zh-TW':['在此裝置記住已授權 Token（加密）','忘記配對','下載 Local Agent CMD','本機儲存不可用'],
+ en:['Remember authorized token on this device (encrypted)','Forget pairing','Download Local Agent CMD','Local vault unavailable'],
+ fr:['Mémoriser le jeton autorisé (chiffré)','Oublier','Télécharger CMD','Stockage indisponible'],
+ ja:['認証トークンを暗号化して保存','保存した認証を削除','CMD ダウンロード','保存できません'],
+ es:['Recordar token autorizado (cifrado)','Olvidar','Descargar CMD','Almacenamiento no disponible'],
+ hi:['अधिकृत टोकन सुरक्षित रखें','पेयरिंग हटाएँ','CMD डाउनलोड करें','स्टोरेज अनुपलब्ध']
+};
 const t=n=>(L[locale]||L.en)[n],root=$('app');
+const sl=n=>(secretLabels[locale]||secretLabels.en)[n];
 function renderLocale(){
  const map={setupNav:2,activityNav:3,toolsNav:4,statusNav:5,setupHeading:6,setupIntro:7,agentSetupTitle:8,agentSetupDesc:9,portTitle:10,tokenTitle:11,connect:12,gatewayTitle:13,gatewayDesc:14,gatewayGuide:15,gatewayLimit:16,verifyTitle:17,activityTitle:18,activitySubtitle:19,refresh:20,export:21,logNotice:22,toolsHeading:23,toolGate:24,statusHeading:25,retry:26,disconnect:27};
  for(const [id,i] of Object.entries(map))$(id).textContent=t(i);
  $('headerStatus').textContent=connected?t(1):t(0);document.documentElement.lang=locale;
+ $('rememberCaption').textContent=sl(0);$('forget').textContent=sl(1);$('downloadAgent').textContent=sl(2);
  $('agentStatus').textContent=connected?t(1):t(0);
  $('mcpStatus').textContent=t(29);$('oauthStatus').textContent=t(29);
  $('toolCatalog').replaceChildren();
@@ -131,10 +143,10 @@ for(const button of document.querySelectorAll('[data-page]'))button.onclick=()=>
 const divider=$('railDivider');
 function setRail(open){railOpen=open;root.dataset.railCollapsed=String(!open);
  divider.setAttribute('aria-expanded',String(open));
- try{sessionStorage.setItem('cluster.ai-agent.rail',JSON.stringify({open,width:railWidth}));}catch{}
+ try{localStorage.setItem('cluster.ai-agent.rail',JSON.stringify({open,width:railWidth}));}catch{}
 }
 try{
- const p=JSON.parse(sessionStorage.getItem('cluster.ai-agent.rail')||'null');
+ const p=JSON.parse(localStorage.getItem('cluster.ai-agent.rail')||'null');
  if(p&&Number.isInteger(p.width))railWidth=Math.max(120,Math.min(340,p.width));
  root.style.setProperty('--agent-rail-width',railWidth+'px');
  if(p&&p.open===false)setRail(false);
@@ -158,6 +170,41 @@ divider.addEventListener('keydown',e=>{
   root.style.setProperty('--agent-rail-width',railWidth+'px');setRail(true);
  }
 });
+/* Optional origin-scoped encrypted vault; no credential enters PRMU. */
+const vault=(()=>{
+ const DB='cluster-ai-agent-pairing-v1';
+ function tx(mode,operation){
+  return new Promise((resolve,reject)=>{
+   const dbreq=indexedDB.open(DB,1);
+   dbreq.onupgradeneeded=()=>dbreq.result.createObjectStore('vault');
+   dbreq.onerror=()=>reject(dbreq.error);
+   dbreq.onsuccess=()=>{
+    const db=dbreq.result,store=db.transaction('vault',mode).objectStore('vault');
+    let req;try{req=operation(store)}catch(e){db.close();reject(e);return;}
+    req.onsuccess=()=>{resolve(req.result);db.close()};
+    req.onerror=()=>{reject(req.error);db.close()};
+   };
+  });
+ }
+ async function key(){
+  let k=await tx('readonly',s=>s.get('key'));if(k)return k;
+  k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  await tx('readwrite',s=>s.put(k,'key'));return k;
+ }
+ return {
+  async save(url,secret){
+   const iv=crypto.getRandomValues(new Uint8Array(12));
+   const data=await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(),new TextEncoder().encode(secret));
+   return tx('readwrite',s=>s.put({url,iv:[...iv],data:[...new Uint8Array(data)]},'pairing'));
+  },
+  async load(){
+   const r=await tx('readonly',s=>s.get('pairing'));if(!r)return null;
+   const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(r.iv)},await key(),new Uint8Array(r.data));
+   return {url:r.url,token:new TextDecoder().decode(bytes)};
+  },
+  async forget(){return tx('readwrite',s=>s.delete('pairing'));}
+ };
+})();
 function entry(event){
  const row=document.createElement('div');row.className='log-row';
  for(const value of [new Date(event.at).toLocaleTimeString(),event.source,event.action+' · '+(event.detail||''),event.result]){
@@ -193,7 +240,9 @@ $('connect').onclick=async()=>{
  try{
   const health=await call('/health');
   if(health.agent!=='ClusterPowerShell')throw Error('Incorrect Local Agent');
-  connected=true;renderLocale();showPage('activity');await refresh();
+  connected=true;renderLocale();showPage('activity');
+  if($('remember').checked)vault.save(endpoint,token).catch(()=>{$('pairingNote').textContent=sl(3)});
+  await refresh();
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
 };
 $('disconnect').onclick=()=>{connected=false;token='';$('pairToken').value='';renderLocale();showPage('setup');};
@@ -206,6 +255,24 @@ $('export').onclick=()=>{
  setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
 $('gatewayGuide').onclick=()=>{showPage('tools');};
+$('downloadAgent').onclick=()=>{
+ if(!bootstrap){$('pairingNote').textContent='PRMU bootstrap unavailable';return;}
+ const url=URL.createObjectURL(new Blob([bootstrap],{type:'application/octet-stream'}));
+ const link=document.createElement('a');link.download='ClusterPowerShell-QuickSetup.cmd';
+ link.href=url;document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+$('forget').onclick=async()=>{
+ try{await vault.forget();$('remember').checked=false;
+  $('pairToken').value='';token='';$('pairingNote').textContent='';}
+ catch{$('pairingNote').textContent=sl(3);}
+};
+vault.load().then(saved=>{
+ if(saved&&/^http:\/\/127\.0\.0\.1:\d+\/$/.test(saved.url)&&/^[a-f0-9]{64}$/.test(saved.token)){
+  $('port').value=saved.url;$('pairToken').value=saved.token;$('remember').checked=true;
+ }
+}).catch(()=>{});
+
 function palette(m){
  const p=m.palette||m.data?.palette;if(p&&typeof p==='object')
  for(const [name,value] of Object.entries(p))if(/^[a-z-]+$/.test(name)&&/^#[a-f0-9]{6}$/i.test(value))
@@ -215,10 +282,12 @@ function palette(m){
 }
 window.addEventListener('message',e=>{
  if(e.source!==parent)return;const m=e.data;
+ if(m?.protocol==='cluster.powershell.setup.v1'&&m.type==='bootstrap-ready'&&typeof m.content==='string')bootstrap=m.content;
  if(['cluster.plugin.v1','cluster.public.v1','cluster.settings.context.v1'].includes(m?.protocol)&&
  ['context','snapshot','properties.changed'].includes(m.type))palette(m);
 });
 if(parent!==window){
+ parent.postMessage({protocol:'cluster.powershell.setup.v1',type:'request-bootstrap'},'*');
  parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');
  parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');
  parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId:'ai-agent-register',
