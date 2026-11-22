@@ -59,7 +59,9 @@ async function main(){
  }
  let agent=null,pairing=null;
  try{
-  const record=state('agent');
+  const record=JSON.parse(fs.readFileSync(path.join(dir,'agent-state.json'),'utf8'));
+  if(!Number.isInteger(record.port)||!Number.isInteger(record.pid))throw Error('Agent state missing');
+  process.kill(record.pid,0);
   pairing=readSecret('pairing-token');
   const check=await post(record.port,'/health',
     {'Origin':record.origin,'X-Cluster-Token':pairing},{});
