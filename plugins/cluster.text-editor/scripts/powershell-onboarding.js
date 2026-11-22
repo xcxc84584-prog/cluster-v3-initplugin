@@ -6,6 +6,7 @@ const style=document.createElement('style');
 style.textContent=[
 '.agent-onboard{position:absolute;z-index:25;right:18px;top:18px;width:min(425px,calc(100% - 35px));max-height:calc(100% - 36px);overflow-y:auto;background:var(--ui-panel);color:var(--ui-on-panel,var(--ui-text));border:1px solid var(--ui-border);border-radius:9px;box-shadow:0 18px 44px #0008;font-size:12px}',
 '.agent-onboard[hidden]{display:none}',
+'.agent-onboard.compact .agent-content{display:none}',
 '.agent-onboard header{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--ui-border);background:var(--ui-surface)}',
 '.agent-onboard header strong{font-size:13px}',
 '.agent-onboard button{cursor:pointer;border:1px solid var(--ui-border);background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));border-radius:5px;padding:8px 11px}',
@@ -86,7 +87,10 @@ const link=document.createElement('a');link.href=url;link.download='ClusterPower
 document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
 $('agentNotice').textContent=t(11);
 };
-$('agentClose').onclick=()=>{ panel.hidden=true; };
+$('agentClose').onclick=()=>{
+ panel.classList.toggle('compact');
+ $('agentClose').textContent=panel.classList.contains('compact')?'▾':'×';
+};
 $('agentOpen').onclick=()=>{
 const group=document.querySelector('.cluster-tool-group');
 const trigger=group?.querySelector('button');
