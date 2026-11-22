@@ -12,15 +12,15 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.9.3",
-      "description": "Editor with native PowerShell inline onboarding, public properties and persisted workspace",
+      "version": "2.10.0",
+      "description": "Unified document and PowerShell workspace tabs with polished Tool menu",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.3.1",
-      "description": "Native PowerShell terminal with inline setup, origin normalization and verified CMD bootstrap",
+      "version": "0.4.0",
+      "description": "Native PowerShell sessions exposed as unified workspace tabs",
       "directory": "plugins/cluster.powershell"
     }
   ]
