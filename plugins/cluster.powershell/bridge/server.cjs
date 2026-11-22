@@ -12,6 +12,7 @@ const os = require('node:os');
 const {spawn}=require('node:child_process');
 const pty = require('node-pty');
 const secureStore = require('./secure-store.cjs');
+const {createRootAccess}=require('./root-access.cjs');
 const {WebSocketServer} = require('ws');
 
 if(process.platform !== 'win32') throw Error('ClusterPowerShell currently requires Windows ConPTY');
@@ -39,6 +40,7 @@ const token = secureStore.loadOrMigrate(
  value=>/^[a-f0-9]{64}$/.test(value),
  ()=>crypto.randomBytes(32).toString('hex')
 );
+const rootAccess=createRootAccess({directory:credentialDir});
 const portFile=path.join(credentialDir,'agent-port.json');
 let previousPort=0;
 try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
@@ -123,6 +125,24 @@ const server=http.createServer((req,res)=>{
   }
   if(req.method!=='POST' || req.headers['x-cluster-token']!==token){
     json(res,403,{ok:false,error:'Unauthorized'});return;
+  }
+  if(url.pathname.startsWith('/roots/')){
+    let raw='';req.on('data',chunk=>{raw+=chunk;if(Buffer.byteLength(raw)>1200000)req.destroy();});
+    req.on('end',async()=>{
+      try{
+        const input=JSON.parse(raw||'{}');
+        let result;
+        switch(url.pathname){
+         case '/roots/select':result=await rootAccess.choose();break;
+         case '/roots/list':result={roots:rootAccess.listing()};break;
+         case '/roots/permissions':result=rootAccess.update(input.id,input.rights);break;
+         case '/roots/revoke':result=rootAccess.remove(input.id);break;
+         case '/roots/action':result=await rootAccess.action(input);break;
+         default:json(res,404,{ok:false,error:'Unknown root endpoint'});return;
+        }
+        json(res,200,{ok:true,...result}); // paths are only sent to authorized client
+      }catch(error){json(res,422,{ok:false,error:String(error.message).slice(0,250)});}
+    });return;
   }
   if(url.pathname==='/health'){
     json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
@@ -217,11 +237,14 @@ wss.on('connection',ws=>{
           const approved=msg.result?.approved===true;
           const cwd=msg.result?.absolutePath;
           if(!approved||typeof cwd!=='string'||!path.win32.isAbsolute(cwd)||
-             path.win32.basename(path.win32.normalize(cwd)).toLowerCase()!==
-              String(pending.args.path||'').toLowerCase()){
+             !rootAccess.listing().some(r=>r.id===String(pending.args.path||'') &&
+              r.absolutePath.toLowerCase()===path.win32.normalize(cwd).toLowerCase())){
             json(pending.res,403,{error:'PowerShell execution requires approved matching Windows root'});return;
           }
-          runApprovedPowerShell(pending.args.command,cwd).then(result=>{
+          Promise.resolve().then(()=>{
+            rootAccess.checkPowerShell(String(pending.args.path||''),cwd);
+            return runApprovedPowerShell(pending.args.command,cwd);
+          }).then(result=>{
             json(pending.res,200,{result});
             record('ps.execution','ok','Explicitly approved user action');
           }).catch(error=>json(pending.res,422,{error:String(error.message).slice(0,240)}));
