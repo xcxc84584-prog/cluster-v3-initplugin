@@ -105,6 +105,7 @@ test('OAuth metadata, authorization code + PKCE, scoped MCP tools and revocation
  assert.equal(meta.status,200);
  assert.equal(meta.data.issuer,'https://mcp.example.com');
  assert.equal(meta.data.code_challenge_methods_supported[0],'S256');
+ assert.equal(meta.data.authorization_response_iss_parameter_supported,true);
  const registry=await req('/register','POST',{
   redirect_uris:['https://chatgpt.com/connector/oauth/callback'],
   token_endpoint_auth_method:'none'});
@@ -115,7 +116,7 @@ test('OAuth metadata, authorization code + PKCE, scoped MCP tools and revocation
  const redirect='https://chatgpt.com/connector/oauth/callback';
  const query=new URLSearchParams({response_type:'code',client_id:client,
   redirect_uri:redirect,code_challenge:challenge,code_challenge_method:'S256',
-  state:'secure-state-test',scope:'cluster.read'});
+  state:'secure-state-test',scope:'cluster.read',resource:'https://mcp.example.com/mcp'});
  const authorize=await req('/authorize?'+query);
  assert.equal(authorize.status,200);
  const ticket=authorize.body.match(/name="ticket" value="([^"]+)"/)?.[1];
@@ -125,9 +126,10 @@ test('OAuth metadata, authorization code + PKCE, scoped MCP tools and revocation
  assert.equal(approval.status,302);
  const code=new URL(approval.headers.location).searchParams.get('code');
  assert.ok(code);
+ assert.equal(new URL(approval.headers.location).searchParams.get('iss'),'https://mcp.example.com');
  const token=await req('/token','POST',new URLSearchParams({
   grant_type:'authorization_code',code,client_id:client,redirect_uri:redirect,
-  code_verifier:verifier}).toString());
+  code_verifier:verifier,resource:'https://mcp.example.com/mcp'}).toString());
  assert.equal(token.status,200);
  const access=token.data.access_token,auth={authorization:'Bearer '+access};
  const denied=await req('/mcp','POST',{jsonrpc:'2.0',id:9,method:'tools/call',
