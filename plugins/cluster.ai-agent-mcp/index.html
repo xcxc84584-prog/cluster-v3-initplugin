@@ -205,8 +205,11 @@ function showPage(name){
   $(p+'Page').hidden=p!==page;
   document.querySelector('[data-page="'+p+'"]').setAttribute('aria-selected',String(p===page));
  }
- // The existing activity DOM and its scroll offset remain untouched when switching tabs.
- // Reload restoration is handled only by the first renderEvents() call.
+ // Preserve the viewport on tab return without rebuilding the activity rows.
+ if(name==='activity'&&activityViewInitialized){
+  activityViewport.scrollTop=storedActivityTop;
+  activityOuter.scrollTop=storedOuterTop;
+ }
 }
 for(const button of document.querySelectorAll('[data-page]'))button.onclick=()=>showPage(button.dataset.page);
 const divider=$('railDivider');
@@ -346,6 +349,13 @@ function renderEvents(){
  // Replacing them resets open state, focus, and nested scroll positions.
  const logTop=activityViewInitialized?container.scrollTop:storedActivityTop;
  const outerTop=activityViewInitialized?activityOuter.scrollTop:storedOuterTop;
+ // Keep the first visible entry at its current visual position even when
+ // the oldest rows roll out of the bounded server-side activity window.
+ const anchor=[...container.children].find(row=>
+  row.offsetTop+row.offsetHeight>container.scrollTop);
+ const anchorKey=anchor?.dataset.eventKey;
+ const anchorOffset=anchor?anchor.getBoundingClientRect().top-
+  container.getBoundingClientRect().top:0;
  const desired=new Set(events.map(activityKey));
  for(const row of [...container.children]){
   if(!desired.has(row.dataset.eventKey))row.remove();
@@ -358,7 +368,13 @@ function renderEvents(){
   const at=container.children[index];
   if(at!==row)container.insertBefore(row,at||null);
  }
- container.scrollTop=logTop;
+ const anchored=anchorKey&&[...container.children].find(row=>
+  row.dataset.eventKey===anchorKey);
+ if(anchored&&activityViewInitialized){
+  const moved=anchored.getBoundingClientRect().top-
+   container.getBoundingClientRect().top-anchorOffset;
+  container.scrollTop=logTop+moved;
+ }else container.scrollTop=logTop;
  activityOuter.scrollTop=outerTop;
  activityViewInitialized=true;
  renderingActivity=false;
@@ -658,6 +674,7 @@ rootLabels();
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('clearLog').onclick=()=>{
  if(!connected||clearingActivity)return;
+ $('clearLogDescription').textContent=lc(2);
  $('clearLogDialog').showModal();
 };
 $('cancelClearLog').onclick=()=>$('clearLogDialog').close();
