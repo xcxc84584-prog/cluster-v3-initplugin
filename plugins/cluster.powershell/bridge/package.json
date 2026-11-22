@@ -1,6 +1,6 @@
 {
   "name": "cluster-powershell-local-agent",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "Local ConPTY bridge for interactive PowerShell terminal tabs",
   "scripts": {
