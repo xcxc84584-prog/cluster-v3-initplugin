@@ -1,60 +1,92 @@
-# Cluster AI Agent MCP — initial v3 migration
+# Cluster AI Agent MCP v0.2.0
 
-Source baseline: https://github.com/xcxc84584-prog/ClusterOpt2/tree/main/Implementation/plugins/ai-agent-mcp
+Reference implementation: ClusterOpt2 AI Agent MCP. This version uses the
+Cluster-v3 plugin-only project and **does not change the Cluster-v3 Host**.
 
-## Implemented in v0.1.0
+## One-time installation
 
-- Tool → AI Agent MCP opens in the existing unified workspace Tab bar.
-- The child sidebar is toggled by clicking its divider; dragging resizes it,
-  double-click resets its width; keyboard navigation is supported.
-- The sidebar's position is persisted separately from credentials.
-- Six UI languages and PRMU-provided palette colors are supported.
-- The plugin pairs with the existing ClusterPowerShell Local Agent.
-- It can request the PRMU-generated Local Agent setup CMD.
-- Authenticated health and activity requests retrieve actual bounded
-  PowerShell activity metadata from the local agent. Raw command contents,
-  terminal outputs, file contents and secrets are not logged.
-- No chat composer: only real AI/PowerShell activity and status.
-- Opt-in long-term browser token memory uses nonextractable AES-GCM key
-  material stored in IndexedDB; browser pairing can be cleared.
-- Windows Local Agent pairing credential uses DPAPI CurrentUser.
-- Ctrl+C with selected terminal text copies; otherwise it interrupts the PTY.
+1. Update the Editor and ClusterPowerShell plugins from the initplugin
+   community repository, then install `cluster.ai-agent-mcp`.
+2. Open Tool → AI Agent MCP. Its workspace uses the same shared Tab row.
+   The child sidebar toggles by clicking its border, resizes by dragging,
+   and stores its width and collapsed state.
+3. Download and run the ClusterPowerShell QuickSetup CMD on Windows.
+   It downloads the Local Agent, secure-store, MCP Gateway, OAuth Gateway
+   and launcher files into the user's LOCALAPPDATA directory.
+4. Connect AI Agent to the running Local Agent with its port and DPAPI
+   pairing token. The optional browser remember switch stores encrypted
+   credentials in IndexedDB; it is **not** a replacement for user approval.
+5. In the AI Agent setup page, download `Cluster-MCP-QuickSetup.cmd`,
+   execute it and choose option 2 to start MCP + OAuth gateways.
+6. Enter the **stable HTTPS OAuth issuer origin** (no path) when requested.
+   The machine starts two localhost-only processes, never a LAN listener.
+7. Run `Show-OAuth-Approval.cmd` locally to display the DPAPI-protected
+   approval password. Keep it private. The password is required when
+   approving the ChatGPT OAuth connection.
+8. Configure a trusted HTTPS reverse proxy or tunnel to point **only** at
+   the OAuth listener port shown by the OAuth CMD window. Do not expose
+   PowerShell, the raw MCP listener or an unrelated local service.
+9. In ChatGPT's MCP connector configuration, enter the secure URL
+   `https://your-mcp-host.example/mcp`, choosing OAuth (Dynamic Client
+   Registration) when applicable. The origin must match the configured
+   issuer. Approve the requested read-only or control scope in the
+   OAuth approval page.
 
-## NOT implemented yet
+There is no embedded public reverse-proxy installer: you must supply
+the stable HTTPS endpoint, TLS termination and DNS setup yourself.
 
-ClusterOpt2 exposes 14 legacy MCP tools, but those depend on HubUnit,
-Host ToolBox and other trusted Host objects missing from the Cluster-v3
-public Router. The 14 names are shown as a disabled catalog ONLY:
+## Fourteen MCP tools
 
-get_status, get_task_status, list_files, get_editor_state, read_file,
-list_roots, find_root_windows_path, list_directory, read_path, create_file,
-write_path, delete_path, open_powershell, powershell_request.
+The MCP Gateway advertises 14 JSON-RPC tools; execution is proxied through
+the authenticated Local Agent and live browser AI Agent frame.
 
-No version of these tools is actually registered with a working MCP gateway
-or authorized by this plugin yet. There is no ChatGPT OAuth endpoint or
-public HTTPS gateway in this initial integration. This is a partial
-implementation and must NOT be represented as complete MCP migration.
+- **Default read scope (5):** `cluster.get_status`,
+  `cluster.get_task_status`, `cluster.list_files`,
+  `cluster.get_editor_state`, `cluster.read_file`.
+- **Control scope (9):** `cluster.list_roots`,
+  `cluster.find_root_windows_path`, `cluster.list_directory`,
+  `cluster.read_path`, `cluster.create_file`, `cluster.write_path`,
+  `cluster.delete_path`, `cluster.open_powershell`,
+  `cluster.powershell_request`.
 
-## Next implementation gates
+Browser read operations use the active Editor document API and a user-picked
+File System Access directory. File actions require the user to select a
+directory and grant browser permission. Create, overwrite, delete and
+PowerShell commands require **one-shot approval** in the Agent window.
 
-1. v3 Router adapters for real Editor and Explorer public APIs.
-2. Separate permissions for read/create/update/delete and per-command
-   PowerShell user confirmation before allowing dangerous actions.
-3. OAuth 2.1 with PKCE and HTTPS issuer validation; a separate locally
-   restricted MCP gateway; scopes cluster.read and cluster.control.
-4. E2E tests of all 14 tools, authorization/revocation, Windows node-pty,
-   ChatGPT OAuth connectivity and failure modes.
+`cluster.find_root_windows_path` returns a *user-confirmed* Windows
+path, with `verified:false` because File System Access does not reveal
+a provable absolute Windows path. PowerShell commands are launched only
+when the user confirms the exact command and supplies a matching native
+root path. Commands execute as the signed-in Windows user, not sandboxed.
 
-No modification to the Cluster-v3 Host repository is needed for the UI.
-Whether complete legacy tool parity is possible without Host changes must
-be verified against its published Router contract.
+## Security
 
-## Security limitations
+- MCP and OAuth listeners are bound to `127.0.0.1` with dynamically
+  selected ports. Listener state is recorded in the local user profile.
+- Local PowerShell pairing, MCP bearer and OAuth approval secrets are
+  DPAPI CurrentUser-protected. The browser has a separate opt-in encrypted
+  IndexedDB cache, which is vulnerable to malicious same-origin scripts.
+- OAuth uses PKCE S256, DCR, read/control scope isolation, issuer
+  identification, audience/resource binding, expiry and revocation.
+- Requests for sensitive actions fail closed if the browser Agent is offline,
+  the directory is not selected, the local token is wrong, or user approval
+  is denied or times out.
+- The activity feed records request names, timestamps and status, but not
+  actual commands, file content or secrets.
+- These safeguards do not eliminate the risk of granting control-scope
+  access to an untrusted client or installing an untrusted Cluster plugin.
 
-Browser-side encryption does not protect against malicious scripts from the
-same browser origin. Use only trusted plugins and machines. Credentials are
-never placed in PRMU or a public source file. The authoritative Windows
-pairing token persists encrypted with the Windows user's DPAPI key.
-Clearing the browser pairing does not revoke the Windows credential.
-The local agent must be restarted or explicitly rotated to revoke it.
-Activity entries are intentionally metadata-only and are cleared on restart.
+## Validation and remaining steps
+
+GitHub CI exercises 14 MCP JSON-RPC tool routes using a mock Local Agent,
+OAuth registration, PKCE, scopes, issuer, resource binding, and revocation.
+It also syntax-checks the browser bridge and verifies key permission
+invariants.
+
+**Still requiring Windows/browser/ChatGPT real-device E2E:** DPAPI
+persistence and migration, node-pty build, Chrome private-network
+permissions, File System Access roots, exact approval flow, OAuth HTTPS
+reverse proxy, ChatGPT connector registration and full command output.
+
+Do not mark production deployment validated until those checks pass.
