@@ -364,7 +364,7 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
  assert.match(source,/setTimeout\(\(\)=>settle\(null/);
  assert.match(source,/window\.showDirectoryPicker/);
  assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
- assert.match(source,/document\.dirty===true/);
+ assert.match(source,/document\?\.dirty===true/);
  assert.doesNotMatch(source,/window\.confirm\(/);
  assert.doesNotMatch(source,/window\.prompt\(/);
  assert.match(source,/type:'tool_result'/);
