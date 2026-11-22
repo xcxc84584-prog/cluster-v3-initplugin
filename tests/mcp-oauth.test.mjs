@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import {Readable} from 'node:stream';
-import {runInNewContext} from 'node:vm';
+import {runInNewContext,Script} from 'node:vm';
 
 const folder=new URL('../plugins/cluster.powershell/bridge/',import.meta.url);
 const read=name=>fs.readFileSync(new URL(name,folder),'utf8');
@@ -119,6 +119,11 @@ test('OAuth metadata, authorization code + PKCE, scoped MCP tools and revocation
   state:'secure-state-test',scope:'cluster.read',resource:'https://mcp.example.com/mcp'});
  const authorize=await req('/authorize?'+query);
  assert.equal(authorize.status,200);
+ const oauthClient=authorize.body.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(oauthClient);
+ new Script(oauthClient,{filename:'oauth-approval-client.js'});
+ for(const locale of ['zh-TW','en','fr','ja','es','hi'])
+  assert.ok(oauthClient.includes('"'+locale+'"'));
  const ticket=authorize.body.match(/name="ticket" value="([^"]+)"/)?.[1];
  assert.ok(ticket);
  const approval=await req('/approve','POST',new URLSearchParams({
