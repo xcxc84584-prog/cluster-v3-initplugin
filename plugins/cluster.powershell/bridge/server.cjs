@@ -237,7 +237,8 @@ wss.on('connection',ws=>{
           const approved=msg.result?.approved===true;
           const cwd=msg.result?.absolutePath;
           if(!approved||typeof cwd!=='string'||!path.win32.isAbsolute(cwd)||
-             !rootAccess.listing().some(r=>r.id===String(pending.args.path||'') &&
+             !rootAccess.listing().some(r=>(r.id===String(pending.args.path||'') ||
+               r.name===String(pending.args.path||'')) && r.rights.powershell===true &&
               r.absolutePath.toLowerCase()===path.win32.normalize(cwd).toLowerCase())){
             json(pending.res,403,{error:'PowerShell execution requires approved matching Windows root'});return;
           }
