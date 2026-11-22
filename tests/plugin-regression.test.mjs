@@ -391,3 +391,17 @@ test('MCP first-run bootstrap includes secure gateway and OAuth scripts',()=>{
  for(const lang of ['zh-TW','en','fr','ja','es','hi'])
   assert.ok(oauth.includes('"'+lang+'":')||oauth.includes('"'+lang+'"'),lang);
 });
+
+test('OAuth launcher validates public HTTPS issuer before starting a gateway',()=>{
+ const launcher=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ const oauth=read('plugins/cluster.powershell/bridge/oauth-mcp-gateway.cjs');
+ const normalizer=read('plugins/cluster.powershell/bridge/oauth-origin.cjs');
+ new Script(normalizer);
+ assert.match(launcher,/oauth-origin\.cjs/);
+ assert.match(launcher,/github\.io website/);
+ assert.match(launcher,/if not defined CLUSTER_OAUTH_ISSUER/);
+ assert.match(launcher,/Proxy configured and ready/);
+ assert.match(onboarding,/oauth-origin\.cjs/);
+ assert.match(oauth,/normalizePublicIssuer\(configuredIssuer\)/);
+});
