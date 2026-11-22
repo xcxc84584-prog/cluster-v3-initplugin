@@ -12,15 +12,15 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.9.2",
-      "description": "Editor with PRMU-governed Plugin Manager navigation, persisted tabs and workspace state",
+      "version": "2.9.3",
+      "description": "Editor with native PowerShell inline onboarding, public properties and persisted workspace",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.3.0",
-      "description": "Native Windows ConPTY terminal with isolated multi-tabs and guided Local Agent setup",
+      "version": "0.3.1",
+      "description": "Native PowerShell terminal with inline setup, origin normalization and verified CMD bootstrap",
       "directory": "plugins/cluster.powershell"
     }
   ]

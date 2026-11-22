@@ -1,4 +1,4 @@
-# ClusterPowerShell v0.3.0 — Native Windows PowerShell terminal
+# ClusterPowerShell v0.3.1 — Native Windows PowerShell terminal
 
 Cluster is **only the terminal window**. The local agent creates real Windows
 ConPTY terminals running `powershell.exe` or `pwsh.exe`. Each PowerShell
@@ -7,15 +7,23 @@ variables, native prompt, stream output and interactive keyboard handling.
 
 ## Quick setup (Windows)
 
-1. Download the complete `plugins/cluster.powershell` Folder package.
-2. Open `bridge/Setup-ClusterPowerShell.cmd` on your PC.
+1. Open **Tool → PowerShell** in the Cluster Editor. The first-run
+   configuration view fills the PowerShell window (it is not a popup).
+2. Click **Download quick setup CMD** and run the downloaded
+   `ClusterPowerShell-QuickSetup.cmd` on your Windows PC.
 3. The script checks Node.js and offers to install the official Node.js LTS
    package via winget. It runs npm to install the pinned ConPTY/node-pty,
    WebSocket, and xterm.js runtime dependencies.
-4. Choose Windows PowerShell or PowerShell 7 (with optional winget install).
-5. Enter the **exact trusted Cluster page origin**, e.g. `https://example.com`.
-6. Copy the printed **PORT MESSAGE** URL and **TOKEN** into the in-app connection
-   panel, then select Connect.
+4. Explicitly approve the `node-pty` native build script if requested.
+   Setup verifies `require('node-pty')` before continuing, rather than
+   claiming READY when npm skipped a necessary install script.
+5. Choose Windows PowerShell or PowerShell 7 (with optional winget install).
+6. Enter the trusted Cluster page URL, for example
+   `https://example.com/Cluster-v3/`. The bridge normalizes it to
+   `https://example.com` for strict browser Origin checks.
+7. Copy the printed **PORT MESSAGE** URL (or just its numeric port) and
+   64-character **TOKEN** into the setup page, then click **Check connection**.
+   The same window switches to a native ConPTY PowerShell terminal on success.
 
 The quick setup requires the user's explicit choice. The browser cannot
 automatically execute CMD or install software.

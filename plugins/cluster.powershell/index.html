@@ -35,28 +35,86 @@ form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top
 [hidden]{display:none!important}
 
 #output{position:relative;padding:0;overflow:hidden}#output .terminal-view{position:absolute;inset:0;padding:7px;overflow:hidden}#output .terminal-view[hidden]{display:none!important}#output .xterm{height:100%}#terminalForm{display:none!important}
+
+/* Inline first-run workstation; no dialog, floating overlay or header setup badge. */
+.ps-header{min-height:43px;height:43px;padding:0 15px}
+.ps-header strong{font-size:13px}
+.ps-state{font:11px system-ui;color:var(--ui-muted)}
+.ps-tools{position:relative}
+.ps-tool-menu{position:absolute;right:0;top:calc(100% + 5px);z-index:25;width:155px;display:grid;gap:4px;padding:6px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;box-shadow:0 10px 28px #0008}
+.ps-tool-menu button{text-align:left;background:var(--ui-control)}
+.setup-workspace{flex:1;min-height:0;overflow:auto;background:var(--ui-editor);padding:14px 16px 24px}
+.setup-wrap{max-width:770px;margin:0 auto;display:grid;gap:9px}
+.setup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.setup-card{min-width:0;padding:13px 15px;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:10px}
+.setup-card-title{display:flex;align-items:flex-start;gap:10px}
+.setup-card-title strong{display:block;font-size:12px;line-height:1.55;color:var(--ui-text)}
+.setup-card-title p{color:var(--ui-muted);line-height:1.6;margin:3px 0 6px;font-size:11px}
+.setup-count{display:inline-grid;place-items:center;flex:none;width:23px;height:23px;border-radius:6px;background:var(--ui-control);color:var(--ui-text);font:600 10px Consolas,monospace}
+.setup-card-body{margin-left:33px;display:grid;gap:6px}
+.setup-button{font-size:11px;min-width:85px;justify-self:start;padding:8px 13px}
+.setup-muted{font-size:11px;color:var(--ui-muted);overflow-wrap:anywhere}
+.setup-label{font-size:10px;color:var(--ui-muted)}
+#endpoint{width:100%;height:33px}
+.setup-connect{display:flex;gap:6px;align-items:center}
+#token{min-width:0;width:100%;height:33px;flex:1}
+.setup-full{width:100%}
+.setup-kicker{font:600 9px Consolas,monospace;letter-spacing:1px;color:var(--ui-muted);margin:0 0 7px 33px}
+.setup-status strong{font-size:13px}
+.setup-status p{margin:4px 0 0;color:var(--ui-muted);font-size:11px;line-height:1.6}
+.setup-preview{background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:7px;font-size:11px}
+.setup-preview summary{cursor:pointer;padding:8px 12px}
+.setup-preview pre{max-height:150px;overflow:auto;white-space:pre-wrap;padding:5px 12px;color:var(--ui-muted);font:10px/1.6 Consolas,monospace}
+.setup-actions button{font-size:11px;padding:8px 14px}
+#terminalArea{flex:1;min-height:0;display:flex;flex-direction:column}
+#terminalArea[hidden],#connectPanel[hidden]{display:none!important}
+@media(max-width:660px){.setup-grid{grid-template-columns:1fr}.setup-workspace{padding:10px}.setup-wrap{max-width:100%}}
 </style></head><body><main>
-<header><span class="dot" id="dot"></span><strong>PowerShell</strong>
-<span class="grow"></span><button id="connectToggle" type="button" aria-expanded="true">Connect</button>
-<button id="clear" type="button">Clear</button></header>
-<section id="connectPanel">
-<p id="hint"></p>
-<div class="fields">
-<input id="endpoint" aria-label="Loopback address" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:PORT/">
-<input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="Session token">
-<button id="connect" type="button">Connect</button></div>
-<div id="setupGuide">
-<strong id="setupTitle"></strong>
-<ol><li id="setupStep1"></li><li id="setupStep2"></li><li id="setupStep3"></li></ol>
-<div class="guide-actions"><code>bridge\Setup-ClusterPowerShell.cmd</code>
-<button id="copySetup" type="button"></button></div>
-</div></section>
+<header class="ps-header">
+<strong>PowerShell</strong><span class="grow"></span>
+<span id="stateLabel" class="ps-state" role="status"></span>
+<div class="ps-tools"><button id="connectToggle" type="button" aria-haspopup="true" aria-expanded="false"></button>
+<div id="psToolMenu" class="ps-tool-menu" role="menu" hidden>
+<button id="reconfigure" type="button" role="menuitem"></button>
+<button id="clear" type="button" role="menuitem"></button>
+</div></div>
+</header>
+<section id="connectPanel" class="setup-workspace">
+<div class="setup-wrap">
+<div class="setup-grid">
+<article class="setup-card">
+<div class="setup-card-title"><span class="setup-count">01</span><div><strong id="setupTitle"></strong><p id="setupStep1"></p></div></div>
+<div class="setup-card-body"><button id="downloadSetup" type="button" class="setup-button"></button><span id="downloadStatus" class="setup-muted" role="status"></span></div>
+</article>
+<article class="setup-card">
+<div class="setup-card-title"><span class="setup-count">02</span><div><strong id="configureTitle"></strong><p id="setupStep2"></p></div></div>
+<div class="setup-card-body">
+<label class="setup-label" id="portLabel" for="endpoint"></label>
+<input id="endpoint" type="text" aria-label="Local Agent Port or loopback URL" autocomplete="off" spellcheck="false" placeholder="43881">
+<label class="setup-label" id="tokenLabel" for="token"></label>
+<div class="setup-connect"><input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="64-character token">
+<button id="connect" type="button" class="setup-button"></button></div>
+</div></article>
+</div>
+<article class="setup-card setup-full">
+<div class="setup-card-title"><span class="setup-count">03</span><div><strong id="verifyTitle"></strong><p id="setupStep3"></p></div></div>
+</article>
+<article class="setup-card setup-full setup-status">
+<div class="setup-kicker">LOCAL CONNECTION</div>
+<strong id="statusTitle"></strong><p id="hint"></p>
+</article>
+<details class="setup-preview"><summary id="previewTitle"></summary>
+<pre id="setupPreview"></pre></details>
+<div class="setup-actions"><button id="verifyConnection" type="button"></button></div>
+</div>
+</section>
+<section id="terminalArea" hidden>
 <nav id="tabs" role="tablist" aria-label="PowerShell sessions"></nav>
 <div id="output" role="log" aria-live="polite"></div>
-<form id="terminalForm">
+<form id="terminalForm" hidden>
 <input id="command" autocomplete="off" spellcheck="false" aria-label="PowerShell command" disabled placeholder="PS>">
-<button id="run" type="submit" disabled>Run</button>
-</form>
+<button id="run" type="submit" disabled>Run</button></form>
+</section>
 </main><script>
 /* Cluster is only the viewport. Native keyboard, ANSI, shell execution and line editing
  * are handled by xterm.js -> WebSocket -> Windows ConPTY -> powershell.exe/pwsh.exe.
@@ -71,15 +129,38 @@ ja:['接続','消去','実行','ローカルエージェントに接続されて
 es:['Conectar','Limpiar','Ejecutar','Agente local no conectado. Complete la configuración.','Conectado','Error de conexión','Error de terminal','Desconectado','Nuevo PowerShell','Cerrar','Configuración rápida','Descargue el plugin Folder a Windows','Ejecute CMD desde bridge y autorice el sitio','Introduzca URL y Token indicados','Copiar ruta'],
 hi:['कनेक्ट','साफ़','चलाएँ','लोकल एजेंट कनेक्ट नहीं है। त्वरित सेटअप करें।','कनेक्टेड','कनेक्शन विफल','टर्मिनल त्रुटि','डिस्कनेक्ट','नया PowerShell','टैब बंद','त्वरित सेटअप','Windows पर प्लगइन फ़ोल्डर डाउनलोड करें','bridge का CMD चलाकर वेबसाइट स्वीकार करें','दिखाया गया URL और Token दर्ज करें','पथ कॉपी करें']
 };
-let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false;
+let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false,bootstrapCommand='';
 const sessions=new Map(),container=$('output');
 const t=i=>(translations[locale]||translations.en)[i];
+const setupLanguages={
+'zh-TW':['未配置','工具 ▾','連線設定','清除輸出','下載快速配置 CMD','下載 CMD，在 Windows 執行；完成後會顯示 Port 和 Token。','配置本地代理','輸入 CMD 顯示的連接埠與 64 字元 Token。','連線驗證','點擊「檢查連線」，成功後直接進入原生 PowerShell 終端。','配置本地代理','尚未連線至 PowerShell Local Agent，此步驟不可執行命令。','預覽安裝指令（CMD）','檢查連線','連接埠或本地 URL','Token','下載完成，請在 Windows 執行 CMD','已連線至本地 PowerShell','下載失敗：'],
+en:['Not configured','Tools ▾','Connection settings','Clear output','Download setup CMD','Run the downloaded CMD on Windows to obtain Port and Token.','Configure local agent','Enter the Port or URL and 64-character Token printed by CMD.','Verify connection','Select Check connection to open the native PowerShell terminal.','Configure local agent','No connection to the local PowerShell agent. Commands are unavailable.','Preview installation commands (CMD)','Check connection','Port or loopback URL','Token','CMD downloaded; run it on Windows','Connected to local PowerShell','Download failed: '],
+fr:['Non configuré','Outils ▾','Connexion','Effacer','Télécharger CMD','Exécutez le CMD sur Windows pour obtenir Port et Token.','Agent local','Saisissez Port et Token.','Vérifier la connexion','Vérifiez pour ouvrir le terminal PowerShell natif.','Agent local','Connexion locale indisponible.','Aperçu des commandes CMD','Vérifier','Port ou URL','Token','CMD téléchargé','Connecté','Échec du téléchargement : '],
+ja:['未設定','ツール ▾','接続設定','出力を消去','CMD をダウンロード','Windows で CMD を実行し Port と Token を取得します。','ローカルエージェント設定','Port と Token を入力してください。','接続確認','接続成功後に PowerShell 端末を開きます。','ローカルエージェント','未接続のためコマンドは実行できません。','CMD コマンドを表示','接続確認','ポートまたは URL','Token','CMD をダウンロードしました','接続しました','ダウンロード失敗：'],
+es:['Sin configurar','Herramientas ▾','Conexión','Borrar salida','Descargar CMD','Ejecute CMD en Windows para obtener Port y Token.','Configurar agente local','Introduzca Port y Token.','Verificar conexión','Al verificar se abrirá PowerShell nativo.','Agente local','Sin conexión; no se pueden ejecutar comandos.','Vista previa de CMD','Verificar','Puerto o URL','Token','CMD descargado','Conectado','Error de descarga: '],
+hi:['कॉन्फ़िगर नहीं','टूल ▾','कनेक्शन सेटिंग','आउटपुट साफ़','सेटअप CMD डाउनलोड','Windows पर CMD चलाकर Port और Token लें।','लोकल एजेंट सेटअप','Port और Token भरें।','कनेक्शन जाँच','सफल कनेक्शन पर मूल PowerShell टर्मिनल खुलेगा।','लोकल एजेंट','कनेक्शन उपलब्ध नहीं।','CMD कमांड पूर्वावलोकन','कनेक्शन जाँचें','पोर्ट या URL','Token','CMD डाउनलोड हो गया','डाउनलोड विफल: ']
+};
+const ui=i=>(setupLanguages[locale]||setupLanguages.en)[i];
 function applyLabels(){
- $('connectToggle').textContent=t(0);$('connect').textContent=t(0);
- $('clear').textContent=t(1);$('hint').textContent=t(3);
- $('setupTitle').textContent=t(10);$('setupStep1').textContent=t(11);
- $('setupStep2').textContent=t(12);$('setupStep3').textContent=t(13);
- $('copySetup').textContent=t(14);document.documentElement.lang=locale;renderTabs();
+ $('connectToggle').textContent=ui(1);$('connect').textContent=t(0);
+ $('clear').textContent=ui(3);
+ $('reconfigure').textContent=ui(2);
+ $('stateLabel').textContent=connected?ui(17):ui(0);
+ $('setupTitle').textContent=ui(4);
+ $('setupStep1').textContent=ui(5);
+ $('configureTitle').textContent=ui(6);
+ $('setupStep2').textContent=ui(7);
+ $('verifyTitle').textContent=ui(8);
+ $('setupStep3').textContent=ui(9);
+ $('statusTitle').textContent=ui(10);
+ if(!connected)$('hint').textContent=ui(11);
+ $('previewTitle').textContent=ui(12);
+ $('verifyConnection').textContent=ui(13);
+ $('portLabel').textContent=ui(14);
+ $('tokenLabel').textContent=ui(15);
+ $('downloadSetup').textContent=ui(4);
+ $('setupPreview').textContent='node --version\nnpm install\nnpm install-scripts approve node-pty\nnode server.cjs';
+ document.documentElement.lang=locale;renderTabs();
 }
 function colors(){
  const css=getComputedStyle(document.documentElement);
@@ -198,26 +279,72 @@ function closeSession(id){
  if(active===id){active=null;const next=sessions.keys().next().value;if(next)activate(next);}
  renderTabs();
 }
-function setConnected(value){connected=value;$('dot').classList.toggle('connected',value);renderTabs();if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');}
+function setConnected(value){
+ connected=value;
+ $('connectPanel').hidden=value;
+ $('terminalArea').hidden=!value;
+ $('stateLabel').textContent=value?ui(17):ui(0);
+ renderTabs();
+ if(parent!==window)parent.postMessage({protocol:'cluster.powershell.status.v1',connected:value},'*');
+}
 $('connect').onclick=async()=>{
  endpoint=$('endpoint').value.trim();token=$('token').value.trim();
+ if(/^[0-9]{1,5}$/.test(endpoint)){
+  const port=Number(endpoint);
+  if(port<1||port>65535){$('hint').textContent='Invalid port';return;}
+  endpoint='http://127.0.0.1:'+port+'/';
+ }
  try{
   await requestHealth();await ensureAssets();
-  setConnected(true);$('setupGuide').hidden=true;$('connectPanel').hidden=true;
-  $('connectToggle').setAttribute('aria-expanded','false');createSession();
+  setConnected(true);$('psToolMenu').hidden=true;
+  $('connectToggle').setAttribute('aria-expanded','false');
+  createSession();
  }catch(error){
-  setConnected(false);$('setupGuide').hidden=false;$('connectPanel').hidden=false;
+  setConnected(false);
   $('hint').textContent=t(5)+': '+error.message;
  }
 };
+$('verifyConnection').onclick=()=>$('connect').click();
 $('connectToggle').onclick=()=>{
- $('connectPanel').hidden=!$('connectPanel').hidden;
- $('connectToggle').setAttribute('aria-expanded',String(!$('connectPanel').hidden));
+ const open=$('psToolMenu').hidden;
+ $('psToolMenu').hidden=!open;
+ $('connectToggle').setAttribute('aria-expanded',String(open));
 };
-$('clear').onclick=()=>sessions.get(active)?.term.clear();
-$('copySetup').onclick=()=>{
- navigator.clipboard?.writeText('bridge\\Setup-ClusterPowerShell.cmd').catch(()=>{});
+$('reconfigure').onclick=()=>{
+ $('psToolMenu').hidden=true;
+ $('connectPanel').hidden=false;
+ $('terminalArea').hidden=true;
 };
+$('clear').onclick=()=>{
+ sessions.get(active)?.term.clear();
+ $('psToolMenu').hidden=true;
+};
+$('downloadSetup').onclick=()=>{
+ if(bootstrapCommand){
+  const url=URL.createObjectURL(new Blob([bootstrapCommand],{type:'application/octet-stream'}));
+  const link=document.createElement('a');
+  link.download='ClusterPowerShell-QuickSetup.cmd';link.href=url;
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  $('downloadStatus').textContent=ui(16);
+  return;
+ }
+ $('downloadStatus').textContent='…';
+ if(parent!==window)parent.postMessage({
+  protocol:'cluster.powershell.setup.v1',type:'download'
+ },'*');
+ else $('downloadStatus').textContent=ui(18)+'Host unavailable';
+};
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.protocol!=='cluster.powershell.setup.v1')return;
+ if(event.data.type==='bootstrap-ready' && typeof event.data.content==='string'){
+  bootstrapCommand=event.data.content;
+  $('downloadStatus').textContent='';
+ }
+ if(event.data.type==='download-result')
+  $('downloadStatus').textContent=event.data.ok?ui(16):ui(18)+(event.data.error||'Unknown');
+});
+if(parent!==window)parent.postMessage({protocol:'cluster.powershell.setup.v1',type:'request-bootstrap'},'*');
 window.addEventListener('pagehide',()=>{for(const id of Array.from(sessions.keys()))closeSession(id);});
 applyLabels();renderTabs();
 })();

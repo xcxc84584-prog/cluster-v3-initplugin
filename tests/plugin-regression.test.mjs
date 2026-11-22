@@ -180,7 +180,7 @@ test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
  assert.match(terminal,/type:'resize'/);
  assert.match(terminal,/type:'create'/);
  assert.match(terminal,/role="tablist"/);
- assert.match(terminal,/setupGuide/);
+ assert.match(terminal,/class="setup-workspace"/);
  assert.match(bridge,/require\('node-pty'\)/);
  assert.match(bridge,/pty\.spawn\(shell/);
  assert.match(bridge,/useConpty:true/);
@@ -195,43 +195,50 @@ test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
  assert.match(setup,/server\.cjs/);
 });
 
-test('Editor first-run PowerShell Local Agent guide and CMD download',()=>{
+test('PowerShell setup is inline, not an overlay, and transitions to terminal view',()=>{
+ const html=read('plugins/cluster.powershell/index.html');
  const guide=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
- const terminal=read('plugins/cluster.powershell/index.html');
- const editorPage=read('plugins/cluster.text-editor/index.html');
- assert.match(editorPage,/scripts\/powershell-onboarding\.js/);
- assert.match(guide,/\.editor-pane/);
- assert.match(guide,/agent-onboard/);
- assert.match(read('plugins/cluster.text-editor/scripts/powershell-tool.js'),/psFrame\.hidden=selected!=='powershell'/);
- assert.match(guide,/agentDownload/);
- assert.match(guide,/ClusterPowerShell-QuickSetup\.cmd/);
+ const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
+ const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell.cmd');
+ const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(script);
+ new Script(script,{filename:'cluster-powershell.js'});
+ new Script(guide,{filename:'powershell-onboarding.js'});
+ new Script(bridge,{filename:'server.cjs'});
+ assert.match(html,/class="setup-workspace"/);
+ assert.match(html,/class="setup-grid"/);
+ assert.match(html,/id="downloadSetup"/);
+ assert.match(html,/id="terminalArea" hidden/);
+ assert.match(html,/id="endpoint"/);
+ assert.match(html,/id="token"/);
+ assert.match(html,/id="verifyConnection"/);
+ assert.match(html,/role="tablist"/);
+ assert.match(html,/\$\('connectPanel'\)\.hidden=value/);
+ assert.match(html,/\$\('terminalArea'\)\.hidden=!value/);
+ assert.match(html,/bootstrapCommand/);
+ assert.match(html,/new Blob\(\[bootstrapCommand\]/);
+ assert.match(html,/cluster\.powershell\.setup\.v1/);
  assert.match(guide,/PRMU\.getCommunityConfig/);
  assert.match(guide,/PRMU\.getCommunityRepositoryUrl/);
- assert.match(guide,/URL\.createObjectURL/);
- assert.match(guide,/Invoke-WebRequest/);
- assert.match(guide,/Setup-ClusterPowerShell\.cmd/);
- assert.match(guide,/cluster\.powershell\.status\.v1/);
- assert.match(terminal,/cluster\.powershell\.status\.v1/);
- for(const language of ['zh-TW','en','fr','ja','es','hi'])
-   assert.ok(guide.includes("'"+language+"':[") || guide.includes(language+':['));
+ assert.match(guide,/bootstrap-ready/);
+ assert.doesNotMatch(guide,/agent-onboard/);
+ assert.doesNotMatch(guide,/header\.append/);
+ assert.match(setup,/npm install-scripts approve node-pty/);
+ assert.match(setup,/npm rebuild node-pty/);
+ assert.match(setup,/require\('node-pty'\)/);
+ assert.match(bridge,/normalizeAllowedOrigin/);
+ assert.match(bridge,/parsed\.origin/);
+ assert.match(bridge,/Access-Control-Allow-Private-Network/);
+ assert.match(bridge,/randomBytes\(32\)\.toString\('hex'\)/);
 });
-
-test('Local Agent reminder stays inside the PowerShell pane and no header button',()=>{
- const guide=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
- const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
- assert.doesNotMatch(guide,/header\.append\(entry\)/);
- assert.doesNotMatch(guide,/agent-entry/);
- assert.match(guide,/pane\.querySelector\('\.cluster-shell-view'\)/);
- assert.match(guide,/panel\.hidden=true/);
- assert.match(guide,/cluster-powershell-view/);
- assert.match(guide,/isPowerShellView/);
- assert.match(guide,/agent-onboard\.compact/);
- assert.match(guide,/panel\.hidden=!isPowerShellView\|\|connected/);
- assert.match(tool,/new CustomEvent\('cluster-powershell-view'/);
- assert.match(tool,/group\.hidden=false/);
- assert.match(tool,/requestCommunityFallback/);
- assert.match(tool,/PRMU\.getCommunityConfig/);
- assert.match(tool,/mountFromConfiguredCommunity/);
- assert.match(tool,/manifest\.version!==plugin\.version/);
- assert.match(tool,/psFrame\.hidden=selected!=='powershell'/);
+test('copy-pasted full website URL becomes a strict browser Origin',()=>{
+ const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
+ const func=bridge.match(/function normalizeAllowedOrigin\(value\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(func);
+ const normalize=new Script(func+';normalizeAllowedOrigin').runInNewContext({URL});
+ assert.equal(normalize('https://example.com/Cluster-v3/plugin/'),'https://example.com');
+ assert.equal(normalize('https://example.com:8443/editor/'),'https://example.com:8443');
+ assert.equal(normalize('http://127.0.0.1:43881/a'),'http://127.0.0.1:43881');
+ assert.throws(()=>normalize('http://example.com/anything'));
+ assert.throws(()=>normalize('https://user:pass@example.com/path'));
 });

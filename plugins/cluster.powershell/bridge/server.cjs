@@ -13,16 +13,21 @@ const pty = require('node-pty');
 const {WebSocketServer} = require('ws');
 
 if(process.platform !== 'win32') throw Error('ClusterPowerShell currently requires Windows ConPTY');
-const origin = process.env.CLUSTER_ALLOWED_ORIGIN;
-if(!origin) throw Error('CLUSTER_ALLOWED_ORIGIN is required');
-const parsedOrigin = new URL(origin);
-if(parsedOrigin.origin !== origin ||
-   (parsedOrigin.protocol !== 'https:' &&
-    !(parsedOrigin.protocol === 'http:' &&
-      ['127.0.0.1','localhost'].includes(parsedOrigin.hostname))))
-  throw Error('Origin must be an exact HTTPS site origin or local HTTP origin');
+// Accept a copied Cluster page URL, then compare ONLY its canonical Origin.
+function normalizeAllowedOrigin(value) {
+ if(typeof value!=='string'||!value.trim()) throw Error('Cluster website URL is required');
+ const parsed=new URL(value.trim());
+ if(parsed.username||parsed.password||
+    (parsed.protocol!=='https:' && !(parsed.protocol==='http:' &&
+       ['127.0.0.1','localhost'].includes(parsed.hostname))))
+   throw Error('Cluster website must use HTTPS or localhost HTTP');
+ return parsed.origin;
+}
+const enteredOrigin=process.env.CLUSTER_ALLOWED_ORIGIN;
+const origin=normalizeAllowedOrigin(enteredOrigin);
+if(enteredOrigin.trim()!==origin)console.log('Normalized Cluster website origin: '+origin);
 const shell = process.env.CLUSTER_SHELL === 'pwsh' ? 'pwsh.exe' : 'powershell.exe';
-const token = crypto.randomBytes(32).toString('base64url');
+const token = crypto.randomBytes(32).toString('hex'); // 64 printable characters
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
@@ -40,6 +45,9 @@ function headers(res,req) {
     res.setHeader('Vary','Origin');
     res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Cluster-Token');
+    // Allow Chrome private-network preflight only from the explicitly approved site.
+    if(req.headers['access-control-request-private-network']==='true')
+      res.setHeader('Access-Control-Allow-Private-Network','true');
   }
 }
 function json(res,status,obj) {
