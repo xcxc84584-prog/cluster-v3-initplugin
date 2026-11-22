@@ -15,6 +15,13 @@
       "version": "2.9.2",
       "description": "Editor with PRMU-governed Plugin Manager navigation, persisted tabs and workspace state",
       "directory": "plugins/cluster.text-editor"
+    },
+    {
+      "id": "cluster.powershell",
+      "name": "ClusterPowerShell",
+      "version": "0.1.0",
+      "description": "Local PowerShell bridge with PRMU-governed UI palette and six languages",
+      "directory": "plugins/cluster.powershell"
     }
   ]
 }

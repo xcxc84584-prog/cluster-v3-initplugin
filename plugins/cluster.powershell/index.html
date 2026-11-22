@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-TW">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClusterPowerShell</title>
+<style>
+:root{color-scheme:dark;--ui-background:#101115;--ui-panel:#191c23;--ui-control:#2a2e38;--ui-text:#e5e9f3;--ui-muted:#929bab;--ui-accent:#7e9ef4;--ui-border:#333944;--ui-hover:#343947;--ui-editor:#0c0d10}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--ui-editor);color:var(--ui-text);font:12px system-ui,sans-serif}
+main{height:100%;display:flex;flex-direction:column;min-width:240px}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;min-height:43px;background:var(--ui-panel);border-bottom:1px solid var(--ui-border)}
+header strong{font-size:12px;letter-spacing:.4px}header .dot{width:7px;height:7px;border-radius:50%;background:var(--ui-muted)}
+header .dot.connected{background:var(--ui-accent)}.grow{flex:1}
+button,input{background:var(--ui-control);border:1px solid var(--ui-border);color:var(--ui-text);border-radius:5px;padding:7px 9px;font:inherit}
+button{cursor:pointer}button:hover{background:var(--ui-hover)}button:focus-visible,input:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
+#output{flex:1;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.65 Consolas,"Cascadia Mono",monospace;padding:15px;background:var(--ui-editor)}
+#output .error{color:var(--ui-accent);font-weight:600}
+form{display:flex;gap:7px;padding:9px 12px;background:var(--ui-panel);border-top:1px solid var(--ui-border)}
+#command{flex:1;min-width:0;background:var(--ui-background);font:12px Consolas,monospace}
+#connectPanel{border-bottom:1px solid var(--ui-border);padding:11px 13px;background:var(--ui-panel)}
+#connectPanel p{line-height:1.6;color:var(--ui-muted);margin:4px 0 9px}
+#connectPanel .fields{display:flex;gap:6px;flex-wrap:wrap}
+#endpoint{width:210px;max-width:100%}#token{flex:1;min-width:110px}
+[hidden]{display:none!important}
+</style></head>
+<body><main>
+<header><span class="dot" id="dot"></span><strong>PowerShell</strong><span class="grow"></span>
+<button id="connectToggle" type="button" aria-expanded="true">Connect</button><button id="clear" type="button">Clear</button></header>
+<section id="connectPanel"><p id="hint"></p><div class="fields">
+<input id="endpoint" aria-label="Loopback address" autocomplete="off" placeholder="http://127.0.0.1:PORT">
+<input id="token" type="password" aria-label="Session token" autocomplete="off" placeholder="Session token">
+<button id="connect" type="button">Connect</button></div></section>
+<div id="output" role="log" aria-live="polite"></div>
+<form id="terminalForm"><input id="command" autocomplete="off" spellcheck="false" aria-label="PowerShell command" disabled placeholder="PS>"><button id="run" disabled type="submit">Run</button></form>
+</main><script>
+/* UI settings are Host-owned; local endpoint and token never enter PRMU. */
+(()=>{'use strict';
+const $=id=>document.getElementById(id), output=$('output'), command=$('command');
+const translations={
+'zh-TW':['連線','清除','執行','請先於本機執行插件包 bridge/Start-ClusterPowerShell.ps1，輸入本機輸出的網址與 Token。此步驟需要使用者授權。','連線成功','連線失敗','執行失敗','斷線'],
+en:['Connect','Clear','Run','Run bridge/Start-ClusterPowerShell.ps1 from the installed plugin folder locally, then enter its loopback URL and token. Local authorization is required.','Connected','Connection failed','Execution failed','Disconnected'],
+fr:['Connexion','Effacer','Exécuter','Exécutez localement bridge/Start-ClusterPowerShell.ps1, puis saisissez l’URL locale et le jeton.','Connecté','Échec de connexion','Erreur d’exécution','Déconnecté'],
+ja:['接続','消去','実行','ローカルで bridge/Start-ClusterPowerShell.ps1 を起動し、表示されたURLとトークンを入力してください。','接続済み','接続失敗','実行失敗','切断'],
+es:['Conectar','Limpiar','Ejecutar','Ejecute bridge/Start-ClusterPowerShell.ps1 localmente e introduzca la URL y el token.','Conectado','Error de conexión','Error de ejecución','Desconectado'],
+hi:['कनेक्ट','साफ़','चलाएँ','स्थानीय रूप से bridge/Start-ClusterPowerShell.ps1 चलाएँ और URL व टोकन दर्ज करें।','कनेक्टेड','कनेक्शन विफल','निष्पादन विफल','डिस्कनेक्ट']
+};
+let locale='zh-TW',endpoint='',token='',busy=false,serial=0;
+function applyLabels(){const t=translations[locale]||translations.en;
+$('connectToggle').textContent=t[0];$('connect').textContent=t[0];$('clear').textContent=t[1];$('run').textContent=t[2];$('hint').textContent=t[3];document.documentElement.lang=locale;}
+function line(s,isError=false){const d=document.createElement('div');d.textContent=s;d.className=isError?'error':'';output.append(d);output.scrollTop=output.scrollHeight;}
+function palette(data){const p=data?.palette||data?.data?.palette; if(p&&typeof p==='object')for(const [k,v] of Object.entries(p))if(/^[a-z-]+$/.test(k)&&/^#[0-9a-f]{6}$/i.test(v))document.documentElement.style.setProperty('--ui-'+k,v);
+const lang=data?.language||data?.data?.language;if(translations[lang]){locale=lang;applyLabels();}}
+window.addEventListener('message',e=>{if(e.source!==parent)return;const m=e.data;if(['cluster.plugin.v1','cluster.settings.context.v1','cluster.public.v1'].includes(m?.protocol)&&['context','snapshot','properties.changed'].includes(m.type))palette(m);});
+if(parent!==window){parent.postMessage({protocol:'cluster.plugin.v1',type:'hello'},'*');parent.postMessage({protocol:'cluster.public.v1',type:'subscribe',properties:['palette','language']},'*');}
+/* An installed running plugin advertises its UI through PRMU, not a fixed URL. */
+let registrationCounter=0;
+function registerShellCapability(){
+ if(parent===window)return;
+ parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
+  requestId:'powershell-register-'+(++registrationCounter),
+  method:'PRMU.register',args:['capabilities',{
+   key:'workspace.powershell.v1',
+   value:{kind:'ui.embed',version:'1.0.0'},
+   sharedWrite:false,persistent:false
+  }]},'*');
+}
+registerShellCapability();
+
+async function request(action,body){const url=new URL(endpoint);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only 127.0.0.1 HTTP is supported');
+const response=await fetch(new URL('/'+action,url).href,{method:'POST',headers:{'Content-Type':'application/json','X-Cluster-Token':token},body:JSON.stringify(body),signal:AbortSignal.timeout(action==='exec'?120000:7000)});
+const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||String(response.status));return data;}
+function setConnected(ok){$('dot').classList.toggle('connected',ok);command.disabled=!ok;$('run').disabled=!ok; }
+$('connect').onclick=async()=>{endpoint=$('endpoint').value.trim();token=$('token').value.trim();try{await request('health',{});setConnected(true);line(translations[locale][4]);$('connectPanel').hidden=true;$('connectToggle').setAttribute('aria-expanded','false');command.focus();}catch(e){setConnected(false);line(translations[locale][5]+': '+e.message,true);}};
+$('connectToggle').onclick=()=>{$('connectPanel').hidden=!$('connectPanel').hidden;$('connectToggle').setAttribute('aria-expanded',String(!$('connectPanel').hidden));};
+$('clear').onclick=()=>{output.textContent='';};
+$('terminalForm').onsubmit=async e=>{e.preventDefault();if(busy||command.disabled)return;const source=command.value.trim();if(!source)return;command.value='';busy=true;$('run').disabled=true;line('PS> '+source);
+try{const data=await request('exec',{command:source,requestId:++serial});if(data.output)line(data.output);if(data.error)line(data.error,true);}
+catch(error){line(translations[locale][6]+': '+error.message,true);}
+finally{busy=false;$('run').disabled=command.disabled;}};
+applyLabels();line('ClusterPowerShell · local-only bridge');
+})();
+</script></body></html>

@@ -18,7 +18,7 @@ test('all plugin runtime JavaScript is syntactically valid', () => {
 
 test('all community versions match their folder manifests', () => {
   const catalog=JSON.parse(read('community-index.json'));
-  assert.equal(catalog.plugins.length,2);
+  assert.equal(catalog.plugins.length,3);
   for(const entry of catalog.plugins){
     const manifest=JSON.parse(read(entry.directory+'/manifest.json'));
     assert.equal(manifest.id,entry.id);
@@ -162,4 +162,19 @@ test('Editor File > Plugin uses PRMU manager URL, never a guessed path',()=>{
   assert.doesNotMatch(editor,/document\.referrer/);
   assert.doesNotMatch(editor,/new URL\(root \+/);
   assert.match(embedded,/data-file-action="plugin"/);
+});
+
+test('PowerShell Tool is independent, PRMU-discovered and dynamically configured',()=>{
+  const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
+  const terminal=read('plugins/cluster.powershell/index.html');
+  const bridge=read('plugins/cluster.powershell/bridge/Start-ClusterPowerShell.ps1');
+  assert.match(html,/scripts\/powershell-tool\.js/);
+  assert.match(tool,/PRMU\.resolveCapability/);
+  assert.match(tool,/workspace\.powershell\.v1/);
+  assert.match(tool,/cluster-shell-tabs/);
+  assert.match(terminal,/cluster\.public\.v1/);
+  assert.match(terminal,/X-Cluster-Token/);
+  assert.match(bridge,/TcpListener/);
+  assert.match(bridge,/AllowedOrigin/);
+  assert.match(bridge,/RandomNumberGenerator/);
 });
