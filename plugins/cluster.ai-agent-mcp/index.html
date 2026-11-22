@@ -71,6 +71,12 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
       <div class="fine" id="gatewayLimit"></div>
      </div>
     </div>
+    <div class="card"><h3 id="rootHeading">Workspace root permissions</h3>
+     <p id="rootInfo">Select a local directory to authorize Explorer file actions. Nothing is accessed before user approval.</p>
+     <div class="actions"><button id="selectRoot" type="button">Select local folder</button>
+      <button id="revokeRoots" type="button">Revoke folders</button></div>
+     <div id="rootList" class="fine"></div>
+    </div>
     <div class="card"><h3 id="verifyTitle"></h3>
      <div class="status-line"><span>Local Agent</span><span class="chip" id="agentStatus">–</span></div>
      <div class="status-line"><span>MCP Gateway</span><span class="chip" id="mcpStatus">–</span></div>
@@ -240,12 +246,176 @@ $('connect').onclick=async()=>{
  try{
   const health=await call('/health');
   if(health.agent!=='ClusterPowerShell')throw Error('Incorrect Local Agent');
-  connected=true;renderLocale();showPage('activity');
+  connected=true;renderLocale();showPage('activity');connectAgentSocket();
   if($('remember').checked)vault.save(endpoint,token).catch(()=>{$('pairingNote').textContent=sl(3)});
   await refresh();
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
 };
-$('disconnect').onclick=()=>{connected=false;token='';$('pairToken').value='';renderLocale();showPage('setup');};
+$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';/* Authenticated browser bridge: user-selected File System Access handles.
+ * Editor is reached only through the parent adapter; no cross-frame DOM reading.
+ */
+const rootHandles=new Map();
+let agentSocket=null,editorSeq=0;
+const editorCalls=new Map();
+function editorCall(action,params={}){
+ return new Promise((resolve,reject)=>{
+  if(parent===window){reject(Error('Editor workspace unavailable'));return;}
+  const requestId='ai-edit-'+(++editorSeq);
+  const timer=setTimeout(()=>{editorCalls.delete(requestId);reject(Error('Editor timed out'));},12000);
+  editorCalls.set(requestId,{timer,resolve,reject});
+  parent.postMessage({protocol:'cluster.ai-agent.editor.v1',type:'req',
+   requestId,action,params},'*');
+ });
+}
+function rootLabels(){
+ $('rootList').textContent=[...rootHandles.keys()].join(' · ')||'No folders selected';
+}
+async function rootFor(raw){
+ if(typeof raw!=='string'||!raw||raw.length>1024||
+  raw.startsWith('/')||raw.includes('\\')||raw.split('/').some(x=>x==='..'||x==='.'||!x))
+  throw Error('Invalid path');
+ const [name,...rest]=raw.split('/'),root=rootHandles.get(name);
+ if(!root)throw Error('Root not authorized: select a local folder first');
+ return {root,segments:rest,rootName:name};
+}
+async function directoryFor(parts,create=false){
+ let dir=parts.root;
+ for(const name of parts.segments){
+  dir=await dir.getDirectoryHandle(name,{create});
+ }
+ return dir;
+}
+function assertBasename(value){
+ if(typeof value!=='string'||!value||value.length>255||
+  value==='.'||value==='..'||/[\\/:\0]/.test(value))throw Error('Invalid name');
+}
+async function fileAt(raw){
+ const p=await rootFor(raw),filename=p.segments.pop();
+ assertBasename(filename);
+ const parentDir=await directoryFor(p,false);
+ return {parentDir,filename};
+}
+async function ask(message){
+ // Browser confirmation must be a new, explicit user decision per mutation.
+ return window.confirm(message);
+}
+async function executeTool(name,args){
+ switch(name){
+ case 'cluster.get_status':
+  return {connected,service:'ClusterPowerShell Local Agent',browserBridge:true,
+   roots:[...rootHandles.keys()],toolsAvailable:14};
+ case 'cluster.get_task_status':
+  return {tasks:events.slice(-50).map(e=>({action:e.action,result:e.result,at:e.at}))};
+ case 'cluster.list_files':{
+  const data=await editorCall('tabs.list');
+  return {files:data.tabs||[],activeId:data.activeId};}
+ case 'cluster.get_editor_state':{
+  const data=await editorCall('tabs.list');
+  return {activeId:data.activeId,tabs:data.tabs||[]};}
+ case 'cluster.read_file':{
+  if(typeof args.id!=='string'||args.id.length>200)throw Error('Invalid document ID');
+  const data=await editorCall('document.get',{id:args.id});
+  return {document:data.document,content:data.content};}
+ case 'cluster.list_roots':
+  return {roots:[...rootHandles.keys()].map(name=>({name,authorized:true,source:'user-picker'}))};
+ case 'cluster.find_root_windows_path':{
+  const root=String(args.root||'');
+  if(!rootHandles.has(root))throw Error('Root not authorized in browser');
+  const pathText=window.prompt('Confirm the absolute Windows path of folder "'+root+'". This cannot be verified against the browser handle; cancel to deny.');
+  if(!pathText)throw Error('User declined path confirmation');
+  if(!/^[a-zA-Z]:\\/.test(pathText)||pathText.length>1024)throw Error('Invalid Windows path');
+  return {root,absolutePath:pathText,verified:false,
+   confirmedByUser:true,reason:'BROWSER_HANDLE_IDENTITY_NOT_PROVABLE'};
+ }
+ case 'cluster.list_directory':{
+  const p=await rootFor(args.path||'');
+  const dir=await directoryFor(p,false);
+  const files=[];for await(const [name,handle] of dir.entries()){
+   files.push({name,kind:handle.kind});if(files.length>500)break;
+  }return {path:args.path,entries:files,truncated:files.length>500};}
+ case 'cluster.read_path':{
+  const file=await fileAt(args.path||'');
+  const data=await (await file.parentDir.getFileHandle(file.filename)).getFile();
+  const offset=Number(args.offset||0),length=Number(args.length||65536);
+  if(!Number.isInteger(offset)||offset<0||!Number.isInteger(length)||length<1||length>262144)
+   throw Error('Invalid read range');
+  const text=await data.slice(offset,offset+length).text();
+  return {path:args.path,offset,length:text.length,content:text,totalBytes:data.size};}
+ case 'cluster.create_file':{
+  const p=await rootFor(args.path||'');assertBasename(args.name);
+  if(!await ask('Allow AI to CREATE file '+args.path+'/'+args.name+'?'))throw Error('User denied create');
+  const dir=await directoryFor(p,false);
+  const handle=await dir.getFileHandle(args.name,{create:true});
+  return {created:handle.name};}
+ case 'cluster.write_path':{
+  const file=await fileAt(args.path||'');
+  if(typeof args.content!=='string'||new Blob([args.content]).size>1048576)
+   throw Error('Content too large');
+  if(!await ask('Allow AI to OVERWRITE '+args.path+' ('+args.content.length+' characters)?'))
+   throw Error('User denied write');
+  const handle=await file.parentDir.getFileHandle(file.filename);
+  const writable=await handle.createWritable();
+  await writable.write(args.content);await writable.close();
+  return {written:true,path:args.path};}
+ case 'cluster.delete_path':{
+  const file=await fileAt(args.path||'');
+  if(!await ask('Allow AI to DELETE '+args.path+' permanently?'))throw Error('User denied delete');
+  await file.parentDir.removeEntry(file.filename);
+  return {deleted:true,path:args.path};}
+ case 'cluster.open_powershell':
+  if(!await ask('Allow AI to open a new PowerShell terminal tab?'))throw Error('User denied terminal');
+  parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'open-powershell'},'*');
+  return {requested:true};
+ case 'cluster.powershell_request':{
+  const command=String(args.command||''),label=String(args.path||'');
+  if(command.length<1||command.length>2000||!rootHandles.has(label))
+   throw Error('PowerShell command or root invalid');
+  const absolute=window.prompt('PowerShell root '+label+': enter matching absolute Windows directory path');
+  if(!absolute||!/^[A-Za-z]:\\/.test(absolute))throw Error('Root path not approved');
+  if(!await ask('Execute this exact PowerShell command as your Windows user?\n\n'+command))
+   throw Error('User denied PowerShell command');
+  return {approved:true,absolutePath:absolute};
+ }
+ default:throw Error('Unknown MCP tool '+name);
+ }
+}
+function connectAgentSocket(){
+ if(agentSocket){try{agentSocket.close()}catch{}}
+ const url=new URL(endpoint);url.protocol='ws:';url.pathname='/agent';
+ url.searchParams.set('token',token);
+ const ws=new WebSocket(url);agentSocket=ws;
+ ws.onmessage=async e=>{
+  let msg;try{msg=JSON.parse(e.data)}catch{return}
+  if(msg.type==='tool_call'&&typeof msg.requestId==='string'){
+   let result,error;
+   try{result=await executeTool(msg.name,msg.args||{});}
+   catch(err){error=String(err.message||err).slice(0,250);}
+   if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({
+    type:'tool_result',requestId:msg.requestId,result,error
+   }));
+  }
+ };
+ ws.onclose=()=>{if(agentSocket===ws)agentSocket=null;};
+}
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.protocol!=='cluster.ai-agent.editor.v1'||
+  event.data.type!=='rep')return;
+ const call=editorCalls.get(event.data.requestId);if(!call)return;
+ editorCalls.delete(event.data.requestId);clearTimeout(call.timer);
+ if(event.data.ok)call.resolve(event.data.data);
+ else call.reject(Error(event.data.error||'Editor refused request'));
+});
+$('selectRoot').onclick=async()=>{
+ if(!window.showDirectoryPicker){$('rootInfo').textContent='File System Access API not available';return;}
+ try{
+  const handle=await window.showDirectoryPicker({mode:'readwrite'});
+  rootHandles.set(handle.name,handle);rootLabels();
+ }catch(error){$('rootInfo').textContent=String(error.message).slice(0,120);}
+};
+$('revokeRoots').onclick=()=>{rootHandles.clear();rootLabels();};
+rootLabels();
+
+renderLocale();showPage('setup');};
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('export').onclick=()=>{
  const payload=events.map(({id,at,source,action,result,detail})=>({id,at,source,action,result,detail}));
