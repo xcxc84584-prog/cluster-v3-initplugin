@@ -27,7 +27,7 @@ return [
 'where powershell.exe >nul 2>nul',
 'if errorlevel 1 ( echo Windows PowerShell required. & pause & exit /b 1 )',
 'echo Downloading ClusterPowerShell Local Agent components...',
-'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = \'Stop\'; $base=$env:CLUSTER_SOURCE; $dir=$env:CLUSTER_TARGET; foreach($f in @(\'package.json\',\'server.cjs\',\'Setup-ClusterPowerShell.cmd\')) { Invoke-WebRequest -UseBasicParsing -Uri ($base+$f) -OutFile (Join-Path $dir $f) }"',
+'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = \'Stop\'; $base=$env:CLUSTER_SOURCE; $dir=$env:CLUSTER_TARGET; foreach($f in @(\'package.json\',\'server.cjs\',\'secure-store.cjs\',\'mcp-gateway.cjs\',\'oauth-mcp-gateway.cjs\',\'Setup-ClusterPowerShell.cmd\',\'Start-Cluster-MCP.cmd\')) { Invoke-WebRequest -UseBasicParsing -Uri ($base+$f) -OutFile (Join-Path $dir $f) }"',
 'if errorlevel 1 ( echo Download failed. & pause & exit /b 1 )',
 'call "%CLUSTER_TARGET%\\Setup-ClusterPowerShell.cmd"',
 'if errorlevel 1 ( echo Setup failed. & pause & exit /b 1 )',
