@@ -48,6 +48,8 @@ function record(action,result,detail=''){
  activity.push({id:++activitySequence,at:new Date().toISOString(),source:'powershell',action,result,detail:safe});
  if(activity.length>200)activity.splice(0,activity.length-200);
 }
+const pendingTools=new Map();
+let browserBridge=null;
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
@@ -101,9 +103,31 @@ const server=http.createServer((req,res)=>{
     return;
   }
   if(url.pathname==='/activity'){
-    // Only authenticated browser origin can observe metadata; never log raw
-    // keystrokes, terminal stdout, credentials, file contents or command text.
     json(res,200,{ok:true,events:activity.slice(-100),cursor:activitySequence});
+    return;
+  }
+  if(url.pathname==='/mcp/call'){
+    let body='';
+    req.on('data',chunk=>{body+=chunk;
+      if(Buffer.byteLength(body)>32768)req.destroy();});
+    req.on('end',()=>{
+      let request;try{request=JSON.parse(body)}catch{json(res,400,{error:'Invalid JSON'});return;}
+      if(!request||typeof request.name!=='string'||!request.name.startsWith('cluster.')){
+        json(res,400,{error:'Invalid tool name'});return;
+      }
+      if(!browserBridge||browserBridge.readyState!==1){
+        json(res,503,{error:'AI Agent browser not connected'});return;
+      }
+      if(pendingTools.size>=24){json(res,429,{error:'Too many pending requests'});return;}
+      const requestId=crypto.randomBytes(16).toString('hex');
+      const timer=setTimeout(()=>{
+        pendingTools.delete(requestId);
+        json(res,504,{error:'User or plugin response timed out'});
+      },request.name==='cluster.powershell_request'?125000:45000);
+      pendingTools.set(requestId,{res,timer,name:request.name});
+      send(browserBridge,{type:'tool_call',requestId,name:request.name,args:request.arguments||{}});
+      record('mcp.request','pending',request.name);
+    });
     return;
   }
   json(res,404,{ok:false,error:'Unknown route'});
@@ -122,21 +146,40 @@ function closeSession(id) {
 server.on('upgrade',(req,socket,head)=>{
   try{
     const url=new URL(req.url,'http://127.0.0.1');
-    if(url.pathname!=='/terminal' ||
+    if(!['/terminal','/agent'].includes(url.pathname) ||
        req.headers.origin!==origin ||
        url.searchParams.get('token')!==token ||
        sessions.size>=MAX_SESSIONS){
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');socket.destroy();return;
     }
-    wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
+    wss.handleUpgrade(req,socket,head,ws=>{
+      ws.isAgent=url.pathname==='/agent';wss.emit('connection',ws);
+    });
   }catch{socket.destroy();}
 });
 wss.on('connection',ws=>{
   let current=null;
+  if(ws.isAgent){
+    if(browserBridge&&browserBridge!==ws&&browserBridge.readyState===1){
+      send(ws,{type:'error',error:'Agent browser already connected'});ws.close();return;
+    }
+    browserBridge=ws;
+    send(ws,{type:'bridge_registered'});
+  }
   ws.on('message',raw=>{
     let msg;
     try{msg=JSON.parse(String(raw));}catch{return;}
     if(!msg||typeof msg.type!=='string')return;
+    if(ws.isAgent){
+      if(msg.type==='tool_result'&&typeof msg.requestId==='string'){
+        const pending=pendingTools.get(msg.requestId);if(!pending||browserBridge!==ws)return;
+        pendingTools.delete(msg.requestId);clearTimeout(pending.timer);
+        const response=msg.error?{error:String(msg.error).slice(0,256)}:{result:msg.result};
+        json(pending.res,msg.error?403:200,response);
+        record('mcp.response',msg.error?'denied':'ok',pending.name);
+      }
+      return;
+    }
     if(msg.type==='create' && !current && sessions.size<MAX_SESSIONS) {
       const id=crypto.randomBytes(16).toString('hex');
       try{
@@ -168,13 +211,21 @@ wss.on('connection',ws=>{
       proc.resize(msg.cols,msg.rows);
     if(msg.type==='close'){closeSession(current);current=null;}
   });
-  ws.on('close',()=>{if(current)closeSession(current);});
+  ws.on('close',()=>{
+  if(current)closeSession(current);
+  if(browserBridge===ws){browserBridge=null;
+    for(const [id,pending] of pendingTools){clearTimeout(pending.timer);
+      json(pending.res,503,{error:'AI Agent browser disconnected'});pendingTools.delete(id);}
+  }
+});
   ws.on('error',()=>{if(current)closeSession(current);});
 });
 function listen(port=0){
  server.listen(port,'127.0.0.1',()=>{
   const address=server.address();
   fs.writeFileSync(portFile,JSON.stringify({port:address.port}),{mode:0o600});
+  fs.writeFileSync(path.join(credentialDir,'agent-state.json'),
+   JSON.stringify({port:address.port,origin,pid:process.pid}),{mode:0o600});
   console.log('PORT MESSAGE : http://127.0.0.1:'+address.port+'/ TOKEN '+token);
   console.log('ALLOWED ORIGIN : '+origin);
   console.log('PowerShell engine : '+shell);
