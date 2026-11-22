@@ -1,105 +1,97 @@
-# ClusterPowerShell local bridge. Run explicitly on the user's Windows computer.
-# No administrator rights required for Windows PowerShell 5.1.
-param(
-  [string]$AllowedOrigin = "",
-  [switch]$InstallPowerShell7
-)
-$ErrorActionPreference = 'Stop'
-if ($InstallPowerShell7 -and -not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
-  $winget = Get-Command winget -ErrorAction SilentlyContinue
-  if (-not $winget) { throw 'winget is unavailable. Install PowerShell 7 manually from the official Microsoft distribution.' }
+param([string]$AllowedOrigin='', [switch]$InstallPowerShell7)
+$ErrorActionPreference='Stop'
+if($InstallPowerShell7 -and -not (Get-Command pwsh -ErrorAction SilentlyContinue)){
+  if(-not (Get-Command winget -ErrorAction SilentlyContinue)){throw 'winget missing; install PowerShell 7 using Microsoft installer'}
   & winget install --id Microsoft.PowerShell --source winget --accept-package-agreements --accept-source-agreements
-  if ($LASTEXITCODE -ne 0) { throw 'PowerShell 7 installation failed' }
+  if($LASTEXITCODE -ne 0){throw 'PowerShell 7 installation failed'}
 }
-$engine = Get-Command pwsh -ErrorAction SilentlyContinue
-if (-not $engine) { $engine = Get-Command powershell.exe -ErrorAction SilentlyContinue }
-if (-not $engine) { throw 'No PowerShell engine found. Install Windows PowerShell or PowerShell 7.' }
-if (-not $AllowedOrigin) { $AllowedOrigin = Read-Host 'Enter the full origin of your Cluster page (https://hostname, no path)' }
-try { $originUri = [uri]$AllowedOrigin } catch { throw 'Invalid origin' }
-if ($originUri.AbsolutePath -ne '/' -or $originUri.Query -or $originUri.Fragment -or
-    $originUri.Scheme -notin @('https','http') -or
-    ($originUri.Scheme -eq 'http' -and $originUri.Host -notin @('localhost','127.0.0.1'))) {
-  throw 'Origin must be an HTTPS site or a local HTTP development origin, without path.'
+if(-not $AllowedOrigin){$AllowedOrigin=Read-Host 'Enter your Cluster website origin (https://hostname, no path)'}
+try{$uri=[Uri]$AllowedOrigin}catch{throw 'Invalid Cluster origin'}
+if($uri.AbsolutePath -ne '/' -or $uri.Query -or $uri.Fragment -or $uri.Scheme -notin @('https','http') -or ($uri.Scheme -eq 'http' -and $uri.Host -notin @('localhost','127.0.0.1'))){throw 'Invalid or insecure origin'}
+$AllowedOrigin=$uri.GetLeftPart([UriPartial]::Authority)
+function New-Secret([int]$count){
+ $bytes=New-Object byte[] $count
+ $rng=[Security.Cryptography.RandomNumberGenerator]::Create()
+ try{$rng.GetBytes($bytes)}finally{$rng.Dispose()}
+ return [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+','-').Replace('/','_')
 }
-$AllowedOrigin = $originUri.GetLeftPart([System.UriPartial]::Authority)
-$bytes = New-Object byte[] 32
-$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
-try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
-$token = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+','-').Replace('/','_')
-$listener = [System.Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
-$listener.Start()
-$port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
-$listener.Stop()
-$server = New-Object System.Net.HttpListener
+$token=New-Secret 32
+$socket=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+$socket.Start();$port=([Net.IPEndPoint]$socket.LocalEndpoint).Port;$socket.Stop()
+$server=New-Object Net.HttpListener
 $server.Prefixes.Add("http://127.0.0.1:$port/")
 $server.Start()
+Add-Type -AssemblyName System.Management.Automation
+$sessions=@{}
+$maxSessions=12
+function Reply($response,[int]$status,[object]$body){
+ $response.StatusCode=$status;$response.ContentType='application/json; charset=utf-8'
+ $json=ConvertTo-Json -InputObject $body -Compress -Depth 5
+ $bytes=[Text.Encoding]::UTF8.GetBytes($json)
+ $response.ContentLength64=$bytes.Length
+ $response.OutputStream.Write($bytes,0,$bytes.Length)
+}
+function Read-Body($request){
+ if($request.ContentLength64 -lt 2 -or $request.ContentLength64 -gt 65536){throw 'Invalid request size'}
+ $reader=New-Object IO.StreamReader($request.InputStream,[Text.Encoding]::UTF8)
+ try{return ConvertFrom-Json -InputObject $reader.ReadToEnd()}finally{$reader.Dispose()}
+}
 Write-Host "PORT MESSAGE : http://127.0.0.1:$port/ TOKEN $token"
 Write-Host "ALLOWED ORIGIN : $AllowedOrigin"
-Write-Host 'Keep this window open; Ctrl+C stops the bridge.'
-function Reply($response, [int]$status, [object]$data) {
-  $response.StatusCode = $status
-  $response.ContentType = 'application/json; charset=utf-8'
-  $json = ConvertTo-Json -InputObject $data -Compress -Depth 5
-  $out = [Text.Encoding]::UTF8.GetBytes($json)
-  $response.ContentLength64 = $out.Length
-  $response.OutputStream.Write($out, 0, $out.Length)
+Write-Host 'Press Ctrl+C or close this window to stop the Local Agent.'
+try{
+ while($server.IsListening){
+  $ctx=$server.GetContext();$req=$ctx.Request;$res=$ctx.Response
+  try{
+   if($req.Headers['Origin'] -cne $AllowedOrigin){Reply $res 403 @{ok=$false;error='Origin denied'};continue}
+   $res.Headers.Add('Access-Control-Allow-Origin',$AllowedOrigin)
+   $res.Headers.Add('Access-Control-Allow-Methods','POST, OPTIONS')
+   $res.Headers.Add('Access-Control-Allow-Headers','Content-Type, X-Cluster-Token')
+   $res.Headers.Add('Cache-Control','no-store')
+   $res.Headers.Add('Vary','Origin')
+   if($req.HttpMethod -eq 'OPTIONS'){$res.StatusCode=204;continue}
+   if($req.HttpMethod -ne 'POST'){Reply $res 405 @{ok=$false;error='POST required'};continue}
+   if($req.Headers['X-Cluster-Token'] -cne $token){Reply $res 403 @{ok=$false;error='Token denied'};continue}
+   $route=$req.Url.AbsolutePath
+   if($route -eq '/health'){
+    Reply $res 200 @{ok=$true;agent='ClusterPowerShell';apiVersion='2.0.0';maxSessions=$maxSessions;count=$sessions.Count}
+    continue
+   }
+   if($route -notin @('/session/create','/session/close','/exec')){Reply $res 404 @{ok=$false;error='Unknown route'};continue}
+   try{$payload=Read-Body $req}catch{Reply $res 400 @{ok=$false;error='Invalid JSON body'};continue}
+   if($route -eq '/session/create'){
+    if($sessions.Count -ge $maxSessions){Reply $res 429 @{ok=$false;error='Session limit reached'};continue}
+    $id=New-Secret 18
+    $space=[Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    try{$space.Open();$sessions[$id]=$space;Reply $res 200 @{ok=$true;sessionId=$id;sessionCount=$sessions.Count}}
+    catch{$space.Dispose();throw}
+    continue
+   }
+   $id=[string]$payload.sessionId
+   if(-not $sessions.ContainsKey($id)){Reply $res 404 @{ok=$false;error='Session not found'};continue}
+   if($route -eq '/session/close'){
+    $space=$sessions[$id];$sessions.Remove($id);$space.Dispose()
+    Reply $res 200 @{ok=$true;sessionCount=$sessions.Count};continue
+   }
+   $source=$payload.command
+   if($source -isnot [string] -or [string]::IsNullOrWhiteSpace($source) -or $source.Length -gt 8192){
+    Reply $res 400 @{ok=$false;error='Invalid command'};continue
+   }
+   $ps=[Management.Automation.PowerShell]::Create()
+   try{
+    $ps.Runspace=$sessions[$id]
+    [void]$ps.AddScript($source)
+    $items=$ps.Invoke()
+    $out=($items|Out-String)
+    $errs=($ps.Streams.Error|Out-String)
+    Reply $res 200 @{ok=$true;sessionId=$id;output=$out;error=$errs;hadErrors=$ps.HadErrors}
+   }finally{$ps.Dispose()}
+  }catch{
+   Write-Warning $_.Exception.Message
+   try{Reply $res 500 @{ok=$false;error='Agent request failed'}}catch{}
+  }finally{try{$res.Close()}catch{}}
+ }
+}finally{
+ foreach($space in $sessions.Values){try{$space.Dispose()}catch{}}
+ $server.Stop();$server.Close()
 }
-try {
-  while ($server.IsListening) {
-    $context = $server.GetContext()
-    $request = $context.Request
-    $response = $context.Response
-    try {
-      $source = $request.Headers['Origin']
-      if ($source -ne $AllowedOrigin) { Reply $response 403 @{ok=$false;error='Origin denied'}; continue }
-      $response.Headers.Add('Access-Control-Allow-Origin', $AllowedOrigin)
-      $response.Headers.Add('Vary','Origin')
-      $response.Headers.Add('Access-Control-Allow-Methods','POST, OPTIONS')
-      $response.Headers.Add('Access-Control-Allow-Headers','Content-Type, X-Cluster-Token')
-      $response.Headers.Add('Cache-Control','no-store')
-      if ($request.HttpMethod -eq 'OPTIONS') { $response.StatusCode = 204; continue }
-      if ($request.HttpMethod -ne 'POST') { Reply $response 405 @{ok=$false;error='POST required'}; continue }
-      if ($request.Headers['X-Cluster-Token'] -cne $token) {
-        Reply $response 403 @{ok=$false;error='Token denied'}; continue
-      }
-      if ($request.Url.AbsolutePath -eq '/health') {
-        Reply $response 200 @{ok=$true;engine=$engine.Name}; continue
-      }
-      if ($request.Url.AbsolutePath -ne '/exec') {
-        Reply $response 404 @{ok=$false;error='Unknown route'}; continue
-      }
-      if ($request.ContentLength64 -lt 1 -or $request.ContentLength64 -gt 65536) {
-        Reply $response 413 @{ok=$false;error='Invalid payload size'}; continue
-      }
-      $reader = New-Object IO.StreamReader($request.InputStream, [Text.Encoding]::UTF8)
-      $payload = $reader.ReadToEnd() | ConvertFrom-Json
-      if ($payload.command -isnot [string] -or $payload.command.Length -gt 8192 -or
-          [string]::IsNullOrWhiteSpace($payload.command)) {
-        Reply $response 400 @{ok=$false;error='Invalid command'}; continue
-      }
-      $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload.command))
-      $start = New-Object Diagnostics.ProcessStartInfo
-      $start.FileName = $engine.Source
-      $start.Arguments = "-NoLogo -NoProfile -NonInteractive -EncodedCommand $encoded"
-      $start.UseShellExecute = $false
-      $start.CreateNoWindow = $true
-      $start.RedirectStandardOutput = $true
-      $start.RedirectStandardError = $true
-      $process = [Diagnostics.Process]::Start($start)
-      try {
-        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-        $stderrTask = $process.StandardError.ReadToEndAsync()
-        if (-not $process.WaitForExit(60000)) {
-          $process.Kill(); $process.WaitForExit()
-          Reply $response 408 @{ok=$false;error='Command exceeded 60 seconds'}
-        } else {
-          $stdout = $stdoutTask.Result
-          $stderr = $stderrTask.Result
-          Reply $response 200 @{ok=$true;output=$stdout;error=$stderr;exitCode=$process.ExitCode}
-        }
-      } finally { $process.Dispose() }
-    } catch {
-      try { Reply $response 500 @{ok=$false;error=$_.Exception.Message} } catch {}
-    } finally { try { $response.Close() } catch {} }
-  }
-} finally { $server.Stop(); $server.Close() }
