@@ -8,6 +8,6 @@
   "apiVersion": "1.0.0",
   "ui": {
     "mode": "both",
-    "home": false
+    "home": true
   }
 }
