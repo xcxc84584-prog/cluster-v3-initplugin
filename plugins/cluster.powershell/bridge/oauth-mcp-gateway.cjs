@@ -11,9 +11,12 @@ const {URL,URLSearchParams}=require('node:url');
 const dir=path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'ClusterPowerShell');
 const secureStore=require('./secure-store.cjs');
 fs.mkdirSync(dir,{recursive:true});
-const issuer=(process.env.CLUSTER_OAUTH_ISSUER||'').replace(/\/$/,'');
+const {normalizePublicIssuer}=require('./oauth-origin.cjs');
+const configuredIssuer=process.env.CLUSTER_OAUTH_ISSUER||'';
+const issuer=normalizePublicIssuer(configuredIssuer);
 const resourceId=issuer+'/mcp';
-if(!/^https:\/\/[^/?#]+$/.test(issuer))throw Error('Set CLUSTER_OAUTH_ISSUER to the exact public HTTPS origin (no path).');
+if(configuredIssuer.trim()!==issuer)
+ console.log('[OAuth] Normalized public issuer: '+issuer);
 const readonlyTools=new Set([
  'cluster.get_status','cluster.get_task_status','cluster.list_files',
  'cluster.get_editor_state','cluster.read_file'

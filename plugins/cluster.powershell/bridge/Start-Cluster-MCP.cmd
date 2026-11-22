@@ -13,6 +13,7 @@ if errorlevel 1 (
 if not exist "%~dp0secure-store.cjs" goto :missing
 if not exist "%~dp0mcp-gateway.cjs" goto :missing
 if not exist "%~dp0oauth-mcp-gateway.cjs" goto :missing
+if not exist "%~dp0oauth-origin.cjs" goto :missing
 echo.
 echo [1] Start local MCP Gateway
 echo [2] Start local MCP Gateway + OAuth Gateway
@@ -26,10 +27,29 @@ pause
 exit /b 0
 :oauth
 echo.
-echo OAuth must be exposed only through a trusted HTTPS reverse proxy.
+echo OAuth needs your OWN trusted public HTTPS proxy domain.
+echo Example only: https://mcp.example.com
+echo Do NOT enter the Cluster-v3 github.io website.
 echo Never expose the PowerShell terminal or raw MCP Gateway.
-set /p "CLUSTER_OAUTH_ISSUER=Public HTTPS issuer (origin only): "
-if not defined CLUSTER_OAUTH_ISSUER goto :error
+echo.
+:issuer_prompt
+set "CLUSTER_OAUTH_INPUT="
+set "CLUSTER_OAUTH_ISSUER="
+set /p "CLUSTER_OAUTH_INPUT=Public OAuth HTTPS URL (or Q to cancel): "
+if /i "%CLUSTER_OAUTH_INPUT%"=="Q" exit /b 0
+for /f "usebackq delims=" %%I in (`node "%~dp0oauth-origin.cjs"`) do set "CLUSTER_OAUTH_ISSUER=%%I"
+if not defined CLUSTER_OAUTH_ISSUER (
+ echo.
+ echo [ERROR] An OAuth public HTTPS reverse proxy is required.
+ echo A github.io Cluster page is NOT an OAuth Gateway.
+ echo Configure your HTTPS endpoint, then try again.
+ echo.
+ goto :issuer_prompt
+)
+echo [VALID] OAuth issuer: %CLUSTER_OAUTH_ISSUER%
+echo Your reverse proxy must forward HTTPS requests to the OAuth localhost port.
+choice /c YN /n /m "Proxy configured and ready? [Y/N] "
+if errorlevel 2 goto :issuer_prompt
 start "Cluster MCP" cmd /k "node ""%~dp0mcp-gateway.cjs"""
 start "Cluster OAuth" cmd /k "node ""%~dp0oauth-mcp-gateway.cjs"""
 echo.
