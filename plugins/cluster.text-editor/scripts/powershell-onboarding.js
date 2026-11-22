@@ -13,6 +13,7 @@ if(url.protocol!=='https:'||url.hostname!=='github.com'||!parts)return;
 const sourceRef=String(d.ref||d.repositoryRef||d.repository?.ref||'main');
 if(!/^[A-Za-z0-9._/-]{1,100}$/.test(sourceRef)||sourceRef.includes('..'))return;
 repo={owner:parts[1],name:parts[2]};ref=sourceRef;ready=true;
+publishBootstrap();
 
 }
 function bootstrap(){
@@ -36,6 +37,12 @@ return [
 function shellFrame(){
  return Array.from(document.querySelectorAll('iframe'))
   .find(frame=>frame.title==='ClusterPowerShell');
+}
+function publishBootstrap(){
+ if(!ready)return;
+ const frame=shellFrame();
+ frame?.contentWindow?.postMessage({protocol:'cluster.powershell.setup.v1',
+  type:'bootstrap-ready',content:bootstrap()},'*');
 }
 function reply(frame,ok,error){
  frame?.contentWindow?.postMessage({
@@ -69,7 +76,12 @@ window.addEventListener('message',event=>{
  }
  const frame=shellFrame();
  if(frame&&event.source===frame.contentWindow&&
-   msg?.protocol==='cluster.powershell.setup.v1'&&msg.type==='download'){
+   msg?.protocol==='cluster.powershell.setup.v1'&&
+   (msg.type==='download'||msg.type==='request-bootstrap')){
+  if(msg.type==='request-bootstrap'){
+   if(ready)publishBootstrap();else queryPRMU();
+   return;
+  }
   if(ready){
    try{download();reply(frame,true)}catch(error){reply(frame,false,error.message)}
   }else{
