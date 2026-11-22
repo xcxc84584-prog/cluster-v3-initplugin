@@ -43,6 +43,36 @@ set it up before choosing option 2; otherwise choose option 1 (local MCP only).
 There is no embedded public reverse-proxy installer: you must supply
 the stable HTTPS endpoint, TLS termination and DNS setup yourself.
 
+## Option [3]: temporary Cloudflare Quick Tunnel (ClusterOpt2 workflow)
+
+Run the updated `Start-Cluster-MCP.cmd` and select `[3]`.
+
+- No custom hostname, Cloudflare account or DNS setup is required.
+- If `cloudflared` is missing, the script asks before installing the
+  official `Cloudflare.cloudflared` WinGet package.
+- After explicit approval, it starts/reuses the loopback MCP Gateway;
+  allocates a loopback OAuth port; registers a Quick Tunnel **only to OAuth**;
+  extracts the random `https://…trycloudflare.com` issuer; starts the OAuth
+  Gateway with precisely that issuer; and verifies localhost and public
+  OAuth/MCP resource metadata before displaying the ChatGPT MCP URL.
+- The verified connection is shown as
+  `PORT MESSAGE : CHATGPT MCP https://random.trycloudflare.com/mcp`.
+- If a previous verified Quick Tunnel is running, choose **R** to reuse,
+  **D** to explicitly revoke the verified processes and make a new URL,
+  or **C** to preserve the old connection.
+- Quick Tunnel logs and non-secret local process state live under
+  `%LOCALAPPDATA%\ClusterPowerShell\`. The launcher will never expose
+  PowerShell or the raw MCP Gateway.
+- Quick Tunnels are **temporary/testing-only**, have no uptime SLA, use a
+  different URL when recreated, and do not support SSE. Update ChatGPT's
+  configured URL after recreation. For long-term use select [2] with a
+  stable, trusted HTTPS reverse proxy.
+
+If tunnel registration, DNS, OAuth issuer metadata or public reachability
+fails, the setup does **not** claim success. It stops only the OAuth and
+cloudflared processes launched in that failed attempt; existing MCP sessions
+are preserved.
+
 ## Fourteen MCP tools
 
 The MCP Gateway advertises 14 JSON-RPC tools; execution is proxied through
