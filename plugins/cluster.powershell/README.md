@@ -1,35 +1,53 @@
-# ClusterPowerShell (Windows)
+# ClusterPowerShell v0.3.0 — Native Windows PowerShell terminal
 
-This is an opt-in local PowerShell tool for the Cluster Editor workspace.
+Cluster is **only the terminal window**. The local agent creates real Windows
+ConPTY terminals running `powershell.exe` or `pwsh.exe`. Each PowerShell
+tab owns a separate process and has its own working directory, command history,
+variables, native prompt, stream output and interactive keyboard handling.
 
-## Install and connect
+## Quick setup (Windows)
 
-1. Quick-install the `cluster.powershell` plugin from Cluster Community, or download this plugin Folder package.
-2. On the Windows device, open the plugin's `bridge` folder in PowerShell.
-3. Start the bridge from the local script:
-   ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClusterPowerShell.ps1
-   ```
-   The command requests the **Cluster website origin**, such as `https://example.org` (without a path).
-4. When the script prints `PORT MESSAGE : http://127.0.0.1:<port>/ TOKEN <token>`, enter the URL and token in the terminal's connection panel. Do not share the token.
-5. In the Editor, click **Tools → PowerShell**. The plugin registers `workspace.powershell.v1` through PRMU; the Tool control only appears when this capability is discoverable.
+1. Download the complete `plugins/cluster.powershell` Folder package.
+2. Open `bridge/Setup-ClusterPowerShell.cmd` on your PC.
+3. The script checks Node.js and offers to install the official Node.js LTS
+   package via winget. It runs npm to install the pinned ConPTY/node-pty,
+   WebSocket, and xterm.js runtime dependencies.
+4. Choose Windows PowerShell or PowerShell 7 (with optional winget install).
+5. Enter the **exact trusted Cluster page origin**, e.g. `https://example.com`.
+6. Copy the printed **PORT MESSAGE** URL and **TOKEN** into the in-app connection
+   panel, then select Connect.
 
-### Optional environment setup
+The quick setup requires the user's explicit choice. The browser cannot
+automatically execute CMD or install software.
 
-Windows PowerShell 5.1 usually exists on supported Windows installations and needs no download. To **offer automatic PowerShell 7 installation** with the user's approval, run:
+## Terminal behavior
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClusterPowerShell.ps1 -InstallPowerShell7
-```
+- **+** adds an independent PowerShell terminal process, **×** closes one.
+- Terminal input is sent byte-for-byte to the ConPTY process; xterm.js renders
+  the VT / ANSI output stream.
+- Native line editing, Tab completion, Ctrl+C, interactive processes, native
+  stdout/stderr, working directory and shell history are not emulated.
+- Different tabs run concurrently; max 12 per Local Agent process.
+- Resizing updates ConPTY dimensions. Reloading the browser ends that page's
+  terminal connections. Closing the CMD window stops all sessions.
+- A browser terminal can closely reproduce PowerShell CLI behavior but
+  cannot guarantee identical Windows Terminal or legacy Console Host graphics,
+  clipboard, system shortcuts, or every external console application.
 
-This uses Windows Package Manager (`winget`) and its Microsoft.PowerShell package. If winget is missing, it explains the error and requires an official manual installation; the script does not download arbitrary executables or silently change system configuration.
+## Design and protection
 
-### Architecture and limits
+- Changes are confined to `cluster-v3-initplugin`, with no Host modifications.
+- Editor Tool menu and layout remain unchanged; terminal tabs live within it.
+- Six UI languages and shared PRMU palette are used. PRMU does not store local
+  Port, Token, Origin, terminal input or shell output.
+- Agent binds only to `127.0.0.1` using a dynamic available port.
+- A fresh random 256-bit token and explicit browser Origin check protect the
+  local privileged terminal. Only connect a trusted page.
+- No silent remote execution, open LAN listeners or remote tunneling.
+- Windows 10 version 1809+ is required for the ConPTY path.
 
-- No fixed port. The bridge asks Windows for an available loopback TCP port and starts an HTTP listener.
-- Local HTTP traffic is restricted to 127.0.0.1, an explicitly approved browser origin, and a random 256-bit token held only in memory.
-- Browser cannot directly run or silently install a local native shell; user must start the script locally.
-- **Each command starts a new PowerShell process**. State such as `cd`, functions, and environment assignments does not persist across commands in this initial implementation.
-- The bridge is an intentionally privileged local execution tool; only connect it to a trusted Cluster page. Stop it with Ctrl+C.
-- The shared color palette and interface language are received from the Host PRMU. Port, origin, and token are device-local runtime settings and **must never be stored in the shared public library**.
-- No Cluster-v3 Host changes are made by this package.
+## Validation
+
+Static syntax and source-level regression tests cover the protocol wiring.
+Real Windows functional tests are still needed for ConPTY, multiline input,
+PSReadLine, Ctrl+C, resizing, ANSI output and platform compatibility.

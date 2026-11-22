@@ -164,17 +164,33 @@ test('Editor File > Plugin uses PRMU manager URL, never a guessed path',()=>{
   assert.match(embedded,/data-file-action="plugin"/);
 });
 
-test('PowerShell Tool is independent, PRMU-discovered and dynamically configured',()=>{
-  const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
-  const terminal=read('plugins/cluster.powershell/index.html');
-  const bridge=read('plugins/cluster.powershell/bridge/Start-ClusterPowerShell.ps1');
-  assert.match(html,/scripts\/powershell-tool\.js/);
-  assert.match(tool,/PRMU\.resolveCapability/);
-  assert.match(tool,/workspace\.powershell\.v1/);
-  assert.match(tool,/cluster-shell-tabs/);
-  assert.match(terminal,/cluster\.public\.v1/);
-  assert.match(terminal,/X-Cluster-Token/);
-  assert.match(bridge,/TcpListener/);
-  assert.match(bridge,/AllowedOrigin/);
-  assert.match(bridge,/RandomNumberGenerator/);
+test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
+ const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
+ const terminal=read('plugins/cluster.powershell/index.html');
+ const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
+ const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell.cmd');
+ assert.match(html,/scripts\/powershell-tool\.js/);
+ assert.match(tool,/PRMU\.resolveCapability/);
+ assert.match(tool,/workspace\.powershell\.v1/);
+ assert.match(terminal,/cluster\.public\.v1/);
+ assert.match(terminal,/new window\.Terminal/);
+ assert.match(terminal,/FitAddon/);
+ assert.match(terminal,/new WebSocket/);
+ assert.match(terminal,/type:'input'/);
+ assert.match(terminal,/type:'resize'/);
+ assert.match(terminal,/type:'create'/);
+ assert.match(terminal,/role="tablist"/);
+ assert.match(terminal,/setupGuide/);
+ assert.match(bridge,/require\('node-pty'\)/);
+ assert.match(bridge,/pty\.spawn\(shell/);
+ assert.match(bridge,/useConpty:true/);
+ assert.match(bridge,/proc\.write\(msg\.data\)/);
+ assert.match(bridge,/proc\.resize\(msg\.cols,msg\.rows\)/);
+ assert.match(bridge,/new WebSocketServer/);
+ assert.match(bridge,/MAX_SESSIONS = 12/);
+ assert.match(bridge,/127\.0\.0\.1/);
+ assert.match(bridge,/randomBytes\(32\)/);
+ assert.match(setup,/npm install --omit=dev/);
+ assert.match(setup,/OpenJS\.NodeJS\.LTS/);
+ assert.match(setup,/server\.cjs/);
 });
