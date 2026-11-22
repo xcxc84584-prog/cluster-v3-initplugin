@@ -12,4 +12,4 @@ jobs:
         with:
           node-version: '24'
       - name: Validate plugin syntax and import invariants
-        run: node --test tests/plugin-regression.test.mjs
+        run: node --test tests/*.test.mjs
