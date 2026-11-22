@@ -90,4 +90,5 @@ if(loaded)psFrame.contentWindow?.postMessage(m,'*');
 });
 localize();
 discover();
+const discoveryInterval=setInterval(()=>{if(loaded)clearInterval(discoveryInterval);else discover();},4000);
 })();
