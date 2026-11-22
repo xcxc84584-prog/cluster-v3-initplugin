@@ -42,6 +42,12 @@ const portFile=path.join(credentialDir,'agent-port.json');
 let previousPort=0;
 try{const n=JSON.parse(fs.readFileSync(portFile,'utf8')).port;
  if(Number.isInteger(n)&&n>=1024&&n<=65535)previousPort=n;}catch{}
+const activity=[];let activitySequence=0;
+function record(action,result,detail=''){
+ const safe=String(detail).replace(/[a-f0-9]{64}/gi,'[redacted]').slice(0,256);
+ activity.push({id:++activitySequence,at:new Date().toISOString(),source:'powershell',action,result,detail:safe});
+ if(activity.length>200)activity.splice(0,activity.length-200);
+}
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
@@ -91,7 +97,13 @@ const server=http.createServer((req,res)=>{
     json(res,403,{ok:false,error:'Unauthorized'});return;
   }
   if(url.pathname==='/health'){
-    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS});
+    json(res,200,{ok:true,agent:'ClusterPowerShell',apiVersion:'3.0.0',maxSessions:MAX_SESSIONS,sessionCount:sessions.size});
+    return;
+  }
+  if(url.pathname==='/activity'){
+    // Only authenticated browser origin can observe metadata; never log raw
+    // keystrokes, terminal stdout, credentials, file contents or command text.
+    json(res,200,{ok:true,events:activity.slice(-100),cursor:activitySequence});
     return;
   }
   json(res,404,{ok:false,error:'Unknown route'});
@@ -105,6 +117,7 @@ function closeSession(id) {
   if(!session)return;
   sessions.delete(id);
   try{session.process.kill();}catch{}
+  record('session.close','ok',id.slice(0,8));
 }
 server.on('upgrade',(req,socket,head)=>{
   try{
@@ -132,9 +145,11 @@ wss.on('connection',ws=>{
           cwd:os.homedir(),env:process.env,useConpty:true
         });
         current=id;sessions.set(id,{process:proc,ws});
+        record('session.create','ok',id.slice(0,8));
         proc.onData(data=>send(ws,{type:'data',data}));
         proc.onExit(({exitCode})=>{
           if(sessions.get(id)?.ws===ws)sessions.delete(id);
+          record('process.exit',exitCode===0?'ok':'error','exit '+exitCode);
           current=null;send(ws,{type:'exit',exitCode});
         });
         send(ws,{type:'created',sessionId:id});
@@ -143,7 +158,11 @@ wss.on('connection',ws=>{
     }
     if(!current || !sessions.has(current))return;
     const proc=sessions.get(current).process;
-    if(msg.type==='input' && typeof msg.data==='string' && msg.data.length<=MAX_MESSAGE)proc.write(msg.data);
+    if(msg.type==='input' && typeof msg.data==='string' && msg.data.length<=MAX_MESSAGE){
+      proc.write(msg.data);
+      // Do not retain input text. Only record completed line submissions.
+      if(msg.data.includes('\r')||msg.data.includes('\n'))record('ps.command.submitted','ok','Input content withheld');
+    }
     if(msg.type==='resize' && Number.isInteger(msg.cols) && Number.isInteger(msg.rows) &&
        msg.cols>=10 && msg.cols<=500 && msg.rows>=2 && msg.rows<=200)
       proc.resize(msg.cols,msg.rows);
