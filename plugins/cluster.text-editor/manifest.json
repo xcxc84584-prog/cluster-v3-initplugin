@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.9.3",
-  "description": "Editor with native PowerShell inline onboarding, public properties and persisted workspace",
+  "version": "2.10.0",
+  "description": "Unified document and PowerShell workspace tabs with polished Tool menu",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
