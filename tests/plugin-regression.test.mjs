@@ -405,3 +405,31 @@ test('OAuth launcher validates public HTTPS issuer before starting a gateway',()
  assert.match(onboarding,/oauth-origin\.cjs/);
  assert.match(oauth,/normalizePublicIssuer\(configuredIssuer\)/);
 });
+
+
+test('Opt2-style temporary Cloudflare Tunnel is option three, OAuth-only and verified',()=>{
+ const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const setup=read('plugins/cluster.powershell/bridge/Start-Quick-Tunnel.ps1');
+ const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ const readme=read('plugins/cluster.ai-agent-mcp/README.md');
+ assert.match(cmd,/echo \[3\] Create temporary Cloudflare Quick Tunnel/);
+ assert.match(cmd,/choice \/c 123Q/);
+ assert.match(cmd,/if errorlevel 3 goto :quick_tunnel/);
+ assert.match(cmd,/powershell\.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Quick-Tunnel\.ps1"/);
+ assert.match(onboarding,/Start-Quick-Tunnel\.ps1/);
+ assert.match(setup,/Cloudflare\.cloudflared/);
+ assert.match(setup,/tunnel','--url'/);
+ assert.match(setup,/127\.0\.0\.1:/);
+ assert.match(setup,/https:\/\/\[a-zA-Z0-9-\]\+\\\.trycloudflare\\\.com/);
+ assert.match(setup,/Registered tunnel connection/);
+ assert.match(setup,/CLUSTER_OAUTH_ISSUER/);
+ assert.match(setup,/\.well-known\/oauth-authorization-server/);
+ assert.match(setup,/\.well-known\/oauth-protected-resource\/mcp/);
+ assert.match(setup,/PublicCheck/);
+ assert.match(setup,/PORT MESSAGE : CHATGPT MCP/);
+ assert.match(setup,/Type REVOKE/);
+ assert.match(setup,/Stop-Process -Id \$oldOAuth\.ProcessId/);
+ assert.match(setup,/Stop-Process -Id \$oldCloud\.ProcessId/);
+ assert.doesNotMatch(setup,/taskkill \/f|Stop-Process -Name|netsh interface/);
+ assert.match(readme,/Option \[3\]: temporary Cloudflare Quick Tunnel/);
+});

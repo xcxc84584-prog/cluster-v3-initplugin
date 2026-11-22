@@ -16,13 +16,28 @@ if not exist "%~dp0oauth-mcp-gateway.cjs" goto :missing
 if not exist "%~dp0oauth-origin.cjs" goto :missing
 echo.
 echo [1] Start local MCP Gateway
-echo [2] Start local MCP Gateway + OAuth Gateway
+echo [2] Start local MCP Gateway + OAuth Gateway (own HTTPS hostname)
+echo [3] Create temporary Cloudflare Quick Tunnel (no domain required)
 echo [Q] Cancel
-choice /c 12Q /n /m "Choose [1/2/Q]: "
-if errorlevel 3 exit /b 0
+choice /c 123Q /n /m "Choose [1/2/3/Q]: "
+if errorlevel 4 exit /b 0
+if errorlevel 3 goto :quick_tunnel
 if errorlevel 2 goto :oauth
 start "Cluster MCP" cmd /k "node ""%~dp0mcp-gateway.cjs"""
 echo MCP started in a separate CMD. It is localhost-only.
+pause
+exit /b 0
+:quick_tunnel
+echo.
+echo Cloudflare Quick Tunnel is TEMPORARY and for testing only.
+echo This exposes OAuth only, not PowerShell or the raw MCP Gateway.
+echo Any previous Quick Tunnel may require user-approved reuse or revocation.
+if not exist "%~dp0Start-Quick-Tunnel.ps1" goto :missing
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Quick-Tunnel.ps1"
+if errorlevel 1 goto :error
+echo.
+echo Quick Tunnel setup completed. Copy the verified MCP URL shown above.
+echo Reconfigure ChatGPT when the temporary URL changes.
 pause
 exit /b 0
 :oauth

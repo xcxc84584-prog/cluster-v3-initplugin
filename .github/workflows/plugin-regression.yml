@@ -13,3 +13,11 @@ jobs:
           node-version: '24'
       - name: Validate plugin syntax and import invariants
         run: node --test tests/*.test.mjs
+
+  windows-quick-tunnel:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Quick Tunnel installer PowerShell syntax
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/quick-tunnel-windows.ps1
