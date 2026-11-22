@@ -37,7 +37,7 @@ test('agent re-checks auto execution privilege locally',()=>{
 test('activity stores bounded PowerShell outputs and supports reload',()=>{
  assert.match(server,/const activityFile=path\.join\(credentialDir,'agent-activity\.json'\)/);
  assert.match(server,/stdout:sanitizeOutput\(output\.stdout\)/);
- assert.match(server,/stderr:sanitizeOutput\(output\.stderr\)/);
+ assert.doesNotMatch(server,/entry\.stderr=sanitizeOutput/);
  assert.match(server,/LOG_LIMIT=200,OUTPUT_LIMIT=16384/);
  assert.match(server,/fs\.writeFileSync\(tmp,JSON\.stringify/);
  assert.match(inline,/event\.action==='ps\.execution'/);
@@ -47,7 +47,7 @@ test('activity stores bounded PowerShell outputs and supports reload',()=>{
 test('both updated manifests match community index',()=>{
  const index=JSON.parse(read('community-index.json'));
  for(const [id,version] of [
-  ['cluster.powershell','0.7.1'],['cluster.ai-agent-mcp','0.3.1']
+  ['cluster.powershell','0.7.2'],['cluster.ai-agent-mcp','0.3.2']
  ]){
   const entry=index.plugins.find(p=>p.id===id);
   assert.ok(entry,id);
