@@ -178,3 +178,22 @@ test('PowerShell Tool is independent, PRMU-discovered and dynamically configured
   assert.match(bridge,/AllowedOrigin/);
   assert.match(bridge,/RandomNumberGenerator/);
 });
+
+test('PowerShell multi-session tabs and optional Local Agent bootstrapping',()=>{
+  const terminal=read('plugins/cluster.powershell/index.html');
+  const script=read('plugins/cluster.powershell/bridge/Start-ClusterPowerShell.ps1');
+  const cmd=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell.cmd');
+  assert.match(terminal,/id="tabs" role="tablist"/);
+  assert.match(terminal,/session\/create/);
+  assert.match(terminal,/session\/close/);
+  assert.match(terminal,/sessionId:s\.id/);
+  assert.match(terminal,/setupGuide/);
+  assert.match(terminal,/cluster\.public\.v1/);
+  assert.match(script,/RunspaceFactory/);
+  assert.match(script,/maxSessions=12/);
+  assert.match(script,/X-Cluster-Token/);
+  assert.match(script,/Access-Control-Allow-Origin/);
+  assert.match(cmd,/Start-ClusterPowerShell\.ps1/);
+  assert.match(cmd,/choice \/c 12Q/);
+  assert.match(cmd,/InstallPowerShell7/);
+});
