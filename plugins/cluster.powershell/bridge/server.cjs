@@ -27,7 +27,7 @@ const enteredOrigin=process.env.CLUSTER_ALLOWED_ORIGIN;
 const origin=normalizeAllowedOrigin(enteredOrigin);
 if(enteredOrigin.trim()!==origin)console.log('Normalized Cluster website origin: '+origin);
 const shell = process.env.CLUSTER_SHELL === 'pwsh' ? 'pwsh.exe' : 'powershell.exe';
-const token = crypto.randomBytes(32).toString('base64url');
+const token = crypto.randomBytes(32).toString('hex'); // 64 printable characters
 const sessions = new Map();
 const MAX_SESSIONS = 12;
 const MAX_MESSAGE = 65536;
