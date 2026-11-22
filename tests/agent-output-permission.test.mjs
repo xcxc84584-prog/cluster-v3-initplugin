@@ -11,13 +11,13 @@ const server=read('plugins/cluster.powershell/bridge/server.cjs');
 const ui=read('plugins/cluster.ai-agent-mcp/index.html');
 const inline=ui.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 
-test('root auto PowerShell privilege defaults off and requires PS right',()=>{
- assert.equal(rootAccess.normalizeRights({powershell:true}).autoPowershell,false);
- assert.equal(rootAccess.normalizeRights({autoPowershell:true}).autoPowershell,false);
- assert.deepEqual(
-  {powershell:true,autoPowershell:true},
-  (({powershell,autoPowershell})=>({powershell,autoPowershell}))(
-   rootAccess.normalizeRights({powershell:true,autoPowershell:true})));
+test('unified AUTO defaults off and migrates old PowerShell-only grants',()=>{
+ assert.equal(rootAccess.normalizeRights({powershell:true}).auto,false);
+ assert.equal(rootAccess.normalizeRights({auto:true}).auto,true);
+ assert.equal(rootAccess.normalizeRights({autoPowershell:true}).auto,true);
+ assert.equal(rootAccess.normalizeRights({read:true,auto:true}).read,true);
+ assert.equal(rootAccess.normalizeRights({auto:false}).auto,false);
+ assert.equal(rootAccess.normalizeRights({auto:true}).delete,false);
 });
 
 test('agent and plugin runtime syntax is valid',()=>{
@@ -29,9 +29,12 @@ test('agent and plugin runtime syntax is valid',()=>{
 test('agent re-checks auto execution privilege locally',()=>{
  assert.match(server,/const automatic=msg\.result\?\.automatic===true/);
  assert.match(server,/checkPowerShell\(String\(pending\.args\.path\|\|''\),cwd,\{automatic\}\)/);
- assert.match(inline,/root\.rights\?\.autoPowershell===true/);
+ assert.match(inline,/root\.rights\?\.auto===true/);
  assert.match(inline,/automatic:true/);
- assert.match(inline,/window\.confirm\(message\)/);
+ assert.match(inline,/window\.confirm\(\(autoLabels\[locale\]/);
+ assert.match(inline,/action!=='delete'/);
+ assert.match(inline,/root\?\.rights\?\.auto===true/);
+ assert.match(inline,/root,'delete'/);
 });
 
 test('activity stores bounded PowerShell outputs and supports reload',()=>{

@@ -367,9 +367,9 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
  assert.match(source,/parent\.postMessage\(\{protocol:'cluster\.ai-agent\.editor\.v1'/);
  assert.match(source,/document\?\.dirty===true/);
  // Native confirmation is allowed only when explicitly enabling the persisted
- // per-root Auto PowerShell grant, never as a substitute for MCP approval.
- assert.match(source,/if\(right==='autoPowershell'&&input\.checked\)\{/);
- assert.match(source,/window\.confirm\(message\)/);
+ // Unified per-root AUTO opt-in is explicit, while delete still requires approval.
+ assert.match(source,/if\(right==='auto'&&input\.checked\)\{/);
+ assert.match(source,/window\.confirm\(\(autoLabels\[locale\]/);
  assert.match(source,/const approval=await requestApproval\('PowerShell command approval'/);
  assert.doesNotMatch(source,/window\.prompt\(/);
  assert.match(source,/type:'tool_result'/);
@@ -455,7 +455,7 @@ test('Windows folder picker and local CRUD/PS rights are agent-backed',()=>{
  assert.ok(source.includes('/roots/action'));
  assert.ok(source.includes('/roots/revoke'));
  assert.match(source,/reloadRoots/);
- assert.match(source,/rightNames=\['read','create','update','delete','powershell','autoPowershell'\]/);
+ assert.match(source,/rightNames=\['read','create','update','delete','powershell','auto'\]/);
  assert.doesNotMatch(source,/window\.showDirectoryPicker/);
  assert.match(picker,/FolderBrowserDialog/);
  assert.match(picker,/SelectedPath/);
