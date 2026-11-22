@@ -129,7 +129,7 @@ ja:['接続','消去','実行','ローカルエージェントに接続されて
 es:['Conectar','Limpiar','Ejecutar','Agente local no conectado. Complete la configuración.','Conectado','Error de conexión','Error de terminal','Desconectado','Nuevo PowerShell','Cerrar','Configuración rápida','Descargue el plugin Folder a Windows','Ejecute CMD desde bridge y autorice el sitio','Introduzca URL y Token indicados','Copiar ruta'],
 hi:['कनेक्ट','साफ़','चलाएँ','लोकल एजेंट कनेक्ट नहीं है। त्वरित सेटअप करें।','कनेक्टेड','कनेक्शन विफल','टर्मिनल त्रुटि','डिस्कनेक्ट','नया PowerShell','टैब बंद','त्वरित सेटअप','Windows पर प्लगइन फ़ोल्डर डाउनलोड करें','bridge का CMD चलाकर वेबसाइट स्वीकार करें','दिखाया गया URL और Token दर्ज करें','पथ कॉपी करें']
 };
-let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false;
+let locale='zh-TW',endpoint='',token='',connected=false,nextLabel=1,active=null,assetsReady=false,bootstrapCommand='';
 const sessions=new Map(),container=$('output');
 const t=i=>(translations[locale]||translations.en)[i];
 const setupLanguages={
@@ -294,11 +294,6 @@ $('connect').onclick=async()=>{
   if(port<1||port>65535){$('hint').textContent='Invalid port';return;}
   endpoint='http://127.0.0.1:'+port+'/';
  }
- if(/^[0-9]{1,5}$/.test(endpoint)){
-  const port=Number(endpoint);
-  if(port<1||port>65535){$('hint').textContent='Invalid port';return;}
-  endpoint='http://127.0.0.1:'+port+'/';
- }
  try{
   await requestHealth();await ensureAssets();
   setConnected(true);$('psToolMenu').hidden=true;
@@ -325,6 +320,15 @@ $('clear').onclick=()=>{
  $('psToolMenu').hidden=true;
 };
 $('downloadSetup').onclick=()=>{
+ if(bootstrapCommand){
+  const url=URL.createObjectURL(new Blob([bootstrapCommand],{type:'application/octet-stream'}));
+  const link=document.createElement('a');
+  link.download='ClusterPowerShell-QuickSetup.cmd';link.href=url;
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  $('downloadStatus').textContent=ui(16);
+  return;
+ }
  $('downloadStatus').textContent='…';
  if(parent!==window)parent.postMessage({
   protocol:'cluster.powershell.setup.v1',type:'download'
@@ -332,10 +336,15 @@ $('downloadSetup').onclick=()=>{
  else $('downloadStatus').textContent=ui(18)+'Host unavailable';
 };
 window.addEventListener('message',event=>{
- if(event.source!==parent||event.data?.protocol!=='cluster.powershell.setup.v1'||
-    event.data.type!=='download-result')return;
- $('downloadStatus').textContent=event.data.ok?ui(16):ui(18)+(event.data.error||'Unknown');
+ if(event.source!==parent||event.data?.protocol!=='cluster.powershell.setup.v1')return;
+ if(event.data.type==='bootstrap-ready' && typeof event.data.content==='string'){
+  bootstrapCommand=event.data.content;
+  $('downloadStatus').textContent='';
+ }
+ if(event.data.type==='download-result')
+  $('downloadStatus').textContent=event.data.ok?ui(16):ui(18)+(event.data.error||'Unknown');
 });
+if(parent!==window)parent.postMessage({protocol:'cluster.powershell.setup.v1',type:'request-bootstrap'},'*');
 window.addEventListener('pagehide',()=>{for(const id of Array.from(sessions.keys()))closeSession(id);});
 applyLabels();renderTabs();
 })();
