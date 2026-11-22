@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.9.1",
-  "description": "Empty workspace startup, persisted tabs, storage precedence and four-state status",
+  "version": "2.9.2",
+  "description": "Editor with PRMU-governed Plugin Manager navigation, persisted tabs and workspace state",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
