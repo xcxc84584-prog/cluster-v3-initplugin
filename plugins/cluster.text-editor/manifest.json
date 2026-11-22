@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.text-editor",
   "name": "Cluster BasicTextEditor",
-  "version": "2.10.0",
-  "description": "Unified document and PowerShell workspace tabs with polished Tool menu",
+  "version": "2.11.0",
+  "description": "Unified workspace with AI Agent MCP Tool menu and PRMU UI",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
