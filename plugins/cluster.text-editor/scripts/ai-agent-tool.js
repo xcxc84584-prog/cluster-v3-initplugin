@@ -71,6 +71,15 @@ window.addEventListener('cluster-workspace-select',event=>{
 const editorPending=new Map();
 window.addEventListener('message',event=>{
  const msg=event.data;
+ if(event.source===agent.contentWindow&&msg?.protocol==='cluster.ai-agent.workspace.v1'){
+   if(msg.type==='open-powershell'){
+     const button=document.querySelector('.cluster-tool-menu button[role="menuitem"]');
+     if(button)button.click();
+   } else if(msg.type==='approval-pending'){
+     window.dispatchEvent(new Event('cluster-ai-agent-open'));
+   }
+   return;
+ }
  if(event.source===agent.contentWindow&&
     msg?.protocol==='cluster.ai-agent.editor.v1'&&msg.type==='req'){
   const allowed=new Set(['workspace.snapshot','tabs.list','document.get','document.open','document.update']);
