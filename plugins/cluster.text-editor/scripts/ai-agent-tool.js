@@ -67,6 +67,36 @@ window.addEventListener('cluster-ai-agent-open',show);
 window.addEventListener('cluster-workspace-select',event=>{
  if(event.detail?.selected!=='agent'&&selected)hide();
 });
+// Route only messages from the installed AI Agent frame to our own Editor.
+const editorPending=new Map();
+window.addEventListener('message',event=>{
+ const msg=event.data;
+ if(event.source===agent.contentWindow&&
+    msg?.protocol==='cluster.ai-agent.editor.v1'&&msg.type==='req'){
+  const allowed=new Set(['workspace.snapshot','tabs.list','document.get','document.open','document.update']);
+  if(!allowed.has(msg.action)||typeof msg.requestId!=='string'||msg.requestId.length>96)return;
+  if(editorPending.size>=16)return;
+  const requestId='agent-editor-'+(++sequence);
+  const timer=setTimeout(()=>{
+   editorPending.delete(requestId);
+   agent.contentWindow?.postMessage({protocol:'cluster.ai-agent.editor.v1',
+    type:'rep',requestId:msg.requestId,ok:false,error:'Editor timeout'},'*');
+  },12000);
+  editorPending.set(requestId,{timer,original:msg.requestId});
+  editor.contentWindow?.postMessage({protocol:'cluster.editor.v1',type:'req',
+   version:'1.0.0',requestId,action:msg.action,params:msg.params||{}},'*');
+  return;
+ }
+ if(event.source===editor.contentWindow&&msg?.protocol==='cluster.editor.v1'&&
+    msg.type==='rep'&&editorPending.has(msg.requestId)){
+  const pending=editorPending.get(msg.requestId);
+  clearTimeout(pending.timer);editorPending.delete(msg.requestId);
+  agent.contentWindow?.postMessage({protocol:'cluster.ai-agent.editor.v1',
+   type:'rep',requestId:pending.original,ok:msg.ok,
+   data:msg.data,error:msg.error?.message},'*');
+  return;
+ }
+});
 window.addEventListener('message',event=>{
  const msg=event.data;if(event.source!==parent||!msg)return;
  if(msg.protocol==='cluster.plugin.v1'&&msg.type==='response'&&msg.requestId===resolveId){
