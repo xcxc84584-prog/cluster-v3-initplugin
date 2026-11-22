@@ -149,3 +149,17 @@ test('Editor starts without an automatic untitled tab when recovery is empty', (
   assert.match(editor,/function newFile\(\)/);
   assert.match(editor,/if\(!restoreSession\(indexed\)\)/);
 });
+
+test('Editor File > Plugin uses PRMU manager URL, never a guessed path',()=>{
+  const embedded=read('plugins/cluster.text-editor/index.html');
+  assert.match(workspace,/method:'PRMU\.getPluginManagerUrl'/);
+  assert.match(workspace,/msg\.pluginManagerUrl/);
+  assert.match(workspace,/window\.top\.location\.assign\(destination\.href\)/);
+  assert.doesNotMatch(workspace,/new URL\(['"]\.\.\/plugin/);
+  assert.doesNotMatch(workspace,/window\.open\(pluginSiteUrl/);
+  assert.match(editor,/message\?\.pluginManagerUrl/);
+  assert.match(editor,/getPluginManagerUrl\(\)/);
+  assert.doesNotMatch(editor,/document\.referrer/);
+  assert.doesNotMatch(editor,/new URL\(root \+/);
+  assert.match(embedded,/data-file-action="plugin"/);
+});
