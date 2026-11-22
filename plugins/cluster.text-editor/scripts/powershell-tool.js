@@ -96,7 +96,7 @@ async function mountFromConfiguredCommunity(source){
   const obj=typeof source==='string'?{repositoryUrl:source}:source?.data||source||{};
   const raw=obj.repositoryUrl||obj.repository?.url||obj.repository?.repositoryUrl||obj.url;
   const parsed=new URL(raw);
-  const match=parsed.pathname.replace(/\\.git$/,'').match(/^\\/([a-zA-Z0-9_.-]+)\\/([a-zA-Z0-9_.-]+)\\/?$/);
+  const match=parsed.pathname.replace(/\.git$/,'').match(/^\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/?$/);
   if(parsed.protocol!=='https:'||parsed.hostname!=='github.com'||!match)
    throw Error('Invalid community repository configuration');
   const ref=String(obj.ref||obj.repositoryRef||obj.repository?.ref||'main');
@@ -112,7 +112,7 @@ async function mountFromConfiguredCommunity(source){
   }
   const index=JSON.parse(await read('community-index.json'));
   const plugin=index.plugins?.find(entry=>entry.id==='cluster.powershell');
-  if(!plugin||!/^plugins\\/[a-zA-Z0-9._-]+$/.test(plugin.directory))
+  if(!plugin||!/^plugins\/[a-zA-Z0-9._-]+$/.test(plugin.directory))
    throw Error('PowerShell plugin not in configured community registry');
   const manifest=JSON.parse(await read(plugin.directory+'/manifest.json'));
   if(manifest.id!=='cluster.powershell'||manifest.version!==plugin.version||
