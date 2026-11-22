@@ -14,6 +14,8 @@ if not exist "%~dp0secure-store.cjs" goto :missing
 if not exist "%~dp0mcp-gateway.cjs" goto :missing
 if not exist "%~dp0oauth-mcp-gateway.cjs" goto :missing
 if not exist "%~dp0oauth-origin.cjs" goto :missing
+if not exist "%~dp0Show-Connection-Tokens.cjs" goto :missing
+if not exist "%~dp0Wait-Cluster-Connection.ps1" goto :missing
 echo.
 echo [1] Start local MCP Gateway
 echo [2] Start local MCP Gateway + OAuth Gateway (own HTTPS hostname)
@@ -24,7 +26,9 @@ if errorlevel 4 exit /b 0
 if errorlevel 3 goto :quick_tunnel
 if errorlevel 2 goto :oauth
 start "Cluster MCP" cmd /k "node ""%~dp0mcp-gateway.cjs"""
-echo MCP started in a separate CMD. It is localhost-only.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Wait-Cluster-Connection.ps1" -Mode mcp
+if errorlevel 1 goto :error
+echo MCP Gateway verified on localhost.
 pause
 exit /b 0
 :quick_tunnel
@@ -67,6 +71,8 @@ choice /c YN /n /m "Proxy configured and ready? [Y/N] "
 if errorlevel 2 goto :issuer_prompt
 start "Cluster MCP" cmd /k "node ""%~dp0mcp-gateway.cjs"""
 start "Cluster OAuth" cmd /k "node ""%~dp0oauth-mcp-gateway.cjs"""
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Wait-Cluster-Connection.ps1" -Mode oauth
+if errorlevel 1 goto :error
 echo.
 echo OAuth is localhost-only. Set your reverse proxy to the OAuth Gateway.
 echo Pair the ChatGPT MCP connection at:

@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.ai-agent-mcp",
   "name": "Cluster AI Agent MCP",
-  "version": "0.2.0",
-  "description": "Cluster AI Agent MCP: 14 authenticated tools, user-permission bridge and OAuth 2.1 PKCE",
+  "version": "0.2.1",
+  "description": "Native Windows folder selection and per-root CRUD/PS permissions",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {

@@ -58,6 +58,8 @@ try {
    if($decision -eq 'C'){exit 0}
    if($decision -eq 'R'){
     PublicCheck $old.issuer
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Wait-Cluster-Connection.ps1') -Mode quick
+    if($LASTEXITCODE -ne 0){throw 'Saved gateway credentials verification failed'}
     Write-Host ('PORT MESSAGE : CHATGPT MCP '+$old.issuer+'/mcp')
     exit 0
    }
@@ -137,6 +139,8 @@ try {
  [IO.File]::WriteAllText($tmp,($snapshot|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
  Move-Item -LiteralPath $tmp -Destination $state -Force
  Write-Host ''
+ & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Wait-Cluster-Connection.ps1') -Mode quick
+ if($LASTEXITCODE -ne 0){throw 'Local token verification failed'}
  Write-Host 'Quick Tunnel verified (development/testing only).'
  Write-Host ('PORT MESSAGE : CHATGPT MCP '+$issuer+'/mcp')
  Write-Host 'No domain configuration required. URL changes when tunnel restarts.'

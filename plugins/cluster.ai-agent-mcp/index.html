@@ -41,6 +41,14 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
 .tool-row:last-child{border:0}.tool-row code{font:11px Consolas,monospace}
 .fine{font-size:10px;color:var(--ui-muted)}
+.root-list{display:grid;gap:8px;margin-top:9px}
+.root-card{background:var(--ui-background);border:1px solid var(--ui-border);border-radius:8px;padding:10px;display:grid;gap:8px}
+.root-path{font:11px Consolas,monospace;overflow-wrap:anywhere;color:var(--ui-text)}
+.root-rights{display:flex;flex-wrap:wrap;gap:8px}
+.root-rights label{display:flex;align-items:center;gap:4px;font:11px system-ui;color:var(--ui-muted)}
+.root-rights input{accent-color:var(--ui-accent)}
+.root-actions{display:flex;gap:8px;align-items:center;justify-content:space-between}
+
 .approval{position:sticky;top:0;z-index:30;border-color:var(--ui-accent);margin-bottom:12px;box-shadow:0 8px 22px #0007}
 .approval p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
 .remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
@@ -89,7 +97,7 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
      <p id="rootInfo">Select a local directory to authorize Explorer file actions. Nothing is accessed before user approval.</p>
      <div class="actions"><button id="selectRoot" type="button">Select local folder</button>
       <button id="revokeRoots" type="button">Revoke folders</button></div>
-     <div id="rootList" class="fine"></div>
+     <div id="rootList" class="root-list"></div>
     </div>
     <div class="card"><h3 id="verifyTitle"></h3>
      <div class="status-line"><span>Local Agent</span><span class="chip" id="agentStatus">–</span></div>
@@ -145,6 +153,7 @@ function renderLocale(){
  $('agentStatus').textContent=connected?t(1):t(0);
  $('mcpStatus').textContent=gateways.mcp.active?t(1):t(28);
  $('oauthStatus').textContent=gateways.oauth.active?t(1):t(28);
+ rootLabels();
  $('toolCatalog').replaceChildren();
  for(const name of tools){
   const row=document.createElement('div');row.className='tool-row';
@@ -235,12 +244,12 @@ function entry(event){
  return row;
 }
 function renderEvents(){const container=$('activityLog');container.replaceChildren(...events.map(entry));}
-async function call(route){
+async function call(route,body={},timeout=7000){
  const url=new URL(endpoint);
  if(url.protocol!=='http:'||url.hostname!=='127.0.0.1')throw Error('Only loopback HTTP');
  const response=await fetch(new URL(route,url),{method:'POST',
   headers:{'Content-Type':'application/json','X-Cluster-Token':token},
-  body:'{}',signal:AbortSignal.timeout(7000)});
+  body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});
  const result=await response.json();
  if(!response.ok||!result.ok)throw Error(result.error||'HTTP '+response.status);
  return result;
@@ -263,12 +272,13 @@ $('connect').onclick=async()=>{
  try{
   const health=await call('/health');
   if(health.agent!=='ClusterPowerShell')throw Error('Incorrect Local Agent');
-  connected=true;renderLocale();showPage('activity');connectAgentSocket();
+  connected=true;renderLocale();showPage('activity');connectAgentSocket();await reloadRoots();
   if($('remember').checked)vault.save(endpoint,token).catch(()=>{$('pairingNote').textContent=sl(3)});
   await refresh();
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;}
 };
-$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';/* Authenticated browser bridge: user-selected File System Access handles.
+$('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=false;token='';$('pairToken').value='';renderLocale();showPage('setup');};
+/* Authenticated browser bridge: user-selected File System Access handles.
  * Editor is reached only through the parent adapter; no cross-frame DOM reading.
  */
 const rootHandles=new Map();
@@ -284,33 +294,66 @@ function editorCall(action,params={}){
    requestId,action,params},'*');
  });
 }
+const rootLang={
+ 'zh-TW':['選擇本機資料夾','撤銷全部資料夾','尚未授權任何資料夾','讀取 R','建立 C','修改 U','刪除 D','PowerShell','撤銷','權限已更新','本機 Agent 尚未連線，請先配置連線。','Windows 對話框已開啟，請在電腦上選取資料夾。','本機資料夾選取失敗：','本機資料夾權限','請先連接 Local Agent，再以 Windows 原生選取器選擇資料夾並設定 CRUD／PS 權限。'],
+ en:['Select local folder','Revoke all folders','No folders authorized','Read R','Create C','Update U','Delete D','PowerShell','Revoke','Permissions saved','Connect the Local Agent first.','Choose a folder in the native Windows dialog.','Local folder selection failed: ','Local folder permissions','Connect Local Agent, then select a native Windows folder and grant CRUD/PS rights.'],
+ fr:['Choisir un dossier','Révoquer tous les dossiers','Aucun dossier autorisé','Lire R','Créer C','Modifier U','Supprimer D','PowerShell','Révoquer','Autorisations enregistrées','Connectez Local Agent.','Choisissez un dossier Windows.','Échec de sélection : ','Permissions des dossiers locaux','Connectez Local Agent, choisissez un dossier Windows et définissez les droits CRUD/PS.'],
+ ja:['ローカルフォルダーを選択','すべて取り消し','許可されたフォルダーなし','読み取り R','作成 C','更新 U','削除 D','PowerShell','取り消し','権限を保存','Local Agent に接続してください。','Windows でフォルダーを選択してください。','フォルダー選択エラー: ','ローカルフォルダー権限','Local Agent に接続し、Windows のフォルダーを選択して CRUD/PS 権限を設定します。'],
+ es:['Elegir carpeta local','Revocar carpetas','Sin carpetas autorizadas','Leer R','Crear C','Actualizar U','Eliminar D','PowerShell','Revocar','Permisos guardados','Conecte Local Agent.','Seleccione la carpeta de Windows.','Error al seleccionar: ','Permisos de carpetas locales','Conecte Local Agent, seleccione una carpeta de Windows y configure CRUD/PS.'],
+ hi:['लोकल फ़ोल्डर चुनें','सभी फ़ोल्डर हटाएँ','कोई अधिकृत फ़ोल्डर नहीं','पढ़ें R','बनाएँ C','बदलें U','हटाएँ D','PowerShell','हटाएँ','अनुमतियाँ सहेजी गईं','पहले लोकल Agent जोड़ें।','Windows फ़ोल्डर चुनें।','फ़ोल्डर चयन त्रुटि: ','लोकल फ़ोल्डर अनुमतियाँ','Local Agent जोड़ें, Windows फ़ोल्डर चुनें और CRUD/PS अधिकार निर्धारित करें।']
+};
+const rl=i=>(rootLang[locale]||rootLang.en)[i];
+const rightNames=['read','create','update','delete','powershell'];
 function rootLabels(){
- $('rootList').textContent=[...rootHandles.keys()].join(' · ')||'No folders selected';
-}
-async function rootFor(raw){
- if(typeof raw!=='string'||!raw||raw.length>1024||
-  raw.startsWith('/')||raw.includes('\\')||raw.split('/').some(x=>x==='..'||x==='.'||!x))
-  throw Error('Invalid path');
- const [name,...rest]=raw.split('/'),root=rootHandles.get(name);
- if(!root)throw Error('Root not authorized: select a local folder first');
- return {root,segments:rest,rootName:name};
-}
-async function directoryFor(parts,create=false){
- let dir=parts.root;
- for(const name of parts.segments){
-  dir=await dir.getDirectoryHandle(name,{create});
+ $('rootHeading').textContent=rl(13);
+ if(!connected && !rootHandles.size)$('rootInfo').textContent=rl(14);
+ $('selectRoot').textContent=rl(0);
+ $('revokeRoots').textContent=rl(1);
+ const list=$('rootList');list.replaceChildren();
+ if(!rootHandles.size){list.textContent=rl(2);return;}
+ for(const root of rootHandles.values()){
+  const card=document.createElement('div');card.className='root-card';
+  const header=document.createElement('div');header.className='root-actions';
+  const location=document.createElement('code');location.className='root-path';
+  location.textContent=root.absolutePath;
+  const revoke=document.createElement('button');revoke.type='button';revoke.textContent=rl(8);
+  revoke.onclick=async()=>{
+   try{await call('/roots/revoke',{id:root.id});rootHandles.delete(root.id);rootLabels();}
+   catch(e){$('rootInfo').textContent=e.message;}
+  };
+  header.append(location,revoke);card.append(header);
+  const controls=document.createElement('div');controls.className='root-rights';
+  for(const [index,right] of rightNames.entries()){
+   const label=document.createElement('label'),input=document.createElement('input');
+   input.type='checkbox';input.checked=root.rights?.[right]===true;
+   const span=document.createElement('span');span.textContent=rl(3+index);
+   input.onchange=async()=>{
+    const rights={...root.rights,[right]:input.checked};
+    try{
+     const saved=await call('/roots/permissions',{id:root.id,rights});
+     rootHandles.set(root.id,saved);rootLabels();$('rootInfo').textContent=rl(9);
+    }catch(e){input.checked=!input.checked;$('rootInfo').textContent=e.message;}
+   };
+   label.append(input,span);controls.append(label);
+  }
+  card.append(controls);list.append(card);
  }
- return dir;
 }
-function assertBasename(value){
- if(typeof value!=='string'||!value||value.length>255||
-  value==='.'||value==='..'||/[\\/:\0]/.test(value))throw Error('Invalid name');
+async function reloadRoots(){
+ if(!connected)return;
+ const response=await call('/roots/list');
+ rootHandles.clear();
+ for(const root of response.roots||[])rootHandles.set(root.id,root);
+ rootLabels();
 }
-async function fileAt(raw){
- const p=await rootFor(raw),filename=p.segments.pop();
- assertBasename(filename);
- const parentDir=await directoryFor(p,false);
- return {parentDir,filename};
+function nativeRoot(raw){
+ if(typeof raw!=='string'||raw.length>1024||raw.startsWith('/')||raw.includes('\\'))throw Error('Invalid local relative path');
+ const segments=raw.split('/').filter(Boolean);
+ if(segments.some(x=>x==='.'||x==='..'||x.includes(':')))throw Error('Unsafe relative path');
+ const [label,...rest]=segments;
+ const root=[...rootHandles.values()].find(r=>r.id===label||r.name===label);
+ if(!root)throw Error('Root is not authorized');
+ return {root,relative:rest.join('/')};
 }
 async function requestApproval(title,details,{nativePath=false,timeout=38000}={}){
  if(approvalPending)throw Error('Another approval is pending');
@@ -366,68 +409,58 @@ async function executeTool(name,args){
    throw Error('Document contains unsaved changes; save it before MCP reads');
   return {document:data.document,content:data.content};}
  case 'cluster.list_roots':
-  return {roots:[...rootHandles.keys()].map(name=>({name,authorized:true,source:'user-picker'}))};
+  return {roots:[...rootHandles.values()].filter(root=>root.rights?.read===true)
+   .map(root=>({id:root.id,name:root.name,absolutePath:root.absolutePath,
+     rights:root.rights,verified:true,source:'local-agent'}))};
  case 'cluster.find_root_windows_path':{
-  const root=String(args.root||'');
-  if(!rootHandles.has(root))throw Error('Root not authorized in browser');
-  const approval=await requestApproval('Confirm Windows root path',
-   'This path cannot be verified against the browser folder handle. Confirm only if you selected this exact directory: '+root,
-   {nativePath:true});
-  const pathText=approval.absolutePath;
-  if(pathText.length>1024)throw Error('Invalid Windows path');
-  return {root,absolutePath:pathText,verified:false,
-   confirmedByUser:true,reason:'BROWSER_HANDLE_IDENTITY_NOT_PROVABLE'};
+  const {root}=nativeRoot(String(args.root||''));
+  if(!root.rights.read)throw Error('Read right required');
+  return {root:root.id,absolutePath:root.absolutePath,verified:true,source:'native-picker'};
  }
  case 'cluster.list_directory':{
-  const p=await rootFor(args.path||'');
-  const dir=await directoryFor(p,false);
-  const files=[];for await(const [name,handle] of dir.entries()){
-   files.push({name,kind:handle.kind});if(files.length>500)break;
-  }return {path:args.path,entries:files,truncated:files.length>500};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  return call('/roots/action',{id:root.id,action:'list',relative});
+ }
  case 'cluster.read_path':{
-  const file=await fileAt(args.path||'');
-  const data=await (await file.parentDir.getFileHandle(file.filename)).getFile();
-  const offset=Number(args.offset||0),length=Number(args.length||65536);
-  if(!Number.isInteger(offset)||offset<0||!Number.isInteger(length)||length<1||length>262144)
-   throw Error('Invalid read range');
-  const text=await data.slice(offset,offset+length).text();
-  return {path:args.path,offset,length:text.length,content:text,totalBytes:data.size};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  return call('/roots/action',{id:root.id,action:'read',relative,
+    offset:args.offset||0,length:args.length||65536});
+ }
  case 'cluster.create_file':{
-  const p=await rootFor(args.path||'');assertBasename(args.name);
-  if(!await ask('Allow AI to CREATE file '+args.path+'/'+args.name+'?'))throw Error('User denied create');
-  const dir=await directoryFor(p,false);
-  try{await dir.getFileHandle(args.name);throw Error('File already exists');}
-  catch(e){if(e.message==='File already exists')throw e;
-    if(e.name!=='NotFoundError')throw e;}
-  const handle=await dir.getFileHandle(args.name,{create:true});
-  return {created:handle.name};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  const filename=String(args.name||'');
+  if(!filename||filename.includes('/')||filename.includes('\\')||filename==='..')
+   throw Error('Invalid name');
+  if(!await ask('Allow AI to CREATE '+root.absolutePath+'\\'+relative+'\\'+filename+'?'))
+   throw Error('User denied file creation');
+  return call('/roots/action',{id:root.id,action:'create',
+    relative:[relative,filename].filter(Boolean).join('/')});
+ }
  case 'cluster.write_path':{
-  const file=await fileAt(args.path||'');
-  if(typeof args.content!=='string'||new Blob([args.content]).size>1048576)
-   throw Error('Content too large');
-  if(!await ask('Allow AI to OVERWRITE '+args.path+' ('+args.content.length+' characters)?'))
-   throw Error('User denied write');
-  const handle=await file.parentDir.getFileHandle(file.filename);
-  const writable=await handle.createWritable();
-  await writable.write(args.content);await writable.close();
-  return {written:true,path:args.path};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  if(!await ask('Allow AI to OVERWRITE '+root.absolutePath+'\\'+relative+'?'))
+   throw Error('User denied file overwrite');
+  return call('/roots/action',{id:root.id,action:'write',relative,content:args.content});
+ }
  case 'cluster.delete_path':{
-  const file=await fileAt(args.path||'');
-  if(!await ask('Allow AI to DELETE '+args.path+' permanently?'))throw Error('User denied delete');
-  await file.parentDir.removeEntry(file.filename);
-  return {deleted:true,path:args.path};}
+  const {root,relative}=nativeRoot(String(args.path||''));
+  if(!await ask('Allow AI to DELETE '+root.absolutePath+'\\'+relative+'?'))
+   throw Error('User denied deletion');
+  return call('/roots/action',{id:root.id,action:'delete',relative});
+ }
  case 'cluster.open_powershell':
   if(!await ask('Allow AI to open a new PowerShell terminal tab?'))throw Error('User denied terminal');
   parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'open-powershell'},'*');
   return {requested:true};
  case 'cluster.powershell_request':{
-  const command=String(args.command||''),label=String(args.path||'');
-  if(command.length<1||command.length>2000||!rootHandles.has(label))
-   throw Error('PowerShell command or root invalid');
+  const command=String(args.command||'');
+  const {root}=nativeRoot(String(args.path||''));
+  if(command.length<1||command.length>2000||root.rights?.powershell!==true)
+   throw Error('PowerShell permission or command denied');
   const approval=await requestApproval('PowerShell command approval',
-   'Run this exact command as your Windows user?\nRoot: '+label+'\n\n'+command,
-   {nativePath:true,timeout:110000});
-  return {approved:approval.approved,absolutePath:approval.absolutePath};
+   'Run this command as your Windows user?\nFolder: '+root.absolutePath+'\n\n'+command,
+   {timeout:110000});
+  return {approved:approval.approved,absolutePath:root.absolutePath};
  }
  default:throw Error('Unknown MCP tool '+name);
  }
@@ -459,16 +492,24 @@ window.addEventListener('message',event=>{
  else call.reject(Error(event.data.error||'Editor refused request'));
 });
 $('selectRoot').onclick=async()=>{
- if(!window.showDirectoryPicker){$('rootInfo').textContent='File System Access API not available';return;}
+ if(!connected){$('rootInfo').textContent=rl(10);showPage('setup');return;}
+ $('selectRoot').disabled=true;$('rootInfo').textContent=rl(11);
  try{
-  const handle=await window.showDirectoryPicker({mode:'readwrite'});
-  rootHandles.set(handle.name,handle);rootLabels();
- }catch(error){$('rootInfo').textContent=String(error.message).slice(0,120);}
+  const selected=await call('/roots/select',{},190000);
+  rootHandles.set(selected.id,selected);rootLabels();
+  $('rootInfo').textContent=selected.absolutePath;
+ }catch(error){$('rootInfo').textContent=rl(12)+error.message;}
+ finally{$('selectRoot').disabled=false;}
 };
-$('revokeRoots').onclick=()=>{rootHandles.clear();rootLabels();};
+$('revokeRoots').onclick=async()=>{
+ if(!connected){$('rootInfo').textContent=rl(10);return;}
+ for(const id of [...rootHandles.keys()]){
+  try{await call('/roots/revoke',{id});rootHandles.delete(id);}
+  catch(e){$('rootInfo').textContent=e.message;}
+ }
+ rootLabels();
+};
 rootLabels();
-
-renderLocale();showPage('setup');};
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
 $('export').onclick=()=>{
  const payload=events.map(({id,at,source,action,result,detail})=>({id,at,source,action,result,detail}));

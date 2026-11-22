@@ -18,6 +18,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run native Windows folder permission tests
+        run: node --test tests/native-roots-windows.test.mjs
       - name: Validate Quick Tunnel installer PowerShell syntax
         shell: powershell
         run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/quick-tunnel-windows.ps1

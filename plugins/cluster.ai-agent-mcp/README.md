@@ -87,9 +87,8 @@ the authenticated Local Agent and live browser AI Agent frame.
   `cluster.delete_path`, `cluster.open_powershell`,
   `cluster.powershell_request`.
 
-Browser read operations use the active Editor document API and a user-picked
-File System Access directory. File actions require the user to select a
-directory and grant browser permission. Create, overwrite, delete and
+Editor read operations use its existing document API. Filesystem operations
+use the native Local Agent's user-selected, permission-scoped Windows roots. Create, overwrite, delete and
 PowerShell commands require **one-shot approval** in the Agent window.
 
 `cluster.find_root_windows_path` returns a *user-confirmed* Windows
@@ -97,6 +96,46 @@ path, with `verified:false` because File System Access does not reveal
 a provable absolute Windows path. PowerShell commands are launched only
 when the user confirms the exact command and supplies a matching native
 root path. Commands execute as the signed-in Windows user, not sandboxed.
+
+## Native Windows folder selection and permissions (v0.2.1)
+
+In **AI Agent → Setup**, connect Local Agent first, then click
+**Select local folder**. Windows opens the native folder-selection dialog.
+After selecting a folder, the UI displays the actual absolute path returned
+by the native Windows process and independently configurable checkboxes:
+
+| Right | Effect |
+|---|---|
+| Read (R) | Browse and read files under the root |
+| Create (C) | Create new files, without overwriting existing ones |
+| Update (U) | Modify existing files after one-shot user confirmation |
+| Delete (D) | Delete files after one-shot user confirmation |
+| PowerShell (PS) | Permit executing individually approved commands with this exact root as cwd |
+
+Grants are checked in the Local Agent, saved under
+`%LOCALAPPDATA%\\ClusterPowerShell\\authorized-roots.json`, and can be
+revoked with the UI. Paths are canonical Windows paths; relative traversal,
+unselected roots and escaping symlinks are rejected.
+
+The browser File System Access picker was removed: embedded iframes cannot
+reliably invoke it and it cannot reveal an authoritative Windows absolute
+path. This native picker requires a running Windows Local Agent in the
+interactive user's session. Do not use it from headless service sessions.
+The local agent itself is a high-trust component: only allow the trusted
+Cluster website Origin and do not install untrusted same-origin plugins.
+
+## CMD token messages (v0.6.1)
+
+After MCP and/or OAuth processes **actually answer local health checks**,
+`Start-Cluster-MCP.cmd` prints the active Local Agent pairing token (when
+reachable), the MCP bearer token, and for OAuth mode the approval token and
+ChatGPT MCP URL. Option 3's temporary Cloudflare Tunnel also prints these
+messages after public issuer verification.
+
+Token values are decrypted from DPAPI only for output to the local CMD
+console. The reporter does not write secrets to repository files,
+`logs/` or PRMU. Treat CMD screenshots and console logs as sensitive.
+If verification fails, setup stops without reporting success.
 
 ## Security
 
