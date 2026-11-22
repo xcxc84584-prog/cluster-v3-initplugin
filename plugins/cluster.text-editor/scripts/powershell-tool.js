@@ -41,7 +41,7 @@ const item=document.createElement('button');item.type='button';item.setAttribute
 menu.append(item);group.append(trigger,menu);
 const toggle=document.getElementById('toggleExplorer');
 toggle.after(group);
-group.hidden=true; // Only installed, PRMU-registered providers expose Tools.
+group.hidden=false; // Tool must remain accessible before Local Agent / capability init.
 let language='zh-TW',loaded=false,requestId='',lastContext=null,selected='editor';
 const labels={
 'zh-TW':['工具 ▾','PowerShell','編輯器','PowerShell 插件尚未提供 workspace.powershell.v1 能力；請先裝載並啟用插件。'],
@@ -59,7 +59,8 @@ editor.hidden=ps;psFrame.hidden=!ps||!loaded;
 notice.hidden=!ps||loaded;
 tabs.hidden=false;
 for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-selected',String(button.dataset.tab===which));
-if(ps&&!loaded){notice.textContent=(labels[language]||labels.en)[3];discover();}
+window.dispatchEvent(new CustomEvent('cluster-powershell-view',{detail:{selected:ps}}));
+if(ps&&!loaded){notice.hidden=true;discover();}
 }
 function closeMenu(){menu.hidden=true;trigger.setAttribute('aria-expanded','false');}
 trigger.onclick=()=>{menu.hidden=!menu.hidden;trigger.setAttribute('aria-expanded',String(!menu.hidden));};
@@ -91,5 +92,5 @@ if(loaded)psFrame.contentWindow?.postMessage(m,'*');
 });
 localize();
 discover();
-const discoveryInterval=setInterval(()=>{if(loaded)clearInterval(discoveryInterval);else discover();},4000);
+const discoveryInterval=setInterval(()=>{if(loaded)clearInterval(discoveryInterval);else if(selected==='powershell')discover();},4000);
 })();
