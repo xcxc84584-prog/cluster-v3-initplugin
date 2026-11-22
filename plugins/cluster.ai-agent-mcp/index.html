@@ -33,7 +33,17 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .action-primary{background:var(--ui-control);border-color:var(--ui-accent)}
 .status-line{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--ui-border)}
 .status-line:last-child{border:0}.chip{font:10px Consolas,monospace;color:var(--ui-muted)}
-.logbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 12px}
+.logbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:4px 0 12px;flex-wrap:wrap}
+.log-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.log-actions button{min-width:68px;padding:8px 13px;border:1px solid var(--ui-border);background:var(--ui-control);color:var(--ui-text)}
+.log-actions button:hover{background:var(--ui-hover);border-color:var(--ui-accent)}
+.log-actions button:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+.log-actions .log-clear{border-color:var(--ui-border);color:var(--ui-text)}
+.clear-log-dialog{color:var(--ui-text);background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:10px;max-width:min(420px,calc(100vw - 24px));padding:18px;box-shadow:0 15px 55px #0008}
+.clear-log-dialog::backdrop{background:#000a}
+.clear-log-dialog h3{font-size:14px;margin:0 0 10px}
+.clear-log-dialog p{font-size:12px;color:var(--ui-muted);line-height:1.55;margin:0 0 16px}
+.clear-log-dialog .actions{justify-content:flex-end;margin:0}
 .log{overflow-anchor:none;border:1px solid var(--ui-border);border-radius:8px;overflow:auto;background:var(--ui-background);min-height:200px;max-height:calc(100vh - 175px)}
 .log-row{display:grid;grid-template-columns:90px 82px minmax(0,1fr) 64px;gap:9px;padding:10px 12px;border-bottom:1px solid var(--ui-border);font:11px Consolas,monospace;overflow-wrap:anywhere}
 .ps-execution-details{grid-column:1/-1;border-top:1px solid var(--ui-border);padding:8px 0 3px}
@@ -113,9 +123,18 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
    <div id="activityPage" hidden>
     <div class="title"><h1 id="activityTitle"></h1></div>
     <div class="logbar"><span id="activitySubtitle" class="subtle"></span>
-     <div><button id="refresh" type="button"></button><button id="export" type="button"></button></div></div>
+     <div class="log-actions"><button id="refresh" type="button"></button>
+      <button id="export" type="button"></button>
+      <button id="clearLog" class="log-clear" type="button"></button></div></div>
     <div id="activityLog" class="log" role="log" aria-live="polite"></div>
     <p id="logNotice" class="note"></p>
+    <dialog id="clearLogDialog" class="clear-log-dialog" aria-labelledby="clearLogHeading">
+     <h3 id="clearLogHeading"></h3><p id="clearLogDescription"></p>
+     <div class="actions">
+      <button id="cancelClearLog" type="button"></button>
+      <button id="confirmClearLog" class="action-primary" type="button"></button>
+     </div>
+    </dialog>
    </div>
    <div id="toolsPage" hidden><div class="title"><h1 id="toolsHeading"></h1></div>
     <div class="card"><p id="toolGate"></p><div id="toolCatalog"></div></div>
@@ -147,11 +166,24 @@ const secretLabels={
  es:['Recordar token autorizado (cifrado)','Olvidar','Descargar CMD','Almacenamiento no disponible'],
  hi:['अधिकृत टोकन सुरक्षित रखें','पेयरिंग हटाएँ','CMD डाउनलोड करें','स्टोरेज अनुपलब्ध']
 };
+const logControls={
+ 'zh-TW':['清空紀錄','清空操作紀錄？','這將永久清除本機 Agent 的所有操作紀錄，包括 PowerShell 輸出。此操作無法復原。','取消','確認清空','已清空操作紀錄','清空失敗：'],
+ en:['Clear Log','Clear activity history?','This permanently deletes all Local Agent activity records, including PowerShell output. This cannot be undone.','Cancel','Clear all','Activity history cleared','Clear failed: '],
+ fr:['Effacer le journal','Effacer les événements ?','Supprime définitivement les événements et les sorties PowerShell de cet agent. Irréversible.','Annuler','Tout effacer','Journal effacé','Échec : '],
+ ja:['ログを消去','操作履歴を消去しますか？','ローカル Agent の操作履歴と PowerShell 出力を完全に消去します。元には戻せません。','キャンセル','すべて消去','操作履歴を消去しました','消去失敗：'],
+ es:['Borrar registro','¿Borrar historial?','Elimina permanentemente los eventos y la salida de PowerShell del agente local. No se puede deshacer.','Cancelar','Borrar todo','Historial borrado','Error al borrar: '],
+ hi:['लॉग साफ़ करें','गतिविधि इतिहास मिटाएँ?','यह स्थानीय Agent का पूरा इतिहास और PowerShell आउटपुट स्थायी रूप से मिटाएगा। इसे वापस नहीं लाया जा सकता।','रद्द करें','सब मिटाएँ','इतिहास साफ़ हो गया','साफ़ करने में त्रुटि: ']
+};
+const lc=i=>(logControls[locale]||logControls.en)[i];
 const t=n=>(L[locale]||L.en)[n],root=$('app');
 const sl=n=>(secretLabels[locale]||secretLabels.en)[n];
 function renderLocale(){
  const map={setupNav:2,activityNav:3,toolsNav:4,statusNav:5,setupHeading:6,setupIntro:7,agentSetupTitle:8,agentSetupDesc:9,portTitle:10,tokenTitle:11,connect:12,gatewayTitle:13,gatewayDesc:14,gatewayGuide:15,gatewayLimit:16,verifyTitle:17,activityTitle:18,activitySubtitle:19,refresh:20,export:21,logNotice:22,toolsHeading:23,toolGate:24,statusHeading:25,retry:26,disconnect:27};
  for(const [id,i] of Object.entries(map))$(id).textContent=t(i);
+ for(const [id,i] of Object.entries({
+  clearLog:0,clearLogHeading:1,clearLogDescription:2,
+  cancelClearLog:3,confirmClearLog:4
+ }))$(id).textContent=lc(i);
  $('headerStatus').textContent=connected?t(1):t(0);document.documentElement.lang=locale;
  $('rememberCaption').textContent=sl(0);$('forget').textContent=sl(1);$('downloadAgent').textContent=sl(2);
  $('agentStatus').textContent=connected?t(1):t(0);
@@ -173,10 +205,8 @@ function showPage(name){
   $(p+'Page').hidden=p!==page;
   document.querySelector('[data-page="'+p+'"]').setAttribute('aria-selected',String(p===page));
  }
- if(name==='activity'&&activityViewInitialized){
-  activityViewport.scrollTop=storedActivityTop;
-  activityOuter.scrollTop=storedOuterTop;
- }
+ // The existing activity DOM and its scroll offset remain untouched when switching tabs.
+ // Reload restoration is handled only by the first renderEvents() call.
 }
 for(const button of document.querySelectorAll('[data-page]'))button.onclick=()=>showPage(button.dataset.page);
 const divider=$('railDivider');
@@ -248,7 +278,7 @@ const ACTIVITY_VIEW_KEY='cluster.ai-agent.activity-view.v1';
 const activityViewport=$('activityLog'),activityOuter=document.querySelector('.content');
 let activityViewInitialized=false;
 const activityOpenKeys=new Set();
-let storedActivityTop=0,storedOuterTop=0;
+let storedActivityTop=0,storedOuterTop=0,renderingActivity=false;
 try{
  const state=JSON.parse(localStorage.getItem(ACTIVITY_VIEW_KEY)||'null');
  if(state&&state.version===1){
@@ -260,6 +290,9 @@ try{
  }
 }catch{/* Storage may be blocked. */}
 function saveActivityView(){
+ if(renderingActivity)return;
+ storedActivityTop=activityViewport.scrollTop;
+ storedOuterTop=activityOuter.scrollTop;
  try{
   localStorage.setItem(ACTIVITY_VIEW_KEY,JSON.stringify({
    version:1,logTop:activityViewport.scrollTop,
@@ -307,6 +340,7 @@ function entry(event){
  return row;
 }
 function renderEvents(){
+ renderingActivity=true;
  const container=activityViewport;
  // Existing DOM nodes and <details> must survive every periodic refresh.
  // Replacing them resets open state, focus, and nested scroll positions.
@@ -327,6 +361,7 @@ function renderEvents(){
  container.scrollTop=logTop;
  activityOuter.scrollTop=outerTop;
  activityViewInitialized=true;
+ renderingActivity=false;
  saveActivityView();
 }
 async function call(route,body={},timeout=7000){
@@ -339,13 +374,16 @@ async function call(route,body={},timeout=7000){
  if(!response.ok||!result.ok)throw Error(result.error||'HTTP '+response.status);
  return result;
 }
+let activityGeneration=0,clearingActivity=false;
 async function refresh(){
- if(!connected)return;
+ if(!connected||clearingActivity)return;
+ const generation=activityGeneration;
  try{
   await call('/health');
   gateways=await call('/gateway/status');
   renderLocale();
   const result=await call('/activity');if(!Array.isArray(result.events))throw Error('Invalid agent events');
+  if(generation!==activityGeneration||clearingActivity)return;
   events=result.events.filter(e=>typeof e.at==='string'&&typeof e.action==='string').slice(-100);
   renderEvents();$('setupError').textContent='';
  }catch(error){connected=false;renderLocale();$('setupError').textContent=t(33)+error.message;showPage('setup');}
@@ -618,6 +656,35 @@ $('revokeRoots').onclick=async()=>{
 };
 rootLabels();
 $('refresh').onclick=refresh;$('retry').onclick=refresh;
+$('clearLog').onclick=()=>{
+ if(!connected||clearingActivity)return;
+ $('clearLogDialog').showModal();
+};
+$('cancelClearLog').onclick=()=>$('clearLogDialog').close();
+$('confirmClearLog').onclick=async()=>{
+ if(clearingActivity)return;
+ clearingActivity=true;
+ activityGeneration++;
+ $('confirmClearLog').disabled=true;
+ $('clearLog').disabled=true;
+ try{
+  await call('/activity/clear');
+  events=[];
+  activityOpenKeys.clear();
+  activityViewport.scrollTop=0;
+  activityOuter.scrollTop=0;
+  storedActivityTop=0;storedOuterTop=0;
+  renderEvents();
+  $('clearLogDialog').close();
+  $('logNotice').textContent=lc(5);
+ }catch(error){
+  $('clearLogDescription').textContent=lc(6)+error.message;
+ }finally{
+  clearingActivity=false;
+  $('confirmClearLog').disabled=false;
+  $('clearLog').disabled=false;
+ }
+};
 $('export').onclick=()=>{
  const payload=events.map(({id,at,source,action,result,detail,exitCode,stdout,stderr,truncated})=>
   ({id,at,source,action,result,detail,exitCode,stdout,stderr,truncated}));
