@@ -40,7 +40,10 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
 .note{font-size:10px;color:var(--ui-muted);padding:10px 0}
 .tool-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ui-border);padding:8px}
 .tool-row:last-child{border:0}.tool-row code{font:11px Consolas,monospace}
-.fine{font-size:10px;color:var(--ui-muted)}.remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
+.fine{font-size:10px;color:var(--ui-muted)}
+.approval{position:sticky;top:0;z-index:30;border-color:var(--ui-accent);margin-bottom:12px;box-shadow:0 8px 22px #0007}
+.approval p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.remember{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ui-muted)}.remember input{accent-color:var(--ui-accent)}
 @media(max-width:650px){.cards{grid-template-columns:1fr}.content{padding:10px}.rail{width:145px}.log-row{grid-template-columns:75px 55px minmax(0,1fr)}.log-row .result{display:none}}
 </style></head><body>
 <main id="app" data-rail-collapsed="false">
@@ -54,6 +57,17 @@ main[data-rail-collapsed=true] .divider:after{content:'›'}
   </aside>
   <div id="railDivider" class="divider" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Toggle or resize Agent sidebar" aria-valuemin="120" aria-valuemax="340"></div>
   <section class="content">
+   <section id="approvalPane" class="card approval" hidden role="region" aria-live="assertive" aria-label="AI action requires approval">
+    <h3 id="approvalHeading"></h3><p id="approvalDetail"></p>
+    <div class="field" id="approvalPathField" hidden>
+     <label for="approvalPath">Absolute Windows root path</label>
+     <input id="approvalPath" placeholder="C:\\YourFolder" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="actions">
+     <button id="approveAction" type="button" class="action-primary"></button>
+     <button id="denyAction" type="button"></button>
+    </div>
+   </section>
    <div id="setupPage">
     <div class="title"><h1 id="setupHeading"></h1></div>
     <p class="subtle" id="setupIntro"></p>
@@ -258,7 +272,7 @@ $('disconnect').onclick=()=>{agentSocket?.close();agentSocket=null;connected=fal
  * Editor is reached only through the parent adapter; no cross-frame DOM reading.
  */
 const rootHandles=new Map();
-let agentSocket=null,editorSeq=0;
+let agentSocket=null,editorSeq=0,approvalPending=null;
 const editorCalls=new Map();
 function editorCall(action,params={}){
  return new Promise((resolve,reject)=>{
@@ -298,9 +312,37 @@ async function fileAt(raw){
  const parentDir=await directoryFor(p,false);
  return {parentDir,filename};
 }
+async function requestApproval(title,details,{nativePath=false,timeout=38000}={}){
+ if(approvalPending)throw Error('Another approval is pending');
+ return new Promise((resolve,reject)=>{
+  const pane=$('approvalPane'),field=$('approvalPathField');
+  $('approvalHeading').textContent=title;$('approvalDetail').textContent=details;
+  field.hidden=!nativePath;$('approvalPath').value='';
+  $('approveAction').textContent=(locale==='zh-TW'?'核准此次操作':'Approve once');
+  $('denyAction').textContent=(locale==='zh-TW'?'拒絕':'Deny');
+  pane.hidden=false;showPage('activity');
+  parent.postMessage({protocol:'cluster.ai-agent.workspace.v1',type:'approval-pending'},'*');
+  function settle(value,reason){
+   if(!approvalPending)return;
+   clearTimeout(approvalPending.timer);approvalPending=null;
+   $('approveAction').onclick=null;$('denyAction').onclick=null;pane.hidden=true;
+   if(reason)reject(Error(reason));else resolve(value);
+  }
+  const timer=setTimeout(()=>settle(null,'Approval expired or not confirmed'),timeout);
+  approvalPending={timer};
+  $('approveAction').onclick=()=>{
+   const path=$('approvalPath').value.trim();
+   if(nativePath&&!/^[A-Za-z]:\\/.test(path)){
+    $('approvalDetail').textContent=details+'\nA valid absolute Windows path is required.';
+    return;
+   }
+   settle({approved:true,absolutePath:path});
+  };
+  $('denyAction').onclick=()=>settle(null,'User denied the requested operation');
+ });
+}
 async function ask(message){
- // Browser confirmation must be a new, explicit user decision per mutation.
- return window.confirm(message);
+ return (await requestApproval('Authorize AI tool action',message)).approved;
 }
 async function executeTool(name,args){
  switch(name){
@@ -324,9 +366,11 @@ async function executeTool(name,args){
  case 'cluster.find_root_windows_path':{
   const root=String(args.root||'');
   if(!rootHandles.has(root))throw Error('Root not authorized in browser');
-  const pathText=window.prompt('Confirm the absolute Windows path of folder "'+root+'". This cannot be verified against the browser handle; cancel to deny.');
-  if(!pathText)throw Error('User declined path confirmation');
-  if(!/^[a-zA-Z]:\\/.test(pathText)||pathText.length>1024)throw Error('Invalid Windows path');
+  const approval=await requestApproval('Confirm Windows root path',
+   'This path cannot be verified against the browser folder handle. Confirm only if you selected this exact directory: '+root,
+   {nativePath:true});
+  const pathText=approval.absolutePath;
+  if(pathText.length>1024)throw Error('Invalid Windows path');
   return {root,absolutePath:pathText,verified:false,
    confirmedByUser:true,reason:'BROWSER_HANDLE_IDENTITY_NOT_PROVABLE'};
  }
@@ -376,11 +420,10 @@ async function executeTool(name,args){
   const command=String(args.command||''),label=String(args.path||'');
   if(command.length<1||command.length>2000||!rootHandles.has(label))
    throw Error('PowerShell command or root invalid');
-  const absolute=window.prompt('PowerShell root '+label+': enter matching absolute Windows directory path');
-  if(!absolute||!/^[A-Za-z]:\\/.test(absolute))throw Error('Root path not approved');
-  if(!await ask('Execute this exact PowerShell command as your Windows user?\n\n'+command))
-   throw Error('User denied PowerShell command');
-  return {approved:true,absolutePath:absolute};
+  const approval=await requestApproval('PowerShell command approval',
+   'Run this exact command as your Windows user?\nRoot: '+label+'\n\n'+command,
+   {nativePath:true,timeout:110000});
+  return {approved:approval.approved,absolutePath:approval.absolutePath};
  }
  default:throw Error('Unknown MCP tool '+name);
  }
