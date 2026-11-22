@@ -1,56 +1,8 @@
-/* Editor first-run Local Agent onboarding. PRMU owns remote repository and locale. */
+/* CMD download transport only. The PowerShell iframe owns all setup UI.
+ * Repository URL and branch are fetched from PRMU; never hardcoded in UI.
+ */
 (()=>{'use strict';
-const pane=document.querySelector('.editor-pane');
-if(!pane)return;
-const style=document.createElement('style');
-style.textContent=[
-'.agent-onboard{position:absolute;z-index:25;right:18px;top:18px;width:min(425px,calc(100% - 35px));max-height:calc(100% - 36px);overflow-y:auto;background:var(--ui-panel);color:var(--ui-on-panel,var(--ui-text));border:1px solid var(--ui-border);border-radius:9px;box-shadow:0 18px 44px #0008;font-size:12px}',
-'.agent-onboard[hidden]{display:none}',
-'.agent-onboard.compact .agent-content{display:none}',
-'.agent-onboard header{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--ui-border);background:var(--ui-surface)}',
-'.agent-onboard header strong{font-size:13px}',
-'.agent-onboard button{cursor:pointer;border:1px solid var(--ui-border);background:var(--ui-control);color:var(--ui-on-control,var(--ui-text));border-radius:5px;padding:8px 11px}',
-'.agent-onboard button:hover{background:var(--ui-hover)}',
-'.agent-onboard button:disabled{opacity:.55;cursor:not-allowed}',
-'.agent-content{padding:13px 16px;line-height:1.7}',
-'.agent-content p{color:var(--ui-muted);margin:0 0 10px}',
-'.agent-step{display:flex;gap:11px;align-items:flex-start;padding:8px 0}',
-'.agent-step b{display:grid;place-items:center;flex:none;width:22px;height:22px;border:1px solid var(--ui-border);border-radius:50%;background:var(--ui-control);font:11px Consolas,monospace}',
-'.agent-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}',
-'.agent-notice{color:var(--ui-muted);font-size:11px;margin-top:8px;overflow-wrap:anywhere}',
-'@media(max-width:600px){.agent-onboard{right:7px;bottom:32px;width:calc(100% - 14px)}}'
-].join('\n');
-document.head.append(style);
-const workArea=pane.querySelector('.cluster-shell-view')||pane;
-if(getComputedStyle(workArea).position==='static')workArea.style.position='relative';
-const panel=document.createElement('section');panel.className='agent-onboard';
-panel.setAttribute('aria-label','Local Agent Setup');
-panel.innerHTML='<header><strong id="agentTitle"></strong><button id="agentClose" type="button" aria-label="Close">×</button></header>'+
-'<div class="agent-content"><p id="agentIntro"></p>'+
-[1,2,3,4].map(i=>'<div class="agent-step"><b>'+i+'</b><span id="agentStep'+i+'"></span></div>').join('')+
-'<div class="agent-actions"><button id="agentDownload" disabled type="button"></button>'+
-'<button id="agentOpen" type="button"></button></div>'+
-'<div class="agent-notice" id="agentNotice" aria-live="polite"></div></div>';
-workArea.append(panel);
-panel.hidden=true; // Shown only after entering the PowerShell view.
-const $=id=>document.getElementById(id);
-const labels={
-'zh-TW':['Local Agent','Local Agent 快速配置','首次使用請下載快速配置 CMD，依指引配置本機環境，再於 PowerShell 視窗連線。','下載快速配置 CMD 到 Windows 電腦','執行 CMD，自動檢查 Node.js 與終端環境，必要時安裝','依照 CMD 提示設定允許的網站，取得 Port URL 和 Token','點選 Tool → PowerShell，輸入 Port URL 和 Token','下載快速配置 CMD','開啟 PowerShell','正在讀取公共庫下載來源…','找不到公共庫下載來源，請檢查 Host 連線','已下載 CMD，請到本機執行','Local Agent 已連線','Local Agent 尚未配置'],
-en:['Local Agent','Local Agent quick setup','Download the setup CMD and configure Windows locally, then connect PowerShell.','Download the quick-setup CMD to Windows','Run CMD to check or install Node.js and terminal dependencies','Authorize your site and copy the printed Port URL and Token','Open Tool → PowerShell and connect','Download setup CMD','Open PowerShell','Loading PRMU download source…','PRMU source unavailable. Check Host connection.','CMD downloaded. Run it locally.','Local Agent connected','Local Agent not configured'],
-fr:['Agent local','Configuration de l’agent local','Téléchargez le CMD puis configurez Windows.','Télécharger le CMD','Exécuter CMD pour installer les dépendances','Autoriser le site et copier URL/Token','Ouvrir Tool → PowerShell','Télécharger CMD','Ouvrir PowerShell','Chargement de PRMU…','Source PRMU indisponible','CMD téléchargé','Connecté','Non configuré'],
-ja:['Local Agent','Local Agent の初期設定','CMD をダウンロードして Windows で初期設定してください。','CMD をダウンロード','CMD で Node.js と必要な環境を準備','サイトを許可し URL と Token を取得','Tool → PowerShell で接続','CMD ダウンロード','PowerShell を開く','PRMU を読み込み中…','PRMU に接続できません','CMD をダウンロードしました','接続済み','未設定'],
-es:['Agente local','Configuración de agente local','Descargue CMD y configure Windows antes de conectar.','Descargar CMD','Ejecutar CMD e instalar dependencias','Autorizar sitio y copiar URL y Token','Abrir Tool → PowerShell','Descargar CMD','Abrir PowerShell','Cargando PRMU…','PRMU no disponible','CMD descargado','Conectado','No configurado'],
-hi:['लोकल एजेंट','लोकल एजेंट सेटअप','CMD डाउनलोड करें और Windows पर कॉन्फ़िगर करें।','CMD डाउनलोड करें','CMD चलाकर आवश्यक निर्भरताएँ स्थापित करें','वेबसाइट स्वीकार करके URL और Token लें','Tool → PowerShell खोलें','सेटअप CMD डाउनलोड','PowerShell खोलें','PRMU लोड हो रहा है…','PRMU अनुपलब्ध','CMD डाउनलोड किया गया','कनेक्टेड','कॉन्फ़िगर नहीं']
-};
-let lang='zh-TW',connected=false,isPowerShellView=false,repo=null,ref='main',ready=false,serial=0;
-const t=i=>(labels[lang]||labels.en)[i];
-function render(){
-$('agentTitle').textContent=t(1);$('agentIntro').textContent=t(2);
-for(let i=1;i<=4;i++)$('agentStep'+i).textContent=t(i+2);
-$('agentDownload').textContent=t(7);$('agentOpen').textContent=t(8);
-$('agentDownload').disabled=!ready;
-if(!ready)$('agentNotice').textContent=t(9);
-}
+let repo=null,ref='main',ready=false,serial=0,pending=null;
 function setSource(data){
 const d=typeof data==='string'?{repositoryUrl:data}:data?.data||data||{};
 const raw=d.repositoryUrl||d.repository?.url||d.repository?.repositoryUrl||d.url;
@@ -60,8 +12,8 @@ const parts=url.pathname.replace(/\.git$/,'').match(/^\/([A-Za-z0-9_.-]+)\/([A-Z
 if(url.protocol!=='https:'||url.hostname!=='github.com'||!parts)return;
 const sourceRef=String(d.ref||d.repositoryRef||d.repository?.ref||'main');
 if(!/^[A-Za-z0-9._/-]{1,100}$/.test(sourceRef)||sourceRef.includes('..'))return;
-repo={owner:parts[1],name:parts[2]};ref=sourceRef;ready=true;render();
-$('agentNotice').textContent='';
+repo={owner:parts[1],name:parts[2]};ref=sourceRef;ready=true;
+
 }
 function bootstrap(){
 const base='https://raw.githubusercontent.com/'+repo.owner+'/'+repo.name+'/'+ref+'/plugins/cluster.powershell/bridge/';
@@ -80,45 +32,53 @@ return [
 'if errorlevel 1 ( echo Setup failed. & pause & exit /b 1 )',
 'endlocal'].join('\r\n')+'\r\n';
 }
-$('agentDownload').onclick=()=>{
-if(!ready)return;
-const url=URL.createObjectURL(new Blob([bootstrap()],{type:'application/octet-stream'}));
-const link=document.createElement('a');link.href=url;link.download='ClusterPowerShell-QuickSetup.cmd';
-document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-$('agentNotice').textContent=t(11);
-};
-$('agentClose').onclick=()=>{
- panel.classList.toggle('compact');
- $('agentClose').textContent=panel.classList.contains('compact')?'▾':'×';
-};
-$('agentOpen').onclick=()=>{
-const group=document.querySelector('.cluster-tool-group');
-const trigger=group?.querySelector('button');
-const item=group?.querySelector('.cluster-tool-menu button');
-if(group&&!group.hidden&&trigger&&item){trigger.click();item.click();}
-else $('agentNotice').textContent=t(10);
-};
+
+function shellFrame(){
+ return Array.from(document.querySelectorAll('iframe'))
+  .find(frame=>frame.title==='ClusterPowerShell');
+}
+function reply(frame,ok,error){
+ frame?.contentWindow?.postMessage({
+  protocol:'cluster.powershell.setup.v1',type:'download-result',ok,
+  error:error||null
+ },'*');
+}
+function download(){
+ const url=URL.createObjectURL(new Blob([bootstrap()],{type:'application/octet-stream'}));
+ const link=document.createElement('a');
+ link.href=url;link.download='ClusterPowerShell-QuickSetup.cmd';
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function queryPRMU(){
+ if(parent===window)return;
+ for(const method of ['PRMU.getCommunityConfig','PRMU.getCommunityRepositoryUrl'])
+  parent.postMessage({protocol:'cluster.plugin.v1',type:'request',
+   requestId:'powershell-onboard-'+(++serial),method,args:[]},'*');
+}
 window.addEventListener('message',event=>{
-const m=event.data;if(!m||typeof m!=='object')return;
-if(event.source===parent){
-if(m.protocol==='cluster.plugin.v1'&&m.type==='response'&&String(m.requestId||'').startsWith('agent-guide-'))setSource(m.data);
-const locale=m.language||m.data?.language;if(labels[locale]){lang=locale;render();}
-}
-const terminal=Array.from(pane.querySelectorAll('iframe')).find(x=>x.title==='ClusterPowerShell');
-if(terminal&&event.source===terminal.contentWindow&&m.protocol==='cluster.powershell.status.v1'){
-connected=m.connected===true;
-panel.hidden=connected || !isPowerShellView;render();
-}
+ const msg=event.data;
+ if(event.source===parent&&msg?.protocol==='cluster.plugin.v1'&&
+  msg.type==='response'&&String(msg.requestId||'').startsWith('powershell-onboard-')){
+  if(msg.ok)setSource(msg.data);
+  if(ready&&pending){
+   const frame=pending;pending=null;
+   try{download();reply(frame,true)}catch(error){reply(frame,false,error.message)}
+  }
+  return;
+ }
+ const frame=shellFrame();
+ if(frame&&event.source===frame.contentWindow&&
+   msg?.protocol==='cluster.powershell.setup.v1'&&msg.type==='download'){
+  if(ready){
+   try{download();reply(frame,true)}catch(error){reply(frame,false,error.message)}
+  }else{
+   pending=frame;queryPRMU();
+   setTimeout(()=>{
+    if(pending===frame){pending=null;reply(frame,false,'Community repository not available from PRMU')}
+   },7000);
+  }
+ }
 });
-window.addEventListener('cluster-powershell-view',event=>{
- isPowerShellView=event.detail?.selected===true;
- panel.hidden=!isPowerShellView||connected;
- if(isPowerShellView&&!connected)render();
-});
-render();
-if(parent!==window){
-for(const method of ['PRMU.getCommunityConfig','PRMU.getCommunityRepositoryUrl']){
-parent.postMessage({protocol:'cluster.plugin.v1',type:'request',requestId:'agent-guide-'+(++serial),method,args:[]},'*');
-}
-}
+queryPRMU();
 })();
