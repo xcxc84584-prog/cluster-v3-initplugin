@@ -215,3 +215,23 @@ test('Editor first-run PowerShell Local Agent guide and CMD download',()=>{
  for(const language of ['zh-TW','en','fr','ja','es','hi'])
    assert.ok(guide.includes("'"+language+"':[") || guide.includes(language+':['));
 });
+
+test('Local Agent reminder stays inside the PowerShell pane and no header button',()=>{
+ const guide=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
+ const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
+ assert.doesNotMatch(guide,/header\.append\(entry\)/);
+ assert.doesNotMatch(guide,/agent-entry/);
+ assert.match(guide,/pane\.querySelector\('\.cluster-shell-view'\)/);
+ assert.match(guide,/panel\.hidden=true/);
+ assert.match(guide,/cluster-powershell-view/);
+ assert.match(guide,/isPowerShellView/);
+ assert.match(guide,/agent-onboard\.compact/);
+ assert.match(guide,/panel\.hidden=!isPowerShellView\|\|connected/);
+ assert.match(tool,/new CustomEvent\('cluster-powershell-view'/);
+ assert.match(tool,/group\.hidden=false/);
+ assert.match(tool,/requestCommunityFallback/);
+ assert.match(tool,/PRMU\.getCommunityConfig/);
+ assert.match(tool,/mountFromConfiguredCommunity/);
+ assert.match(tool,/manifest\.version!==plugin\.version/);
+ assert.match(tool,/psFrame\.hidden=selected!=='powershell'/);
+});
