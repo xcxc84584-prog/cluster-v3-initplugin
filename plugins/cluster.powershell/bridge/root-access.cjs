@@ -89,7 +89,7 @@ function createRootAccess({directory,platform=process.platform,picker}={}){
   const contained=(p)=>p.toLowerCase()===root.absolutePath.toLowerCase()||
    p.toLowerCase().startsWith(root.absolutePath.toLowerCase()+path.sep);
   if(!contained(target))throw Error('Path escapes authorized root');
-  const parent=fs.realpathSync.native(path.dirname(target));
+  const parent=fs.realpathSync.native(target.toLowerCase()===root.absolutePath.toLowerCase()?target:path.dirname(target));
   if(!contained(parent))throw Error('Symlink exits authorized root');
   if(!allowMissing){
    const existing=fs.realpathSync.native(target);
