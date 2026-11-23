@@ -57,7 +57,7 @@ test('community plugin versions match their manifests',()=>{
  const catalog=JSON.parse(read('community-index.json'));
  for(const [id,version] of [
   ['cluster.ai-agent-mcp','0.3.3'],
-  ['cluster.powershell','0.7.4']
+  ['cluster.powershell','0.7.5']
  ]){
   const entry=catalog.plugins.find(x=>x.id===id);
   assert.ok(entry,id);
