@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.ai-agent-mcp",
   "name": "Cluster AI Agent MCP",
-  "version": "0.3.2",
-  "description": "Stdout-only PowerShell activity and Local Agent upgrade guidance",
+  "version": "0.3.3",
+  "description": "Refresh MCP/OAuth bootstrap launcher reference",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
