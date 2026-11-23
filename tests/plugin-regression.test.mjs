@@ -135,7 +135,12 @@ test('browser-local restore has durable IndexedDB with localStorage fallback',()
   assert.match(editor,/await bootReady/);
 });
 test('external-first refreshes unopened files as well as open tabs',()=>{
-  assert.match(explorer,/storagePriority==='external' && entries\.has\(path\)/);
+  assert.match(explorer,/storagePriority==='external'/);
+  assert.match(explorer,/freshFiles=new Map/);
+  assert.match(explorer,/freshFolders=new Set/);
+  assert.match(explorer,/entries\.delete\(path\)/);
+  assert.match(explorer,/diskRoots\.get\(root\)!==handle/);
+  assert.match(explorer,/setInterval\([\s\S]*inspectExternalChanges/);
   assert.match(explorer,/sendWorkspace\('external\.changed'/);
   assert.match(editor,/document\.externalSynced/);
 });
