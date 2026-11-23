@@ -718,23 +718,29 @@ $('export').onclick=()=>{
  setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
 $('gatewayGuide').onclick=()=>{
- const cmd=[
- '@echo off','setlocal EnableExtensions DisableDelayedExpansion',
- 'title Cluster AI Agent MCP Setup',
- 'set "BRIDGE=%LOCALAPPDATA%\\ClusterPowerShell\\bridge"',
- 'if not exist "%BRIDGE%\\Start-Cluster-MCP-v2.cmd" (',
- 'echo Local Agent components missing. Run ClusterPowerShell QuickSetup first.',
- 'pause','exit /b 1',')',
- 'call "%BRIDGE%\\Start-Cluster-MCP-v2.cmd"',
- 'if errorlevel 1 echo MCP start failed. Review the output above.',
- 'pause'
- ].join('\r\n')+'\r\n';
+ if(!bootstrap){
+  $('setupError').textContent='PRMU bootstrap unavailable. Reload the plugin and retry.';
+  return;
+ }
+ // Reuse the PRMU-provided component downloader, then launch the MCP Gateway
+ // instead of the interactive terminal installer.
+ const lines=bootstrap.split(/\r?\n/);
+ const launchIndex=lines.findIndex(line=>
+  line.startsWith('call "%CLUSTER_TARGET%') &&
+  line.includes('Setup-ClusterPowerShell-v2.cmd'));
+ if(launchIndex<0){
+  $('setupError').textContent='Bootstrap format unsupported. Reload the plugin.';
+  return;
+ }
+ lines[launchIndex]=lines[launchIndex].replace(
+  'Setup-ClusterPowerShell-v2.cmd','Start-Cluster-MCP-v2.cmd');
+ const cmd=lines.join('\r\n').replace('Setup failed.','MCP Gateway setup failed.');
  const url=URL.createObjectURL(new Blob([cmd],{type:'application/octet-stream'}));
  const link=document.createElement('a');
  link.download='Cluster-MCP-QuickSetup.cmd';link.href=url;
  document.body.append(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1500);
- $('setupError').textContent='Start-Cluster-MCP-v2.cmd uses local-only MCP and OAuth ports. Expose ONLY OAuth through trusted HTTPS.';
+ $('setupError').textContent='MCP setup downloads missing bridge components before launch. Only expose OAuth through trusted HTTPS.';
 };
 $('downloadAgent').onclick=()=>{
  if(!bootstrap){$('pairingNote').textContent='PRMU bootstrap unavailable';return;}
