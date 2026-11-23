@@ -19,7 +19,7 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.3",
+      "version": "0.7.4",
       "description": "Stdout-only activity history and Clear Log capability detection",
       "directory": "plugins/cluster.powershell"
     },
