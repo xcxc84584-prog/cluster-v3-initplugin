@@ -151,7 +151,7 @@ try {
    break
   }catch{
    $message=$_.Exception.Message
-   $dnsPending=$message -match '(?i)(name|host|dns|resolve|address|名稱|解析)'
+   $dnsPending=$message -match '(?i)(name|host|dns|resolve|address|socket|11001)'
    Write-Warning ('Public metadata check '+$i+'/'+$checks+': '+$message)
    if($i -lt $checks){Start-Sleep -Seconds 5}
   }
