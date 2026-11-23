@@ -5,8 +5,8 @@
     {
       "id": "cluster.explorer",
       "name": "Cluster Explorer",
-      "version": "2.4.0",
-      "description": "Multilingual Explorer with persistent tree, viewport and external disk change detection",
+      "version": "2.5.0",
+      "description": "Multilingual Explorer with live external directory reconciliation",
       "directory": "plugins/cluster.explorer"
     },
     {
@@ -19,7 +19,7 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "description": "Stdout-only activity history and Clear Log capability detection",
       "directory": "plugins/cluster.powershell"
     },
