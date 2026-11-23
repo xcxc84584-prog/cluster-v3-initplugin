@@ -12,7 +12,7 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "description": "Activate new Editor and PowerShell workspace tabs immediately",
       "directory": "plugins/cluster.text-editor"
     },
@@ -26,7 +26,7 @@
     {
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "description": "Stdout-only PowerShell activity and Local Agent upgrade guidance",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
