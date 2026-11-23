@@ -28,6 +28,17 @@ test('native Windows root selection provides canonical absolute path and enforce
  await roots.action({id:chosen.id,action:'write',relative:'hello.txt',content:'hello'});
  const read=await roots.action({id:chosen.id,action:'read',relative:'hello.txt'});
  assert.equal(read.content,'hello');
+ assert.equal(read.ok,true);
+ assert.equal(read.text,'hello');
+ assert.equal(read.bytesRead,5);
+ assert.equal(read.eof,true);
+ const empty=await roots.action({id:chosen.id,action:'read',
+  relative:'hello.txt',offset:5,length:16});
+ assert.equal(empty.content,'');
+ assert.equal(empty.bytesRead,0);
+ assert.equal(empty.eof,true);
+ await assert.rejects(()=>roots.action({id:chosen.id,action:'read',
+  relative:'hello.txt',length:0}),/Invalid read range/);
  await assert.rejects(()=>roots.action({id:chosen.id,action:'read',relative:'../outside.txt'}),/Unsafe|Invalid/);
  await assert.rejects(()=>roots.action({id:chosen.id,action:'read',relative:'C:/Windows/system.ini'}),/Unsafe/);
  assert.throws(()=>roots.checkPowerShell(chosen.id,folder),/permission denied/);
