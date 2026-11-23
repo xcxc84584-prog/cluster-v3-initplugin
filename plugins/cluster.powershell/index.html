@@ -352,8 +352,8 @@ async function requestHealth(){
   method:'POST',headers:{'Content-Type':'application/json','X-Cluster-Token':token},
   body:'{}',signal:AbortSignal.timeout(8000)});
  const json=await response.json();
- if(!response.ok||!json.ok||json.apiVersion!=='3.0.0')
-  throw Error(json.error||'A ConPTY Local Agent v3 is required');
+ if(!response.ok||!json.ok||!/^3\.(?:0|1)\.\d+$/.test(json.apiVersion||''))
+  throw Error(json.error||'A compatible ConPTY Local Agent v3.0 or v3.1 is required');
 }
 function publishTabState(closedLast=false){
  if(parent===window)return;
