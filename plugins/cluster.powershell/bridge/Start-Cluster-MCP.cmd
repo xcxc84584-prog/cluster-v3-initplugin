@@ -5,11 +5,29 @@ cd /d "%~dp0"
 echo ==================================================
 echo   Cluster AI Agent MCP ^| Local OAuth setup
 echo ==================================================
-where node.exe >nul 2>nul
+rem MCP Quick Setup can run in a fresh or older CMD environment.
+call :resolve_node
 if errorlevel 1 (
- echo [ERROR] Install Node.js LTS using the PowerShell Quick Setup CMD first.
- goto :error
+ echo [INFO] Node.js LTS is required for the MCP/OAuth Gateway.
+ where winget.exe >nul 2>nul
+ if errorlevel 1 (
+  echo [ERROR] Node.js not found and winget is unavailable.
+  echo Install Node.js LTS from nodejs.org, then retry.
+  goto :error
+ )
+ choice /c YN /n /m "Install Node.js LTS using winget? [Y/N] "
+ if errorlevel 2 goto :error
+ winget install --id OpenJS.NodeJS.LTS --exact --source winget --accept-package-agreements --accept-source-agreements
+ if errorlevel 1 goto :error
+ call :resolve_node
+ if errorlevel 1 (
+  echo [ERROR] Node.js installed but node.exe is still unavailable.
+  echo Check the Node.js installation and retry.
+  goto :error
+ )
 )
+node --version
+if errorlevel 1 goto :error
 if not exist "%~dp0secure-store.cjs" goto :missing
 if not exist "%~dp0mcp-gateway.cjs" goto :missing
 if not exist "%~dp0oauth-mcp-gateway.cjs" goto :missing
@@ -83,6 +101,28 @@ echo To view it as the current Windows user, use the authorized local
 echo credential viewer; never share it or place it in Cluster PRMU.
 pause
 exit /b 0
+:resolve_node
+where node.exe >nul 2>nul
+if not errorlevel 1 exit /b 0
+rem winget and MSI can update PATH without changing this CMD session.
+for /f "tokens=2,*" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do if /i "%%A"=="REG_EXPAND_SZ" call set "PATH=%%B;%%PATH%%"
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do if /i "%%A"=="REG_EXPAND_SZ" call set "PATH=%%PATH%%;%%B"
+where node.exe >nul 2>nul
+if not errorlevel 1 exit /b 0
+if exist "%ProgramFiles%\nodejs\node.exe" (
+ set "PATH=%ProgramFiles%\nodejs;%PATH%"
+ exit /b 0
+)
+if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" (
+ set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
+ exit /b 0
+)
+if exist "%APPDATA%\npm\node.exe" (
+ set "PATH=%APPDATA%\npm;%PATH%"
+ exit /b 0
+)
+exit /b 1
+
 :missing
 echo [ERROR] MCP Gateway files missing. Download the latest setup CMD.
 :error
