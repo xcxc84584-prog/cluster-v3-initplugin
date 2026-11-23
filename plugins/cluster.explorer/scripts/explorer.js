@@ -1086,6 +1086,8 @@
             String(error?.message||error)});
           continue;
         }
+        // A root may be closed while directory enumeration is awaiting I/O.
+        if(diskRoots.get(root)!==handle)continue;
         const observed=new Set([...freshFolders,...freshFiles.keys()]);
         const previous=[...diskPaths].filter(path=>
           path.startsWith(root+'/') && diskOrigin(path)?.root===root);
