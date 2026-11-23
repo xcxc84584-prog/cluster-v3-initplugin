@@ -382,9 +382,9 @@ test('all 14 browser MCP tools bind real capability handlers with fail-closed ap
 test('MCP first-run bootstrap includes secure gateway and OAuth scripts',()=>{
  const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
  for(const file of ['secure-store.cjs','mcp-gateway.cjs',
- 'oauth-mcp-gateway.cjs','Start-Cluster-MCP.cmd','Show-OAuth-Approval.cmd'])
+ 'oauth-mcp-gateway.cjs','Start-Cluster-MCP-v2.cmd','Show-OAuth-Approval.cmd'])
   assert.ok(onboarding.includes(file),file);
- const installer=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const installer=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP-v2.cmd');
  assert.match(installer,/CLUSTER_OAUTH_ISSUER/);
  assert.match(installer,/mcp-gateway\.cjs/);
  assert.match(installer,/oauth-mcp-gateway\.cjs/);
@@ -398,7 +398,7 @@ test('MCP first-run bootstrap includes secure gateway and OAuth scripts',()=>{
 });
 
 test('OAuth launcher validates public HTTPS issuer before starting a gateway',()=>{
- const launcher=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const launcher=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP-v2.cmd');
  const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
  const oauth=read('plugins/cluster.powershell/bridge/oauth-mcp-gateway.cjs');
  const normalizer=read('plugins/cluster.powershell/bridge/oauth-origin.cjs');
@@ -413,7 +413,7 @@ test('OAuth launcher validates public HTTPS issuer before starting a gateway',()
 
 
 test('Opt2-style temporary Cloudflare Tunnel is option three, OAuth-only and verified',()=>{
- const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP-v2.cmd');
  const setup=read('plugins/cluster.powershell/bridge/Start-Quick-Tunnel.ps1');
  const onboarding=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
  const readme=read('plugins/cluster.ai-agent-mcp/README.md');
@@ -467,7 +467,7 @@ test('Windows folder picker and local CRUD/PS rights are agent-backed',()=>{
  assert.match(manager,/Symlink exits authorized root/);
 });
 test('successful MCP/OAuth CMD verifies gateway and prints local tokens',()=>{
- const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP.cmd');
+ const cmd=read('plugins/cluster.powershell/bridge/Start-Cluster-MCP-v2.cmd');
  const quick=read('plugins/cluster.powershell/bridge/Start-Quick-Tunnel.ps1');
  const reporter=read('plugins/cluster.powershell/bridge/Show-Connection-Tokens.cjs');
  const waiter=read('plugins/cluster.powershell/bridge/Wait-Cluster-Connection.ps1');
