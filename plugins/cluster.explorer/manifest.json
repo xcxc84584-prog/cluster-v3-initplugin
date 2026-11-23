@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.explorer",
   "name": "Cluster Explorer",
-  "version": "2.4.0",
-  "description": "Multilingual Explorer with persistent tree, viewport and external disk change detection",
+  "version": "2.5.0",
+  "description": "Multilingual Explorer with live external directory reconciliation",
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
