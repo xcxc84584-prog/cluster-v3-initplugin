@@ -45,7 +45,7 @@ the stable HTTPS endpoint, TLS termination and DNS setup yourself.
 
 ## Option [3]: temporary Cloudflare Quick Tunnel (ClusterOpt2 workflow)
 
-Run the updated `Start-Cluster-MCP.cmd` and select `[3]`.
+Run the updated `Start-Cluster-MCP-v2.cmd` and select `[3]`.
 
 - No custom hostname, Cloudflare account or DNS setup is required.
 - If `cloudflared` is missing, the script asks before installing the
@@ -127,7 +127,7 @@ Cluster website Origin and do not install untrusted same-origin plugins.
 ## CMD token messages (v0.6.1)
 
 After MCP and/or OAuth processes **actually answer local health checks**,
-`Start-Cluster-MCP.cmd` prints the active Local Agent pairing token (when
+`Start-Cluster-MCP-v2.cmd` prints the active Local Agent pairing token (when
 reachable), the MCP bearer token, and for OAuth mode the approval token and
 ChatGPT MCP URL. Option 3's temporary Cloudflare Tunnel also prints these
 messages after public issuer verification.
