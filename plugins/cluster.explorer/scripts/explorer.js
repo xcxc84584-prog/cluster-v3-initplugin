@@ -550,8 +550,10 @@
   function removePath(item) {
     if(diskRoots.has(item.path))diskRoots.delete(item.path);
     for(const path of [...diskPaths])
-      if(path===item.path || (item.folder && path.startsWith(item.path+'/')))
+      if(path===item.path || (item.folder && path.startsWith(item.path+'/'))){
         diskPaths.delete(path);
+        diskSnapshots.delete(path);
+      }
     if (item.folder) {
       for(const key of [...entries.keys()])if(key.startsWith(item.path+'/'))entries.delete(key);
       for(const key of [...knownFolders])
@@ -1091,11 +1093,10 @@
           if(observed.has(path))continue;
           diskPaths.delete(path);
           diskSnapshots.delete(path);
-          if(entries.has(path)){
-            // An open editor document keeps its content; do not silently close
-            // a possibly unsaved tab when the backing file disappears.
-            if(!openDocuments.has(path))entries.delete(path);
-          }
+          // Remove deleted/renamed disk entries from the directory tree.
+          // Existing editor tabs retain their independent in-memory content;
+          // never send document.close with discardChanges here.
+          entries.delete(path);
           if(knownFolders.has(path) && path!==root)knownFolders.delete(path);
           treeChanged=true;
         }
