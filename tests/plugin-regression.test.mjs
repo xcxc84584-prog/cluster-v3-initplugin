@@ -168,7 +168,7 @@ test('native ConPTY PowerShell tabs and Local Agent installer',()=>{
  const tool=read('plugins/cluster.text-editor/scripts/powershell-tool.js');
  const terminal=read('plugins/cluster.powershell/index.html');
  const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
- const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell.cmd');
+ const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell-v2.cmd');
  assert.match(html,/scripts\/powershell-tool\.js/);
  assert.match(tool,/PRMU\.resolveCapability/);
  assert.match(tool,/workspace\.powershell\.v1/);
@@ -199,7 +199,7 @@ test('PowerShell setup is inline, not an overlay, and transitions to terminal vi
  const html=read('plugins/cluster.powershell/index.html');
  const guide=read('plugins/cluster.text-editor/scripts/powershell-onboarding.js');
  const bridge=read('plugins/cluster.powershell/bridge/server.cjs');
- const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell.cmd');
+ const setup=read('plugins/cluster.powershell/bridge/Setup-ClusterPowerShell-v2.cmd');
  const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
  assert.ok(script);
  new Script(script,{filename:'cluster-powershell.js'});
