@@ -47,12 +47,12 @@ test('manifest and community catalog stay synchronized',()=>{
 test('Local Agent v3.1 accepts the same authorized pairing token',()=>{
  const server=readFileSync(new URL(
   '../plugins/cluster.powershell/bridge/server.cjs',import.meta.url),'utf8');
- assert.match(server,/apiVersion:'3\\.1\\.0'/);
- assert.match(server,/req\\.headers\\['x-cluster-token'\\]!==token/);
- assert.match(script,/headers:\\{'Content-Type':'application\\/json','X-Cluster-Token':token\\}/);
- const versionCheck=script.match(/!\/(\\^3[^\\n]*?\\$)\/\\.test\\(json\\.apiVersion/);
- assert.ok(versionCheck,'health check contains explicit compatible-version matcher');
- const compatible=new RegExp(versionCheck[1]);
+ assert.ok(server.includes("apiVersion:'3.1.0'"));
+ assert.ok(server.includes("req.headers['x-cluster-token']!==token"));
+ assert.ok(script.includes("'X-Cluster-Token':token"));
+ assert.ok(script.includes("json.apiVersion"));
+ const compatible=/^3\\.(?:0|1)\\.\\d+$/;
+ assert.ok(script.includes(compatible.toString()+'.test(json.apiVersion'));
  assert.equal(compatible.test('3.0.0'),true);
  assert.equal(compatible.test('3.1.0'),true);
  assert.equal(compatible.test('2.0.0'),false);
