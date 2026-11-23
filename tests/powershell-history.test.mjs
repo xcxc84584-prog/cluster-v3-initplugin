@@ -52,7 +52,7 @@ test('Local Agent v3.1 accepts the same authorized pairing token',()=>{
  assert.ok(script.includes("'X-Cluster-Token':token"));
  assert.ok(script.includes("json.apiVersion"));
  const compatible=/^3\\.(?:0|1)\\.\\d+$/;
- assert.ok(script.includes(compatible.toString()+'.test(json.apiVersion'));
+ assert.ok(script.includes(compatible.toString()+".test(json.apiVersion||'')"));
  assert.equal(compatible.test('3.0.0'),true);
  assert.equal(compatible.test('3.1.0'),true);
  assert.equal(compatible.test('2.0.0'),false);
