@@ -127,13 +127,43 @@ try {
    if($meta.issuer -ceq $issuer){$localReady=$true;break}}catch{}
  }
  if(!$localReady){throw 'OAuth did not return the same temporary issuer'}
+ # Cloudflare can register a tunnel before the random hostname is
+ # published to public resolvers. Keep the local services running while
+ # waiting for DNS and HTTPS readiness; never accept unverified metadata.
  $verified=$false
- for($i=1;$i -le 6;$i++){
-  try{PublicCheck $issuer;$verified=$true;break}
-  catch{Write-Warning ('Public metadata check '+$i+'/6: '+$_.Exception.Message)
-   if($i -lt 6){Start-Sleep -Seconds 3}}
+ $dnsPending=$false
+ $checks=18
+ $hostname=([Uri]$issuer).DnsSafeHost
+ for($i=1;$i -le $checks;$i++){
+  $tunnel.Refresh()
+  $oauth.Refresh()
+  if($tunnel.HasExited -or $oauth.HasExited){
+   throw 'Quick Tunnel or OAuth Gateway exited during public verification'
+  }
+  try {
+   $addresses=[Net.Dns]::GetHostAddresses($hostname)
+   if(!$addresses -or $addresses.Count -eq 0){
+    throw ('DNS has no address for '+$hostname)
+   }
+   $dnsPending=$false
+   PublicCheck $issuer
+   $verified=$true
+   break
+  }catch{
+   $message=$_.Exception.Message
+   $dnsPending=$message -match '(?i)(name|host|dns|resolve|address|名稱|解析)'
+   Write-Warning ('Public metadata check '+$i+'/'+$checks+': '+$message)
+   if($i -lt $checks){Start-Sleep -Seconds 5}
+  }
  }
- if(!$verified){throw 'Public OAuth/MCP metadata could not be verified'}
+ if(!$verified){
+  if($dnsPending){
+   throw ('Quick Tunnel hostname DNS is not resolving: '+$hostname+
+    '. Check Windows DNS/network, VPN or DNS filtering; retry to obtain a new temporary URL.')
+  }
+  throw ('Public OAuth/MCP metadata could not be verified at '+$issuer+
+   '. Check HTTPS reachability and logs/quick-tunnel.err.')
+ }
  $snapshot=@{schemaVersion=1;issuer=$issuer;oauthPort=$port;oauthPid=$oauth.Id;tunnelPid=$tunnel.Id;created=(Get-Date).ToUniversalTime().ToString('o')}
  $tmp=$state+'.new'
  [IO.File]::WriteAllText($tmp,($snapshot|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
