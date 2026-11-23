@@ -722,10 +722,10 @@ $('gatewayGuide').onclick=()=>{
  '@echo off','setlocal EnableExtensions DisableDelayedExpansion',
  'title Cluster AI Agent MCP Setup',
  'set "BRIDGE=%LOCALAPPDATA%\\ClusterPowerShell\\bridge"',
- 'if not exist "%BRIDGE%\\Start-Cluster-MCP.cmd" (',
+ 'if not exist "%BRIDGE%\\Start-Cluster-MCP-v2.cmd" (',
  'echo Local Agent components missing. Run ClusterPowerShell QuickSetup first.',
  'pause','exit /b 1',')',
- 'call "%BRIDGE%\\Start-Cluster-MCP.cmd"',
+ 'call "%BRIDGE%\\Start-Cluster-MCP-v2.cmd"',
  'if errorlevel 1 echo MCP start failed. Review the output above.',
  'pause'
  ].join('\r\n')+'\r\n';
@@ -734,7 +734,7 @@ $('gatewayGuide').onclick=()=>{
  link.download='Cluster-MCP-QuickSetup.cmd';link.href=url;
  document.body.append(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1500);
- $('setupError').textContent='Start-Cluster-MCP.cmd uses local-only MCP and OAuth ports. Expose ONLY OAuth through trusted HTTPS.';
+ $('setupError').textContent='Start-Cluster-MCP-v2.cmd uses local-only MCP and OAuth ports. Expose ONLY OAuth through trusted HTTPS.';
 };
 $('downloadAgent').onclick=()=>{
  if(!bootstrap){$('pairingNote').textContent='PRMU bootstrap unavailable';return;}
