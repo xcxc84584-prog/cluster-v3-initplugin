@@ -47,8 +47,8 @@ test('all three changed manifests match registry versions',()=>{
  const catalog=JSON.parse(read('community-index.json'));
  for(const [id,version] of [
   ['cluster.powershell','0.7.3'],
-  ['cluster.ai-agent-mcp','0.3.2'],
-  ['cluster.text-editor','2.12.3']
+  ['cluster.ai-agent-mcp','0.3.3'],
+  ['cluster.text-editor','2.12.4']
  ]){
   const entry=catalog.plugins.find(x=>x.id===id);
   assert.ok(entry,id);
