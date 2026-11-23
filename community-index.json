@@ -12,14 +12,14 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.12.2",
+      "version": "2.12.3",
       "description": "Activate new Editor and PowerShell workspace tabs immediately",
       "directory": "plugins/cluster.text-editor"
     },
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "description": "Stdout-only activity history and Clear Log capability detection",
       "directory": "plugins/cluster.powershell"
     },
