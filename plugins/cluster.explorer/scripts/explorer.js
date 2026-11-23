@@ -1047,41 +1047,103 @@
     $('search').value=typeof snap.search==='string'?snap.search:'';
     restoringExplorer=false;
   }
-  // Disk polling is read-only; only previously-authorized paths are queried.
+  // Re-enumerate the entire authorized tree. File-only polling missed external
+  // creates, deletes and renames. Each pass is bounded and never writes to disk.
+  let externalScanRunning=false;
   async function inspectExternalChanges(){
-    if(document.visibilityState==='hidden' || !diskRoots.size)return;
-    const paths=[...diskSnapshots.keys()];
-    if(!paths.length)return;
-    const portion=paths.slice(externalScanOffset,externalScanOffset+50);
-    externalScanOffset=(externalScanOffset+portion.length)%paths.length;
-    for(const path of portion){
-      const origin=diskOrigin(path);
-      if(!origin || !diskPaths.has(path))continue;
-      try{
-        const parts=origin.relative.split('/').filter(Boolean);
-        let directory=origin.handle;
-        for(const folder of parts.slice(0,-1))
-          directory=await directory.getDirectoryHandle(folder);
-        const handle=await directory.getFileHandle(parts.at(-1));
-        const file=await handle.getFile();
-        const last=diskSnapshots.get(path);
-        if(file.lastModified===last?.modified && file.size===last?.size)continue;
-        diskSnapshots.set(path,{modified:file.lastModified,size:file.size});
-        if(file.size>MAX_FILE)continue;
-        const content=new TextDecoder('utf-8',{fatal:true})
-          .decode(await file.arrayBuffer());
-        // An unopened file also follows the externally authoritative copy.
-        if(storagePriority==='external' && entries.has(path)){
-          entries.get(path).content=content;
-          render();
+    if(externalScanRunning || document.visibilityState==='hidden' || !diskRoots.size)
+      return;
+    externalScanRunning=true;
+    try{
+      let treeChanged=false;
+      for(const [root,handle] of diskRoots){
+        const freshFiles=new Map();
+        const freshFolders=new Set();
+        let inspected=0;
+        const MAX_ENTRIES=3000;
+        async function scan(directory,relative,depth){
+          if(depth>24)throw Error('Directory depth exceeds 24');
+          for await(const [name,child] of directory.entries()){
+            if(++inspected>MAX_ENTRIES)
+              throw Error('External sync exceeded 3,000 entries');
+            const path=relative+'/'+name;
+            if(child.kind==='directory'){
+              freshFolders.add(path);
+              await scan(child,path,depth+1);
+            }else if(child.kind==='file'){
+              const file=await child.getFile();
+              if(TYPES.test(name) && file.size<=MAX_FILE)
+                freshFiles.set(path,{file,modified:file.lastModified,size:file.size});
+            }
+          }
         }
-        sendWorkspace('external.changed',{path:'/'+path,content});
-      }catch(error){
-        sendWorkspace('workspace.error',{message:String(error.message||error)});
+        try{await scan(handle,root,0);}
+        catch(error){
+          // Never delete stale entries based on an incomplete scan.
+          sendWorkspace('workspace.error',{message:'External directory scan: '+
+            String(error?.message||error)});
+          continue;
+        }
+        const observed=new Set([...freshFolders,...freshFiles.keys()]);
+        const previous=[...diskPaths].filter(path=>
+          path.startsWith(root+'/') && diskOrigin(path)?.root===root);
+        for(const path of previous){
+          if(observed.has(path))continue;
+          diskPaths.delete(path);
+          diskSnapshots.delete(path);
+          if(entries.has(path)){
+            // An open editor document keeps its content; do not silently close
+            // a possibly unsaved tab when the backing file disappears.
+            if(!openDocuments.has(path))entries.delete(path);
+          }
+          if(knownFolders.has(path) && path!==root)knownFolders.delete(path);
+          treeChanged=true;
+        }
+        for(const folder of freshFolders){
+          if(!knownFolders.has(folder)){knownFolders.add(folder);treeChanged=true;}
+          diskPaths.add(folder);
+        }
+        for(const [path,info] of freshFiles){
+          const last=diskSnapshots.get(path);
+          const newlyFound=!diskPaths.has(path);
+          diskPaths.add(path);
+          if(!newlyFound && last?.modified===info.modified &&
+             last?.size===info.size)continue;
+          let content;
+          try{
+            content=new TextDecoder('utf-8',{fatal:true})
+              .decode(await info.file.arrayBuffer());
+          }catch(error){
+            sendWorkspace('workspace.error',{message:'External file read: '+
+              String(error?.message||error)});
+            continue;
+          }
+          diskSnapshots.set(path,{modified:info.modified,size:info.size});
+          if(!entries.has(path)){
+            addFile(path,content);
+            treeChanged=true;
+          }else if(storagePriority==='external'){
+            if(entries.get(path).content!==content){
+              entries.get(path).content=content;
+              treeChanged=true;
+            }
+          }
+          if(!newlyFound || openDocuments.has(path))
+            sendWorkspace('external.changed',{path:'/'+path,content});
+        }
       }
-    }
+      if(treeChanged){
+        render();
+        scheduleExplorerSave();
+      }
+    }finally{externalScanRunning=false;}
   }
-  setInterval(()=>void inspectExternalChanges(),8000);
+  setInterval(()=>void inspectExternalChanges().catch(error=>
+    sendWorkspace('workspace.error',{message:String(error?.message||error)})),3000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')
+      void inspectExternalChanges().catch(()=>{});
+  });
   $('tree').addEventListener('scroll',scheduleExplorerSave,{passive:true});
   window.addEventListener('pagehide',saveExplorerNow);
   restoringExplorer=true;
