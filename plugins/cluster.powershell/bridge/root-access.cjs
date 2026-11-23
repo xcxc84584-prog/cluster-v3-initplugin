@@ -111,7 +111,7 @@ function createRootAccess({directory,platform=process.platform,picker}={}){
   }
   if(action==='read'){
    const {target}=locate(id,relative,'read');
-   const offset=Number(input.offset||0),length=Number(input.length||65536);
+   const offset=Number(input.offset??0),length=Number(input.length??65536);
    if(!Number.isInteger(offset)||offset<0||!Number.isInteger(length)||length<1||length>262144)
     throw Error('Invalid read range');
    const stat=await fs.promises.stat(target);
@@ -120,8 +120,12 @@ function createRootAccess({directory,platform=process.platform,picker}={}){
    try{
     const buffer=Buffer.alloc(length);
     const {bytesRead}=await file.read(buffer,0,length,offset);
-    return {path:relative,offset,totalBytes:stat.size,
-      content:buffer.subarray(0,bytesRead).toString('utf8'),length:bytesRead};
+    // Preserve the original content/length contract and add explicit fields
+    // for consumers that discard ambiguous or empty tool-result payloads.
+    const content=buffer.subarray(0,bytesRead).toString('utf8');
+    return {ok:true,path:relative,offset,totalBytes:stat.size,
+      content,text:content,length:bytesRead,bytesRead,
+      eof:offset+bytesRead>=stat.size};
    }finally{await file.close();}
   }
   if(action==='create'){
