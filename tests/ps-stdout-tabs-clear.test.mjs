@@ -46,8 +46,8 @@ test('creating a new PS or Editor tab activates the matching unified tab',()=>{
 test('all three changed manifests match registry versions',()=>{
  const catalog=JSON.parse(read('community-index.json'));
  for(const [id,version] of [
-  ['cluster.powershell','0.7.5'],
-  ['cluster.ai-agent-mcp','0.3.3'],
+  ['cluster.powershell','0.7.6'],
+  ['cluster.ai-agent-mcp','0.3.4'],
   ['cluster.text-editor','2.12.5']
  ]){
   const entry=catalog.plugins.find(x=>x.id===id);
