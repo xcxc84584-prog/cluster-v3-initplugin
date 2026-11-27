@@ -182,6 +182,7 @@
     if (!handle || handle.kind !== 'directory')
       throw new Error(t('無效的目錄權限','Invalid directory handle'));
     const base = escapePath(handle.name);
+    if(diskRoots.get(base)&&typeof handle.isSameEntry==='function'&&!await handle.isSameEntry(diskRoots.get(base)))throw Error('Different directory with same root name');
     if (!base || (diskRoots.has(base) && !blockedRoots.has(base)))
       throw new Error(t('工作區已有同名根目錄，請先關閉','A root with this name already exists'));
     const reconnecting=knownFolders.has(base);
@@ -470,6 +471,7 @@
           }
         }
       }
+      if(path&&diskPaths.has(path)&&diskOrigin(path)?.handle&&!blockedRoots.has(diskOrigin(path).root)&&doc&&!doc.diskBacked)sendWorkspace('disk.reconnected',{path:'/'+path});
       render(); return;
     }
 
@@ -1115,7 +1117,7 @@
     void snapshotDB('readwrite',store=>store.put({...snapshot,diskRoots:[...diskRoots],diskPaths:[...diskPaths],diskSnapshots:[...diskSnapshots]},EXPLORER_SESSION_KEY))
       .then(()=>{explorerSnapshotFailure=false;})
       .catch(error=>{
-        if(!localSaved && !explorerSnapshotFailure){
+        if((!localSaved||diskRoots.size>0) && !explorerSnapshotFailure){
           explorerSnapshotFailure=true;
           sendWorkspace('workspace.error',{message:'Explorer snapshot failed: '+
             String(error?.message||error)});
