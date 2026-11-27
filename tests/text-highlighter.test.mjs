@@ -19,10 +19,10 @@ test('language detection and theme generation are independent of tokenization',(
  assert.notDeepEqual(E.palette('#111111'),E.palette('#eeeeee'));assert.ok(Object.values(E.palette('#123456')).every(s=>/^#[0-9a-f]{6}$/.test(s)));
 });
 test('headless package and editor use color-only non-interactive render layer',()=>{
- const m=JSON.parse(read(root+'manifest.json'));assert.equal(m.ui.mode,'headless');
+ const m=JSON.parse(read(root+'manifest.json'));assert.equal(m.ui.mode,'embedded');
  const h=read(root+'index.html');assert.match(h,/<body><\/body>/);assert.doesNotMatch(h,/<button|<input|<textarea/);
  const source=read('plugins/cluster.text-editor/modules/editor/scripts/editor.js');
  new Script(source);new Script(read(root+'service.js'));
- assert.match(source,/CSS\.highlights/);assert.match(source,/new Range\(\)/);assert.match(source,/layer\.scrollHeight-editor\.scrollHeight/);assert.match(source,/compositionstart/);assert.match(source,/s\.owner===target&&s\.action==='highlight\.tokenize'/);
+ assert.match(source,/CSS\.highlights/);assert.match(source,/new Range\(\)/);assert.match(source,/layer\.scrollHeight-editor\.scrollHeight/);assert.match(source,/compositionstart/);assert.match(source,/hostRPC\('PRMU\.list'/);assert.match(source,/capabilities\.workspace\.highlight\.v1/);assert.doesNotMatch(source,/m\.services/);assert.match(read(root+'service.js'),/rpc\('PRMU\.register','capabilities'/);
  assert.match(source,/::highlight\(cluster-hl-/);assert.match(source,/editor\.classList\.remove\('cluster-highlighted'\)/);
 });
