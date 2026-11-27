@@ -54,6 +54,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #editor::placeholder{color:var(--ui-muted)}
 .empty-hint{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:20px;text-align:center;color:var(--ui-muted);padding:30px;background:var(--ui-background);font-size:13px;pointer-events:none}
 .empty-hint[hidden]{display:none}
+#editor[hidden],.line-gutter[hidden]{display:none!important}
+.empty-hint{z-index:2}
 
 .status-bar{display:flex;align-items:center;gap:13px;min-height:26px;height:26px;padding:0 12px;border-top:1px solid var(--ui-border);color:var(--ui-muted);background:var(--ui-panel);font:10px var(--editor-monospace);white-space:nowrap;overflow:hidden}
 .connection-dot{width:6px;height:6px;flex:none;border-radius:50%;background:var(--ui-accent)}
@@ -697,7 +699,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
       schema:2,activeId,nextId,untitled,
       documents:[...tabs.values()].map(tab=>({
         id:tab.id,name:tab.name,text:tab.text,lastSaved:tab.lastSaved,
-        path:tab.path,revision:tab.revision,
+        path:tab.path,revision:tab.revision,diskBacked:tab.diskBacked===true&&!tab.handle,
         selectionStart:tab.selectionStart,selectionEnd:tab.selectionEnd,
         scrollTop:tab.scrollTop,scrollLeft:tab.scrollLeft||0
       }))
@@ -740,7 +742,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
         id:item.id,name:item.name,text:item.text,lastSaved:item.lastSaved,
         handle:null,path:typeof item.path==='string'?item.path:null,
         // FileSystemHandle cannot be restored from a JSON snapshot.
-        diskBacked:false,revision:Number(item.revision)||nextRevision++,
+        diskBacked:item.diskBacked===true&&typeof item.path==='string',revision:Number(item.revision)||nextRevision++,
         dirty:item.text!==item.lastSaved,
         selectionStart:Math.max(0,Number(item.selectionStart)||0),
         selectionEnd:Math.max(0,Number(item.selectionEnd)||0),
@@ -808,6 +810,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     emitEditorEvent('tab.activated', {document:tabMetadata(tab)});
   }
   function renderTabs() {
+    const hasDocument=Boolean(current());
+    editor.hidden=!hasDocument;
+    $('lineNumbers').parentElement.hidden=!hasDocument;
+    $('emptyHint').hidden=hasDocument;
     const crumb = document.getElementById('breadcrumbName');
     if (crumb) crumb.textContent = current()?.path || current()?.name || 'EDITOR';
     const nav = $('tabs');
@@ -966,6 +972,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
           reply(400,null,{code:'INVALID_RENAME',message:'Invalid new document name/path'});return;
         }
         tab.name=args.name;tab.path=args.path;tab.revision=nextRevision++;
+        if(tab.id===activeId)highlighter.schedule();
         scheduleSessionSave();
         renderTabs();
         emitEditorEvent('document.renamed',{document:tabMetadata(tab)});
