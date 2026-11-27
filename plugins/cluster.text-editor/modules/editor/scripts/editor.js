@@ -130,6 +130,7 @@
       fontBaseline = message.palette.text?.toLowerCase() === '#000000' ? 'light' : 'dark';
     }
     syncPaletteFields();
+    highlighter.context(message);
   }
   window.addEventListener('message', event => {
     if (event.source !== parent) return;
@@ -177,6 +178,102 @@
     if (event.data.protocol === 'cluster.plugin.v1' && event.data.type !== 'context') return;
     receiveContext(event.data);
   });
+
+  // Highlighting is optional. The textarea remains the only editable source.
+  const highlighter = (() => {
+    const target='cluster.text-highlighter', protocol='cluster.plugin.v1';
+    const names=['comment','keyword','string','number','function','class-name','operator','punctuation','boolean','property','tag','attr-name','attr-value','regex','variable','constant','builtin','symbol','important','deleted','inserted'];
+    let available=false, theme='', generation=0, serial=0, timer=null, active=null, data=null, composing=false, paintedKey='', frame=0;
+    const pending=new Map();
+    const supported=typeof CSS!=='undefined'&&CSS.highlights&&typeof Highlight==='function'&&typeof ResizeObserver==='function';
+    if(!supported)return {schedule(){},scroll(){},context(){}};
+    const layer=document.createElement('div');
+    layer.setAttribute('aria-hidden','true');
+    layer.style.cssText='position:absolute;pointer-events:none;overflow:hidden;visibility:hidden;z-index:0;margin:0;border:0;box-sizing:border-box;';
+    const textNode=document.createTextNode('');
+    layer.append(textNode);
+    const host=editor.parentElement;
+    if(getComputedStyle(host).position==='static')host.style.position='relative';
+    host.insertBefore(layer,editor);
+    editor.style.position='relative';editor.style.zIndex='1';
+    const style=document.createElement('style');
+    style.textContent=names.map((n,i)=>'::highlight(cluster-hl-'+i+'){color:var(--cluster-hl-'+i+')}').join('\n')+'\n#editor.cluster-highlighted{color:transparent!important;background:transparent!important}#editor.cluster-highlighted::selection{color:var(--ui-text);background:var(--ui-accent)}';
+    document.head.append(style);
+    function clear(){for(let i=0;i<names.length;i++)CSS.highlights.delete('cluster-hl-'+i);layer.style.visibility='hidden';editor.classList.remove('cluster-highlighted');paintedKey='';}
+    function rpc(action,payload){return new Promise((resolve,reject)=>{
+      const requestId='editor-highlight-'+(++serial);const timeout=setTimeout(()=>{pending.delete(requestId);reject(Error('Highlight timeout'));},5500);
+      pending.set(requestId,{resolve,reject,timeout});parent.postMessage({protocol,type:'request',requestId,method:'Router.request',args:[target,action,payload,{timeoutMs:4500}]},'*');
+    });}
+    function colors(palette){if(!palette||typeof palette!=='object')return;names.forEach((n,i)=>{const c=palette[n];if(/^#[0-9a-f]{6}$/i.test(c||''))document.documentElement.style.setProperty('--cluster-hl-'+i,c);});}
+    function context(m){
+      if(Array.isArray(m.services)){
+        const next=m.services.some(s=>s.owner===target&&s.action==='highlight.tokenize');
+        if(next!==available){available=next;generation++;clearTimeout(timer);active=null;data=null;clear();if(available)schedule();}
+      }
+      const next=m.palette?.editor||m.palette?.background||m.baseColor;
+      if(next&&next!==theme){theme=next;if(available)rpc('highlight.palette',{}).then(r=>{if(available&&theme===next)colors(r.palette);}).catch(()=>{});}
+    }
+    window.addEventListener('message',e=>{if(e.source!==parent)return;const m=e.data;if(m?.protocol!==protocol||m.type!=='response')return;const p=pending.get(m.requestId);if(!p)return;clearTimeout(p.timeout);pending.delete(m.requestId);if(m.ok)p.resolve(m.data);else p.reject(Error(m.error?.message||'Unavailable'));});
+    function geometry(){
+      const s=getComputedStyle(editor);
+      // Disable painting if native wrapping or unsupported shaping can differ.
+      if(editor.wrap!=='off'||s.writingMode!=='horizontal-tb'||s.direction!=='ltr')return false;
+      const a=editor.getBoundingClientRect(),b=host.getBoundingClientRect();
+      const left=a.left-b.left-host.clientLeft+host.scrollLeft,top=a.top-b.top-host.clientTop+host.scrollTop;
+      Object.assign(layer.style,{left:left+'px',top:top+'px',width:editor.clientWidth+'px',height:editor.clientHeight+'px',background:'transparent',color:s.getPropertyValue('--ui-text')||'var(--ui-text)'});
+      for(const p of ['fontFamily','fontSize','fontWeight','fontStyle','fontStretch','fontVariant','fontFeatureSettings','fontKerning','fontVariantLigatures','lineHeight','letterSpacing','wordSpacing','tabSize','textAlign','textIndent','textTransform','direction','whiteSpace','overflowWrap','wordBreak','paddingTop','paddingBottom','paddingLeft','paddingRight'])layer.style[p]=s[p];
+      if(Math.abs(layer.scrollWidth-editor.scrollWidth)>1||Math.abs(layer.scrollHeight-editor.scrollHeight)>1)return false;
+      layer.scrollTop=editor.scrollTop;layer.scrollLeft=editor.scrollLeft;
+      return Math.abs(layer.scrollTop-editor.scrollTop)<=1&&Math.abs(layer.scrollLeft-editor.scrollLeft)<=1;
+    }
+    function paint(){
+      frame=0;if(!available||!data||composing||editor.value!==data.text){clear();return;}
+      if(textNode.data!==data.text)textNode.data=data.text;
+      if(!geometry()){clear();return;}
+      const lineHeight=parseFloat(getComputedStyle(editor).lineHeight)||22;
+      const first=Math.max(0,Math.floor(editor.scrollTop/lineHeight)-4);
+      const last=Math.min(data.lines.length-1,Math.ceil((editor.scrollTop+editor.clientHeight)/lineHeight)+4);
+      const key=data.generation+':'+first+':'+last;
+      if(key!==paintedKey){
+        const a=data.lines[first]||0,b=data.lines[last+1]??data.text.length;
+        const t=data.tokens;let lo=0,hi=t.length/3;
+        while(lo<hi){const mid=(lo+hi)>>1;if(t[mid*3+1]<=a)lo=mid+1;else hi=mid;}
+        const ranges=names.map(()=>[]);
+        for(let i=lo*3;i<t.length&&t[i]<b;i+=3){const start=t[i],end=t[i+1],kind=t[i+2];if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end>data.text.length||start>=end||!ranges[kind]){clear();return;}
+          const r=new Range();r.setStart(textNode,start);r.setEnd(textNode,end);ranges[kind].push(r);}
+        for(let i=0;i<names.length;i++)CSS.highlights.set('cluster-hl-'+i,new Highlight(...ranges[i]));
+        paintedKey=key;
+      }
+      layer.style.visibility='visible';editor.classList.add('cluster-highlighted');
+    }
+    function scroll(){if(!frame)frame=requestAnimationFrame(paint);}
+    function schedule(){
+      if(!available||composing)return;
+      const tab=current(),text=editor.value;
+      if(!tab){data=null;clear();return;}
+      if(data&&data.text===text&&data.id===tab.id&&data.filename===tab.name){scroll();return;}
+      if(active&&active.text===text&&active.id===tab.id&&active.filename===tab.name)return;
+      const id=tab.id,filename=tab.name,g=++generation;
+      clearTimeout(timer);data=null;clear();active={text,id,filename};
+      // Native text is always visible while pending. Complex shaping falls back safely.
+      if(!text||text.length>1024*1024||/[\u0300-\u036f\u0590-\u08ff\u200c\u200d\ud800-\udfff]/.test(text)){active=null;return;}
+      const delay=text.length<65536?50:text.length<262144?100:200;
+      timer=setTimeout(async()=>{
+        try{const result=await rpc('highlight.tokenize',{text,filename,revision:g});
+          if(g!==generation||!available||current()?.id!==id||editor.value!==text||result.revision!==g||result.degraded||!Array.isArray(result.tokens)||result.tokens.length%3!==0)return;
+          colors(result.palette);const tokens=result.tokens.slice();for(let i=0;i<tokens.length;i+=3){tokens[i+2]=names.indexOf(result.types?.[tokens[i+2]]);if(tokens[i+2]<0)return;}
+          const lines=[0];for(let i=0;i<text.length;i++)if(text.charCodeAt(i)===10)lines.push(i+1);
+          if(!tokens.length)return;data={generation:g,id,filename,text,tokens,lines};scroll();
+        }catch{if(g===generation){data=null;clear();}}finally{if(g===generation)active=null;}
+      },delay);
+    }
+    editor.addEventListener('compositionstart',()=>{composing=true;generation++;clearTimeout(timer);active=null;data=null;clear();});
+    editor.addEventListener('compositionend',()=>{composing=false;schedule();});
+    new ResizeObserver(scroll).observe(editor);
+    window.addEventListener('resize',scroll);
+    document.fonts?.ready.then(scroll).catch(()=>{});
+    return {schedule,scroll,context};
+  })();
 
   const SESSION_KEY = 'cluster.editor.workspace.v2';
   const SNAPSHOT_DB = 'cluster-v3-plugin-workspace';
@@ -597,6 +694,7 @@
     $('lineNumbers').textContent = Array.from({length:maxRendered}, (_,i)=>i+1).join('\n') +
       (total > maxRendered ? '\n…' : '');
     $('lineNumbers').style.transform = `translateY(-${editor.scrollTop}px)`;
+    highlighter.schedule();highlighter.scroll();
   }
   function markChanged() {
     if (internalUpdate) return;
