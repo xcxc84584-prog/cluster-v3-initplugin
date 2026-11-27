@@ -628,6 +628,7 @@
       }
       if(selectedPath===before) selectedPath=after;
     }
+    for(const p of [...expanded])if(p===oldPath||p.startsWith(oldPath+'/')){expanded.delete(p);expanded.add(newPath+p.slice(oldPath.length));}
     const nextOrder=new Map();
     for (const [parent,order] of manualOrder)
       nextOrder.set(parent===oldPath||parent.startsWith(oldPath+'/') ?
@@ -651,13 +652,14 @@
     for(const [k,v] of manualOrder)manualOrder.set(k,v.filter(path=>
       path!==item.path&&!path.startsWith(item.path+'/')));
     if(selectedPath===item.path)selectedPath=null;
-    render();
+    render();saveExplorerNow();
   }
   function openedWithin(item) {
     return [...openDocuments].filter(([path]) => path===item.path ||
       (item.folder && path.startsWith(item.path+'/')));
   }
   function closeEntry(item) {
+    if(diskBusy){toast('Disk busy; retry shortly');return;}
     // Close is non-destructive to disk and never prompts for confirmation.
     // Folder/root close releases its virtual subtree as well as all child tabs.
     const documents=openedWithin(item);
@@ -674,6 +676,7 @@
     }
   }
   function refreshTree() {
+    if(diskBusy){toast('Disk busy; retry shortly');return;}
     // Reload Explorer roots: imported folder trees close with their tabs.
     // Detached untitled files are retained unless they belong to a root.
     const roots=[...knownFolders].filter(path=>!path.includes('/'));
@@ -754,7 +757,7 @@
       }
       inlineEdit=null;
       parents(dest).forEach(dir=>expanded.add(dir));
-      selectedPath=dest;render();
+      selectedPath=dest;render();saveExplorerNow();
       if(state.mode==='create'&&!state.folder)void openFile(entries.get(dest));
       return true;
     }catch(err){toast(String(err.message||err));return false;}
@@ -801,7 +804,7 @@
       try{await diskTransfer(source,destination,clipboard.folder,clipboard.cut);}catch(error){toast(String(error.message||error));return;}
     }
     if(clipboard.cut){
-      try{remapPath(source,destination);clipboard=null;render();}
+      try{remapPath(source,destination);clipboard=null;render();saveExplorerNow();}
       catch(err){toast(err.message);}
     } else {
       const sourceFiles=[...entries].filter(([path])=>path===source||
@@ -813,7 +816,7 @@
         for(const path of [...knownFolders])if(path.startsWith(source+'/'))
           knownFolders.add(destination+path.slice(source.length));
       }
-      render();
+      render();saveExplorerNow();
     }
   }
   function moveOrder(source,dest) {
@@ -955,6 +958,7 @@
       row.addEventListener('click',event => {
         if(consumedClick || event.target.closest('button'))return;
         selectedPath=item.path;
+        if(diskRoots.has(item.path)&&blockedRoots.has(item.path)&&!diskRoots.get(item.path)){void chooseAuthorizedFolder();return;}
         if(diskRoots.has(item.path)&&blockedRoots.has(item.path)){void requireWrite(diskOrigin(item.path)).then(()=>{for(const p of diskPaths)if(diskOrigin(p)?.root===item.path)sendWorkspace('disk.reconnected',{path:'/'+p});void inspectExternalChanges();}).catch(error=>toast(String(error.message||error)));}
         if(item.folder){
           if(expanded.has(item.path))expanded.delete(item.path);
@@ -1091,7 +1095,7 @@
       folders:[...knownFolders],
       files:[...entries.values()].map(x=>({path:x.path,content:x.content})),
       manualOrder:[...manualOrder],treeScroll:$('tree').scrollTop,
-      search:$('search').value
+      search:$('search').value,diskRootNames:[...diskRoots.keys()],diskPaths:[...diskPaths]
     };
     let localSaved=false;
     try{
@@ -1122,6 +1126,7 @@
     if(snap?.schema!==2 || !Array.isArray(snap.files) || snap.files.length>3000)return;
     restoringExplorer=true;
     for(const [root,handle] of snap.diskRoots||[])if(typeof root==='string'&&handle?.kind==='directory'){diskRoots.set(root,handle);blockedRoots.add(root);}
+    for(const root of snap.diskRootNames||[])if(typeof root==='string'&&!diskRoots.has(root)){diskRoots.set(root,null);blockedRoots.add(root);}
     for(const p of snap.diskPaths||[])if(typeof p==='string'&&hasDiskOrigin(p))diskPaths.add(p);
     for(const [p,v] of snap.diskSnapshots||[])if(diskPaths.has(p))diskSnapshots.set(p,v);
     for(const folder of snap.folders||[]){
@@ -1153,6 +1158,7 @@
     try{
       let treeChanged=false;
       for(const [root,handle] of diskRoots){
+        if(!handle)continue;
         if(typeof handle.queryPermission==='function'&&await handle.queryPermission({mode:'readwrite'})!=='granted'){blockedRoots.add(root);continue;}
         if(blockedRoots.delete(root))for(const p of diskPaths)if(diskOrigin(p)?.root===root)sendWorkspace('disk.reconnected',{path:'/'+p});
         const freshFiles=new Map();
@@ -1251,7 +1257,7 @@
     try{indexed=await snapshotDB('readonly',
       store=>store.get(EXPLORER_SESSION_KEY));}catch{}
     restoreExplorer(indexed);
-    for(const [root,handle] of diskRoots){try{if(typeof handle.queryPermission!=='function'||await handle.queryPermission({mode:'readwrite'})==='granted'){blockedRoots.delete(root);for(const p of diskPaths)if(diskOrigin(p)?.root===root)sendWorkspace('disk.reconnected',{path:'/'+p});}}catch{}}
+    for(const [root,handle] of diskRoots){try{if(handle&&(typeof handle.queryPermission!=='function'||await handle.queryPermission({mode:'readwrite'})==='granted')){blockedRoots.delete(root);for(const p of diskPaths)if(diskOrigin(p)?.root===root)sendWorkspace('disk.reconnected',{path:'/'+p});}}catch{}}
     const interrupted=await snapshotDB('readonly',store=>store.get('explorer.disk.operation')).catch(()=>null);
     if(interrupted)sendWorkspace('workspace.error',{message:'Interrupted disk transfer: inspect both paths; no automatic deletion: '+interrupted.source+' -> '+interrupted.destination});
     restoringExplorer=false;
