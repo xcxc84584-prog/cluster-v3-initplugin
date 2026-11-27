@@ -26,3 +26,11 @@ test('headless package and editor use color-only non-interactive render layer',(
  assert.match(source,/CSS\.highlights/);assert.match(source,/new Range\(\)/);assert.match(source,/layer\.scrollHeight-editor\.scrollHeight/);assert.match(source,/compositionstart/);assert.match(source,/hostRPC\('PRMU\.list'/);assert.match(source,/capabilities\.workspace\.highlight\.v1/);assert.doesNotMatch(source,/m\.services/);assert.match(read(root+'service.js'),/rpc\('PRMU\.register','capabilities'/);
  assert.match(source,/::highlight\(cluster-hl-/);assert.match(source,/editor\.classList\.remove\('cluster-highlighted'\)/);
 });
+
+test('mirror retains trailing empty textarea line without extending token offsets',()=>{
+ const s=read('plugins/cluster.text-editor/modules/editor/scripts/editor.js');
+ assert.ok(s.includes("terminal.data=data.text.endsWith('\\n')"));
+ assert.ok(s.includes("layer.append(textNode,terminal)"));
+ assert.ok(s.includes("var(--ui-on-editor,var(--ui-text))"));
+ assert.ok(read(root+'service.js').includes('paletteFor(p)'));
+});

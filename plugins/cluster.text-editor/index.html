@@ -578,7 +578,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     layer.setAttribute('aria-hidden','true');
     layer.style.cssText='position:absolute;pointer-events:none;overflow:hidden;visibility:hidden;z-index:0;margin:0;border:0;box-sizing:border-box;';
     const textNode=document.createTextNode('');
-    layer.append(textNode);
+    const terminal=document.createTextNode('');
+    layer.append(textNode,terminal);
     const host=editor.parentElement;
     if(getComputedStyle(host).position==='static')host.style.position='relative';
     host.insertBefore(layer,editor);
@@ -602,7 +603,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     }
     function refreshPalette(){
       const epoch=providerEpoch, expected=theme;
-      if(available)rpc('highlight.palette',{}).then(r=&gt;{if(available&amp;&amp;epoch===providerEpoch&amp;&amp;theme===expected)colors(r.palette);}).catch(()=&gt;{});
+      if(available)rpc('highlight.palette',{background:theme}).then(r=&gt;{if(available&amp;&amp;epoch===providerEpoch&amp;&amp;theme===expected)colors(r.palette);}).catch(()=&gt;{});
     }
     async function discover(){
       if(discovering||document.visibilityState==='hidden'||parent===window)return;
@@ -610,7 +611,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
       try{
         const entries=await hostRPC('PRMU.list',['capabilities',{limit:1000}]);
         if(!Array.isArray(entries)){setAvailable(false);return;}
-        setAvailable(entries.some(entry=&gt;entry.key==='capabilities.workspace.highlight.v1'&amp;&amp;entry.owner===target));
+        setAvailable(entries.some(entry=&gt;(entry.key==='capabilities.workspace.highlight.v1'||entry.key==='workspace.highlight.v1')&amp;&amp;entry.owner===target));
       }catch{setAvailable(false);}
       finally{discovering=false;}
     }
@@ -632,13 +633,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     });
     window.addEventListener('pagehide',()=&gt;{stopDiscovery();setAvailable(false);});
     window.addEventListener('message',e=&gt;{if(e.source!==parent)return;const m=e.data;if(m?.protocol!==protocol||m.type!=='response')return;const p=pending.get(m.requestId);if(!p)return;clearTimeout(p.timeout);pending.delete(m.requestId);if(m.ok)p.resolve(m.data);else p.reject(Error(m.error?.message||'Unavailable'));});
+    // Native textarea has a final empty line after LF; the mirror needs a zero-width sentinel outside token offsets.
     function geometry(){
       const s=getComputedStyle(editor);
       // Disable painting if native wrapping or unsupported shaping can differ.
       if(editor.wrap!=='off'||s.writingMode!=='horizontal-tb'||s.direction!=='ltr')return false;
       const a=editor.getBoundingClientRect(),b=host.getBoundingClientRect();
       const left=a.left-b.left-host.clientLeft+host.scrollLeft,top=a.top-b.top-host.clientTop+host.scrollTop;
-      Object.assign(layer.style,{left:left+'px',top:top+'px',width:editor.clientWidth+'px',height:editor.clientHeight+'px',background:'transparent',color:s.getPropertyValue('--ui-text')||'var(--ui-text)'});
+      Object.assign(layer.style,{left:left+'px',top:top+'px',width:editor.clientWidth+'px',height:editor.clientHeight+'px',background:'transparent',color:'var(--ui-on-editor,var(--ui-text))'});
       for(const p of ['fontFamily','fontSize','fontWeight','fontStyle','fontStretch','fontVariant','fontFeatureSettings','fontKerning','fontVariantLigatures','lineHeight','letterSpacing','wordSpacing','tabSize','textAlign','textIndent','textTransform','direction','whiteSpace','overflowWrap','wordBreak','paddingTop','paddingBottom','paddingLeft','paddingRight'])layer.style[p]=s[p];
       if(Math.abs(layer.scrollWidth-editor.scrollWidth)&gt;1||Math.abs(layer.scrollHeight-editor.scrollHeight)&gt;1)return false;
       layer.scrollTop=editor.scrollTop;layer.scrollLeft=editor.scrollLeft;
@@ -646,7 +648,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     }
     function paint(){
       frame=0;if(!available||!data||!data.tokens.length||composing||editor.value!==data.text){clear();return;}
-      if(textNode.data!==data.text)textNode.data=data.text;
+      if(textNode.data!==data.text){textNode.data=data.text;terminal.data=data.text.endsWith('\n')?'\u200b':'';}
       if(!geometry()){clear();return;}
       const lineHeight=parseFloat(getComputedStyle(editor).lineHeight)||22;
       const first=Math.max(0,Math.floor(editor.scrollTop/lineHeight)-4);
@@ -678,10 +680,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
       if(!text||text.length&gt;1024*1024||/[\u0300-\u036f\u0590-\u08ff\u200c\u200d\ud800-\udfff]/.test(text)){active=null;data={id,filename,text,tokens:[]};return;}
       const delay=text.length&lt;65536?50:text.length&lt;262144?100:200;
       timer=setTimeout(async()=&gt;{
-        try{const result=await rpc('highlight.tokenize',{text,filename,revision:g});
+        try{const result=await rpc('highlight.tokenize',{text,filename,revision:g,background:theme});
           if(g!==generation||!available||current()?.id!==id||editor.value!==text||result.revision!==g)return;
           if(result.degraded||!Array.isArray(result.tokens)||result.tokens.length%3!==0){data={id,filename,text,tokens:[]};return;}
-          colors(result.palette);const tokens=result.tokens.slice();for(let i=0;i&lt;tokens.length;i+=3){tokens[i+2]=names.indexOf(result.types?.[tokens[i+2]]);if(tokens[i+2]&lt;0)return;}
+          if(result.background===theme||!theme)colors(result.palette);else refreshPalette();const tokens=result.tokens.slice();for(let i=0;i&lt;tokens.length;i+=3){tokens[i+2]=names.indexOf(result.types?.[tokens[i+2]]);if(tokens[i+2]&lt;0)return;}
           const lines=[0];for(let i=0;i&lt;text.length;i++)if(text.charCodeAt(i)===10)lines.push(i+1);
           data={generation:g,id,filename,text,tokens,lines};scroll();
         }catch{if(g===generation){data=null;clear();setAvailable(false);}}finally{if(g===generation)active=null;}

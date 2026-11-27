@@ -14,7 +14,7 @@
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.13.0",
+      "version": "2.13.1",
       "description": "Activate new Editor and PowerShell workspace tabs immediately",
       "directory": "plugins/cluster.text-editor",
       "initialize": true,
@@ -41,12 +41,12 @@
     {
       "id": "cluster.text-highlighter",
       "name": "Cluster Text Highlighter",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Headless multi-language syntax tokenization",
       "directory": "plugins/cluster.text-highlighter",
       "initialize": true,
       "community": true
     }
   ],
-  "collectionVersion": "1.1.0"
+  "collectionVersion": "1.1.1"
 }
