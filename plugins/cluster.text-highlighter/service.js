@@ -3,7 +3,8 @@
 const E=globalThis.ClusterHighlightEngine;
 const protocol='cluster.plugin.v1';
 const MAX_TEXT=1024*1024, MAX_CACHE=16*1024*1024, MAX_QUEUE=8;
-let worker=null, running=null, serial=0, bytes=0, registered=false;
+let worker=null, running=null, serial=0, bytes=0, registered=false, registering=false;
+const registeredActions=new Set();
 let base='#17191e', colors=E.palette(base);
 const queue=[], cache=new Map(), pending=new Map();
 function post(message){parent.postMessage({protocol,...message},'*');}
@@ -44,9 +45,16 @@ async function tokenize(p){
  return {...result,revision:p.revision??null,language,palette:colors};
 }
 const methods={'highlight.tokenize':tokenize,'highlight.languages':()=>({languages:E.languages}),'highlight.detect':p=>({language:E.language(p?.language,p?.filename)}),'highlight.palette':()=>({palette:colors})};
-async function register(){if(registered)return;registered=true;
- try{for(const action of Object.keys(methods)){const r=await rpc('Router.register',action,'runtime-callback',{contract:{version:'1.0.0',description:action,request:{type:'object'},response:{type:'object'}}});if(!r.ok)throw Error(r.error?.message||action);}}
- catch(error){registered=false;console.warn('Highlight registration:',error);}}
+async function register(){if(registered||registering)return;registering=true;
+ try{
+  for(const action of Object.keys(methods)){if(registeredActions.has(action))continue;
+   const r=await rpc('Router.register',action,'runtime-callback',{contract:{version:'1.0.0',description:action,request:{type:'object'},response:{type:'object'}}});
+   if(!r.ok)throw Error(r.error?.message||action);registeredActions.add(action);}
+  const r=await rpc('PRMU.register','capabilities',{key:'workspace.highlight.v1',value:{kind:'service',version:'1.0.0',action:'highlight.tokenize'},sharedWrite:false,persistent:false});
+  if(!r.ok&&r.error?.code!=='ALREADY_REGISTERED')throw Error(r.error?.message||'Capability registration failed');
+  registered=true;
+ }catch(error){console.warn('Highlight registration:',error);setTimeout(register,2000);}
+ finally{registering=false;}}
 window.addEventListener('message',event=>{if(event.source!==parent)return;const m=event.data;if(m?.protocol!==protocol)return;
  if(m.type==='context'){const next=m.palette?.editor||m.palette?.background||m.baseColor;if(next&&next!==base){base=next;colors=E.palette(base);}void register();return;}
  if(m.type==='response'){const p=pending.get(m.requestId);if(p){clearTimeout(p.timer);pending.delete(m.requestId);p.resolve(m);}return;}
