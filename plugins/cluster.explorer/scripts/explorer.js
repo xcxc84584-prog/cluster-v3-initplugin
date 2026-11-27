@@ -245,7 +245,7 @@
     // Request directly within the initiating gesture, before filesystem traversal.
     const permission=typeof h.requestPermission==='function'?await h.requestPermission({mode:'readwrite'}):'granted';
     if(permission!=='granted'){blockedRoots.add(origin.root);throw Error(t('未取得磁碟寫入權限','Disk write permission denied'));}
-    blockedRoots.delete(origin.root);
+    if(blockedRoots.delete(origin.root))for(const p of diskPaths)if(diskOrigin(p)?.root===origin.root)sendWorkspace('disk.reconnected',{path:'/'+p});
     return h;
   }
   async function resolveDiskParent(path) {
@@ -281,16 +281,22 @@
   async function diskTransfer(source,destination,folder,cut){
     const src=diskOrigin(source),dst=diskOrigin(destination);
     if(!src?.relative||!dst?.relative)throw Error('Both paths must belong to authorized directories; roots cannot be moved');
-    if(src.root!==dst.root)throw Error('Cross-root transfer requires separate authorization; use OS file manager');
+    if(src.root!==dst.root && (!dst.handle || typeof dst.handle.queryPermission!=='function'))throw Error('Destination authorization unavailable');
     if(destination.startsWith(source+'/'))throw Error('Cannot copy into itself');
     await requireWrite(src);
+    if(src.root!==dst.root && await dst.handle.queryPermission({mode:'readwrite'})!=='granted')throw Error('Authorize destination root before transferring');
     return diskOperation(async()=>{
       const a=await resolveDiskParent(source),b=await resolveDiskParent(destination);
       await assertAbsent(b.parent,b.name);
       const original=folder?await a.parent.getDirectoryHandle(a.name):await a.parent.getFileHandle(a.name);
+      if(cut&&typeof original.move==='function'){
+        try{await original.move(b.parent,b.name);const moved=[...diskPaths].filter(p=>p===source||p.startsWith(source+'/'));for(const p of moved){diskPaths.delete(p);diskSnapshots.delete(p);diskPaths.add(destination+p.slice(source.length));}return;}
+        catch(error){if(!['NotSupportedError','InvalidStateError','NotImplementedError'].includes(error.name))throw error;await assertAbsent(b.parent,b.name);}
+      }
       const checks=[];let count=0;
       async function copyNode(input,parent,name,depth){
         if(++count>3000||depth>24)throw Error('Transfer exceeds safe entry/depth limit; source retained');
+        await assertAbsent(parent,name);
         if(input.kind==='directory'){
           const out=await parent.getDirectoryHandle(name,{create:true});
           const names=[];
@@ -313,6 +319,8 @@
       }
       // Persist intent before copying; recovery never automatically deletes either side.
       const journal={source,destination,cut,phase:'copying',time:Date.now()};
+      const previous=await snapshotDB('readonly',store=>store.get('explorer.disk.operation'));
+      if(previous)throw Error('Unresolved disk transfer; inspect both paths before retrying');
       await snapshotDB('readwrite',store=>store.put(journal,'explorer.disk.operation'));
       await copyNode(original,b.parent,b.name,0);
       for(const verify of checks)await verify();
@@ -504,6 +512,7 @@
       if(!origin?.relative)throw Error('Missing authorized parent');
       const pieces=origin.relative.split('/').filter(Boolean);
       let directory=origin.handle;
+      if(!directory)throw Error('Reconnect the disk root before saving');
       // The granted folder handle is never serialized to the Editor.
       if(typeof directory.queryPermission==='function' &&
          await directory.queryPermission({mode:'readwrite'})!=='granted')
@@ -519,7 +528,7 @@
       entries.get(path).content=content;
       const updated=await handle.getFile();
       diskSnapshots.set(path,{modified:updated.lastModified,size:updated.size});
-      result(true);
+      saveExplorerNow();result(true);
     })().catch(error=>result(false,String(error.message||error)));
   });
   window.addEventListener('message', event => {
@@ -692,7 +701,7 @@
       detail=t('已授權的根目錄無法透過自身權限刪除，請先授權其父目錄。',
         'This authorized root cannot be deleted without parent-directory access.');
       allowed=false;
-    } else if(origin && diskPaths.has(item.path)) {
+    } else if(origin) {
       detail=t('永久刪除磁碟原始檔案或資料夾（包括未顯示子項目），無法復原。',
         'Permanently delete original disk content, including hidden children. This cannot be undone.');
       detail+=' '+origin.root+'/'+origin.relative;
@@ -717,7 +726,7 @@
     const item=visibleTree().find(node=>node.path===path);
     if(!item)return false;
     if(diskRoots.has(path))throw Error('Cannot delete authorized root without parent access');
-    if(diskPaths.has(path)) {
+    if(hasDiskOrigin(path)) {
       // Never remove UI items unless the actual filesystem operation succeeded.
       await deleteFromDisk(item);
     }
@@ -792,7 +801,8 @@
   }
   async function pasteInto(item) {
     if(!clipboard)return;
-    const source=clipboard.path;
+    const operation={...clipboard};
+    const source=operation.path;
     const targetDir=item?.folder?item.path:parentOf(item?.path||'');
     const destination=(targetDir?targetDir+'/':'')+basename(source);
     if(source===destination){toast(t('來源與目標相同','Source and target match'));return;}
@@ -801,17 +811,17 @@
     }
     if(exists(destination)){toast(t('目標已有同名項目','Destination name already exists'));return;}
     if(isDiskBacked(source)||hasDiskOrigin(destination)){
-      try{await diskTransfer(source,destination,clipboard.folder,clipboard.cut);}catch(error){toast(String(error.message||error));return;}
+      try{await diskTransfer(source,destination,operation.folder,operation.cut);}catch(error){toast(String(error.message||error));return;}
     }
-    if(clipboard.cut){
+    if(operation.cut){
       try{remapPath(source,destination);clipboard=null;render();saveExplorerNow();}
       catch(err){toast(err.message);}
     } else {
       const sourceFiles=[...entries].filter(([path])=>path===source||
-        (clipboard.folder&&path.startsWith(source+'/')));
+        (operation.folder&&path.startsWith(source+'/')));
       for(const [path,file] of sourceFiles)
         addFile(destination+path.slice(source.length),file.content);
-      if(clipboard.folder){
+      if(operation.folder){
         knownFolders.add(destination);
         for(const path of [...knownFolders])if(path.startsWith(source+'/'))
           knownFolders.add(destination+path.slice(source.length));
@@ -1060,7 +1070,7 @@
   document.addEventListener('cluster-public-properties',event=>{
     if(event.detail?.language){locale=event.detail.language;updateLanguage();render();}
   });
-  // Snapshots restore the virtual tree; browser disk handles require reauthorization.
+  // IndexedDB restores disk handles; browser permissions are checked separately.
   const EXPLORER_SESSION_KEY='cluster.explorer.workspace.v2';
   const EXPLORER_DB='cluster-v3-plugin-workspace';
   let explorerSaveTimer=null,restoringExplorer=false,initialTreeScroll=0;
