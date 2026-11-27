@@ -70,7 +70,7 @@ tabbar.replaceChildren();
 for(const d of documents.values()){
 addTab('doc',d.id,d.name||'Untitled',d.dirty,
 selected==='editor'&&String(activeDocument)===d.id,
-()=>goEditor(d.id),()=>editorRequest('document.close',{id:d.id}));
+()=>goEditor(d.id),()=>editorRequest('document.close',{id:d.id,prompt:true}));
 }
 if(aiOpened){
  addTab('agent','ai-agent','AI Agent MCP',false,selected==='agent',

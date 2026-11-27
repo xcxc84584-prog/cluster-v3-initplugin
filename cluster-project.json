@@ -9,7 +9,7 @@
     },
     {
       "id": "cluster.text-editor",
-      "version": "2.12.4",
+      "version": "2.12.5",
       "directory": "plugins/cluster.text-editor"
     }
   ]

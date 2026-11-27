@@ -8,10 +8,10 @@
   const languages = {
     'zh-TW': {
       new:'新增檔案',open:'開啟檔案…',save:'儲存',saveAs:'另存新檔…',
-      copyAll:'複製全部文字',close:'關閉目前分頁',ready:'就緒',
+      copyAll:'複製全部文字',close:'關閉目前分頁',closeAll:'關閉全部',ready:'就緒',
       empty:'從右上角 File 開啟文字檔案，或建立新檔案。',
       find:'尋找',fileName:'檔案名稱',download:'匯出檔案',cancel:'取消',
-      unsaved:'內容尚未儲存，確定要繼續？',newFile:'未命名',
+      unsaved:'內容尚未儲存，確定要放棄變更並關閉？',newFile:'未命名',
       opened:'已開啟',saved:'已儲存',exported:'已嘗試匯出',
       sandbox:'Cluster 沙箱可能攔截下載。若未出現檔案，請使用「複製全部文字」或獨立頁面。',
       unsupported:'此環境不支援直接覆寫檔案；將使用下載方式匯出。',
@@ -22,10 +22,10 @@
     },
     en: {
       new:'New File',open:'Open File…',save:'Save',saveAs:'Save As…',
-      copyAll:'Copy All Text',close:'Close Tab',ready:'Ready',
+      copyAll:'Copy All Text',close:'Close Tab',closeAll:'Close All',ready:'Ready',
       empty:'Open a text file from File, or create a new one.',
       find:'Find',fileName:'File name',download:'Export file',cancel:'Cancel',
-      unsaved:'You have unsaved changes. Continue?',newFile:'Untitled',
+      unsaved:'Discard unsaved changes and close?',newFile:'Untitled',
       opened:'Opened',saved:'Saved',exported:'Export requested',
       sandbox:'Cluster sandbox may block downloads. If nothing appears, use Copy All Text or the standalone page.',
       unsupported:'Direct file overwriting unavailable; exporting a download instead.',
@@ -44,10 +44,10 @@
     hi:{baseRGB:'ग्लोबल RGB',pickDescription:'एक रंग से पूरा इंटरफ़ेस बदलेगा।',textColorMode:'स्वचालित टेक्स्ट कंट्रास्ट',darkBaseline:'डार्क आधार',lightBaseline:'लाइट आधार',autoSave:'सेटिंग स्वतः सहेजी गई'}
   };
   const otherLocales = {
-    fr:{new:'Nouveau',open:'Ouvrir…',save:'Enregistrer',saveAs:'Enregistrer sous…',copyAll:'Tout copier',close:'Fermer',find:'Chercher',fileName:'Nom du fichier',download:'Exporter',cancel:'Annuler',ready:'Prêt',palette:'Palette',language:'Langue',plugins:'Plugins',done:'Terminé',resetPalette:'Réinitialiser'},
-    ja:{new:'新規',open:'開く…',save:'保存',saveAs:'名前を付けて保存…',copyAll:'すべてコピー',close:'タブを閉じる',find:'検索',fileName:'ファイル名',download:'エクスポート',cancel:'キャンセル',ready:'準備完了',palette:'配色',language:'言語',plugins:'プラグイン',done:'完了',resetPalette:'初期化'},
-    es:{new:'Nuevo',open:'Abrir…',save:'Guardar',saveAs:'Guardar como…',copyAll:'Copiar todo',close:'Cerrar',find:'Buscar',fileName:'Nombre del archivo',download:'Exportar',cancel:'Cancelar',ready:'Listo',palette:'Paleta',language:'Idioma',plugins:'Complementos',done:'Listo',resetPalette:'Restablecer'},
-    hi:{new:'नया',open:'खोलें…',save:'सहेजें',saveAs:'इस रूप में सहेजें…',copyAll:'सब कॉपी करें',close:'बंद करें',find:'खोजें',fileName:'फ़ाइल नाम',download:'निर्यात',cancel:'रद्द करें',ready:'तैयार',palette:'रंग',language:'भाषा',plugins:'प्लगइन',done:'पूर्ण',resetPalette:'रीसेट'}
+    fr:{new:'Nouveau',open:'Ouvrir…',save:'Enregistrer',saveAs:'Enregistrer sous…',copyAll:'Tout copier',close:'Fermer',closeAll:'Tout fermer',unsaved:'Des modifications ne sont pas enregistrées. Les abandonner ?',find:'Chercher',fileName:'Nom du fichier',download:'Exporter',cancel:'Annuler',ready:'Prêt',palette:'Palette',language:'Langue',plugins:'Plugins',done:'Terminé',resetPalette:'Réinitialiser'},
+    ja:{new:'新規',open:'開く…',save:'保存',saveAs:'名前を付けて保存…',copyAll:'すべてコピー',close:'タブを閉じる',closeAll:'すべて閉じる',unsaved:'未保存の変更を破棄しますか？',find:'検索',fileName:'ファイル名',download:'エクスポート',cancel:'キャンセル',ready:'準備完了',palette:'配色',language:'言語',plugins:'プラグイン',done:'完了',resetPalette:'初期化'},
+    es:{new:'Nuevo',open:'Abrir…',save:'Guardar',saveAs:'Guardar como…',copyAll:'Copiar todo',close:'Cerrar',closeAll:'Cerrar todo',unsaved:'Hay cambios sin guardar. ¿Descartarlos?',find:'Buscar',fileName:'Nombre del archivo',download:'Exportar',cancel:'Cancelar',ready:'Listo',palette:'Paleta',language:'Idioma',plugins:'Complementos',done:'Listo',resetPalette:'Restablecer'},
+    hi:{new:'नया',open:'खोलें…',save:'सहेजें',saveAs:'इस रूप में सहेजें…',copyAll:'सब कॉपी करें',close:'बंद करें',closeAll:'सभी बंद करें',unsaved:'बिना सहेजे बदलाव छोड़ दें?',find:'खोजें',fileName:'फ़ाइल नाम',download:'निर्यात',cancel:'रद्द करें',ready:'तैयार',palette:'रंग',language:'भाषा',plugins:'प्लगइन',done:'पूर्ण',resetPalette:'रीसेट'}
   };
   let locale = 'zh-TW';
   let nextId = 1;
@@ -364,11 +364,11 @@
       nav.append(button);
     }
   }
-  function closeTab(id = activeId) {
+  function closeTab(id = activeId, discardChanges = false) {
     const tab = tabs.get(id);
     if (!tab) return false;
     if (id === activeId) captureTab();
-    // Close is not delete: no confirmation; changes in this memory tab are discarded.
+    if (tab.dirty && !discardChanges && !window.confirm(t('unsaved')+'\n'+tab.name)) return false;
     const order = [...tabs.keys()];
     const index = order.indexOf(id);
     tabs.delete(id);
@@ -388,6 +388,15 @@
         renderCursor();
       }
     } else renderTabs();
+    return true;
+  }
+
+  function closeAllTabs() {
+    captureTab();
+    const dirty = [...tabs.values()].filter(tab => tab.dirty);
+    if (dirty.length && !window.confirm(t('unsaved')+'\n'+dirty.map(tab=>tab.name).join('\n'))) return false;
+    for (const id of [...tabs.keys()].filter(id=>id!==activeId)) closeTab(id,true);
+    if (activeId!==null) closeTab(activeId,true);
     return true;
   }
 
@@ -487,6 +496,7 @@
         reply(200,{document:tabMetadata(tab)});return;
       }
       if (action === 'document.close') {
+        if (tab.id === activeId) captureTab();
         if (tab.dirty && args.prompt === true) {
           if (!window.confirm(t('unsaved'))) {
             reply(409,{document:tabMetadata(tab)},
@@ -499,8 +509,7 @@
             {code:'UNSAVED_CHANGES',message:'Explicit discardChanges is required'});return;
         }
         // closeTab normally prompts; only bypass prompt after explicit discard.
-        if (tab.dirty && args.discardChanges === true) tab.dirty=false;
-        if (!closeTab(tab.id)) {
+        if (!closeTab(tab.id,args.discardChanges===true)) {
           reply(409,{document:tabMetadata(tab)},
             {code:'CLOSE_CANCELLED',message:'Close was cancelled'});return;
         }
@@ -809,13 +818,13 @@
     if(event.source!==parent || event.data?.protocol!=='cluster.workspace.file.v1' ||
        event.data.type!=='command')return;
     const cmd=event.data.action;
-    if(['new','open','save','save-as','copy','close','palette','language'].includes(cmd))
+    if(['new','open','save','save-as','copy','close','close-all','palette','language'].includes(cmd))
       runCommand(cmd);
   });
   function runCommand(command) {
     const actions = {
       new:newFile, open, save, 'save-as':saveAs, copy:copyAll,
-      close:()=>closeTab(),
+      close:()=>closeTab(), 'close-all':closeAllTabs,
       palette:openHostPalette,
       language:()=>$('languageDialog').showModal(),
       plugins:openPlugins
