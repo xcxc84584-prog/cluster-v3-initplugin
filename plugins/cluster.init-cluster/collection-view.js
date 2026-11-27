@@ -14,7 +14,7 @@ globalThis.clusterInitialCollection = {
     {
       "id": "cluster.text-editor",
       "name": "Cluster BasicTextEditor",
-      "version": "2.13.1",
+      "version": "2.13.2",
       "description": "Activate new Editor and PowerShell workspace tabs immediately",
       "directory": "plugins/cluster.text-editor",
       "initialize": true,
