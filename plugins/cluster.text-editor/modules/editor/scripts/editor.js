@@ -355,7 +355,7 @@
       schema:2,activeId,nextId,untitled,
       documents:[...tabs.values()].map(tab=>({
         id:tab.id,name:tab.name,text:tab.text,lastSaved:tab.lastSaved,
-        path:tab.path,revision:tab.revision,
+        path:tab.path,revision:tab.revision,diskBacked:tab.diskBacked===true&&!tab.handle,
         selectionStart:tab.selectionStart,selectionEnd:tab.selectionEnd,
         scrollTop:tab.scrollTop,scrollLeft:tab.scrollLeft||0
       }))
@@ -398,7 +398,7 @@
         id:item.id,name:item.name,text:item.text,lastSaved:item.lastSaved,
         handle:null,path:typeof item.path==='string'?item.path:null,
         // FileSystemHandle cannot be restored from a JSON snapshot.
-        diskBacked:false,revision:Number(item.revision)||nextRevision++,
+        diskBacked:item.diskBacked===true&&typeof item.path==='string',revision:Number(item.revision)||nextRevision++,
         dirty:item.text!==item.lastSaved,
         selectionStart:Math.max(0,Number(item.selectionStart)||0),
         selectionEnd:Math.max(0,Number(item.selectionEnd)||0),
@@ -466,6 +466,10 @@
     emitEditorEvent('tab.activated', {document:tabMetadata(tab)});
   }
   function renderTabs() {
+    const hasDocument=Boolean(current());
+    editor.hidden=!hasDocument;
+    $('lineNumbers').parentElement.hidden=!hasDocument;
+    $('emptyHint').hidden=hasDocument;
     const crumb = document.getElementById('breadcrumbName');
     if (crumb) crumb.textContent = current()?.path || current()?.name || 'EDITOR';
     const nav = $('tabs');
@@ -624,6 +628,7 @@
           reply(400,null,{code:'INVALID_RENAME',message:'Invalid new document name/path'});return;
         }
         tab.name=args.name;tab.path=args.path;tab.revision=nextRevision++;
+        if(tab.id===activeId)highlighter.schedule();
         scheduleSessionSave();
         renderTabs();
         emitEditorEvent('document.renamed',{document:tabMetadata(tab)});
