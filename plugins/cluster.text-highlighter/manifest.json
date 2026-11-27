@@ -7,7 +7,7 @@
   "entry": "index.html",
   "apiVersion": "1.0.0",
   "ui": {
-    "mode": "headless",
+    "mode": "embedded",
     "home": false
   }
 }
