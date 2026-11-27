@@ -19,14 +19,14 @@
     {
       "id": "cluster.powershell",
       "name": "ClusterPowerShell",
-      "version": "0.7.5",
+      "version": "0.7.6",
       "description": "Stdout-only activity history and Clear Log capability detection",
       "directory": "plugins/cluster.powershell"
     },
     {
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "description": "Refresh MCP/OAuth bootstrap launcher reference",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
