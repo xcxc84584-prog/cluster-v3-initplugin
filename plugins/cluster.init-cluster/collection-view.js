@@ -5,7 +5,7 @@ globalThis.clusterInitialCollection = {
     {
       "id": "cluster.explorer",
       "name": "Cluster Explorer",
-      "version": "2.5.0",
+      "version": "2.6.0",
       "description": "Multilingual Explorer with live external directory reconciliation",
       "directory": "plugins/cluster.explorer",
       "initialize": true,
@@ -48,5 +48,5 @@ globalThis.clusterInitialCollection = {
       "community": true
     }
   ],
-  "collectionVersion": "1.1.1"
+  "collectionVersion": "1.1.2"
 };
