@@ -29,10 +29,11 @@ function calculate(text,language){return new Promise((resolve,reject)=>{
  queue.push({id:++serial,text,language,resolve,reject});pump();
 });}
 const inflight=new Map();
+function paletteFor(p){const background=/^#[0-9a-f]{6}$/i.test(p?.background||'')?p.background:base;return {background,palette:background===base?colors:E.palette(background)};}
 async function tokenize(p){
- if(typeof p?.text!=='string'||p.text.length>MAX_TEXT)return {revision:p?.revision??null,language:'plain',types:E.kinds,tokens:[],palette:colors,degraded:true};
+ if(typeof p?.text!=='string'||p.text.length>MAX_TEXT)return {revision:p?.revision??null,language:'plain',types:E.kinds,tokens:[],...paletteFor(p),degraded:true};
  const language=E.language(p.language,p.filename);
- if(language==='plain')return {revision:p.revision??null,language,types:E.kinds,tokens:[],palette:colors};
+ if(language==='plain')return {revision:p.revision??null,language,types:E.kinds,tokens:[],...paletteFor(p)};
  // Exact input identity avoids hash collisions. Bound both key and output memory.
  const key=language+'\0'+p.text;let result=cache.get(key)?.result;
  if(result){const entry=cache.get(key);cache.delete(key);cache.set(key,entry);}
@@ -41,10 +42,10 @@ async function tokenize(p){
  if(size<=MAX_CACHE){while(cache.size&&bytes+size>MAX_CACHE){const first=cache.keys().next().value;bytes-=cache.get(first).size;cache.delete(first);}
  cache.set(key,{size,result:value});bytes+=size;}return value;
  }).finally(()=>inflight.delete(key));inflight.set(key,task);}
- try{result=await task;}catch{return {revision:p.revision??null,language,types:E.kinds,tokens:[],palette:colors,degraded:true};}}
- return {...result,revision:p.revision??null,language,palette:colors};
+ try{result=await task;}catch{return {revision:p.revision??null,language,types:E.kinds,tokens:[],...paletteFor(p),degraded:true};}}
+ return {...result,revision:p.revision??null,language,...paletteFor(p)};
 }
-const methods={'highlight.tokenize':tokenize,'highlight.languages':()=>({languages:E.languages}),'highlight.detect':p=>({language:E.language(p?.language,p?.filename)}),'highlight.palette':()=>({palette:colors})};
+const methods={'highlight.tokenize':tokenize,'highlight.languages':()=>({languages:E.languages}),'highlight.detect':p=>({language:E.language(p?.language,p?.filename)}),'highlight.palette':p=>paletteFor(p)};
 async function register(){if(registered||registering)return;registering=true;
  try{
   for(const action of Object.keys(methods)){if(registeredActions.has(action))continue;
