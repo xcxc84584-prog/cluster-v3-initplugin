@@ -27,7 +27,7 @@
       "id": "cluster.ai-agent-mcp",
       "name": "Cluster AI Agent MCP",
       "version": "0.3.3",
-      "description": "Stdout-only PowerShell activity and Local Agent upgrade guidance",
+      "description": "Refresh MCP/OAuth bootstrap launcher reference",
       "directory": "plugins/cluster.ai-agent-mcp"
     }
   ]
