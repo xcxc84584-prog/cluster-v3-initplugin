@@ -184,6 +184,7 @@
     const target='cluster.text-highlighter', protocol='cluster.plugin.v1';
     const names=['comment','keyword','string','number','function','class-name','operator','punctuation','boolean','property','tag','attr-name','attr-value','regex','variable','constant','builtin','symbol','important','deleted','inserted'];
     let available=false, theme='', generation=0, serial=0, timer=null, active=null, data=null, composing=false, paintedKey='', frame=0;
+    let discovering=false, discoveryTimer=null, lastDiscovery=0, providerEpoch=0;
     const pending=new Map();
     const supported=typeof CSS!=='undefined'&&CSS.highlights&&typeof Highlight==='function'&&typeof ResizeObserver==='function';
     if(!supported)return {schedule(){},scroll(){},context(){}};
@@ -200,19 +201,50 @@
     style.textContent=names.map((n,i)=>'::highlight(cluster-hl-'+i+'){color:var(--cluster-hl-'+i+')}').join('\n')+'\n#editor.cluster-highlighted{color:transparent!important;background:transparent!important}#editor.cluster-highlighted::selection{color:var(--ui-text);background:var(--ui-accent)}';
     document.head.append(style);
     function clear(){for(let i=0;i<names.length;i++)CSS.highlights.delete('cluster-hl-'+i);layer.style.visibility='hidden';editor.classList.remove('cluster-highlighted');paintedKey='';}
-    function rpc(action,payload){return new Promise((resolve,reject)=>{
+    function hostRPC(method,args){return new Promise((resolve,reject)=>{
       const requestId='editor-highlight-'+(++serial);const timeout=setTimeout(()=>{pending.delete(requestId);reject(Error('Highlight timeout'));},5500);
-      pending.set(requestId,{resolve,reject,timeout});parent.postMessage({protocol,type:'request',requestId,method:'Router.request',args:[target,action,payload,{timeoutMs:4500}]},'*');
+      pending.set(requestId,{resolve,reject,timeout});parent.postMessage({protocol,type:'request',requestId,method,args},'*');
     });}
     function colors(palette){if(!palette||typeof palette!=='object')return;names.forEach((n,i)=>{const c=palette[n];if(/^#[0-9a-f]{6}$/i.test(c||''))document.documentElement.style.setProperty('--cluster-hl-'+i,c);});}
-    function context(m){
-      if(Array.isArray(m.services)){
-        const next=m.services.some(s=>s.owner===target&&s.action==='highlight.tokenize');
-        if(next!==available){available=next;generation++;clearTimeout(timer);active=null;data=null;clear();if(available)schedule();}
-      }
-      const next=m.palette?.editor||m.palette?.background||m.baseColor;
-      if(next&&next!==theme){theme=next;if(available)rpc('highlight.palette',{}).then(r=>{if(available&&theme===next)colors(r.palette);}).catch(()=>{});}
+    function rpc(action,payload){return hostRPC('Router.request',[target,action,payload,{timeoutMs:4500}]);}
+    // Discover an optional service using the existing nonpersistent PRMU registry.
+    // Do not probe a missing Router target, which would generate repeated ELOGs.
+    function setAvailable(next){
+      if(next===available)return;
+      available=next;providerEpoch++;generation++;clearTimeout(timer);active=null;data=null;clear();
+      if(available){refreshPalette();schedule();}
     }
+    function refreshPalette(){
+      const epoch=providerEpoch, expected=theme;
+      if(available)rpc('highlight.palette',{}).then(r=>{if(available&&epoch===providerEpoch&&theme===expected)colors(r.palette);}).catch(()=>{});
+    }
+    async function discover(){
+      if(discovering||document.visibilityState==='hidden'||parent===window)return;
+      discovering=true;lastDiscovery=Date.now();
+      try{
+        const entries=await hostRPC('PRMU.list',['capabilities',{limit:1000}]);
+        if(!Array.isArray(entries)){setAvailable(false);return;}
+        setAvailable(entries.some(entry=>entry.key==='capabilities.workspace.highlight.v1'&&entry.owner===target));
+      }catch{setAvailable(false);}
+      finally{discovering=false;}
+    }
+    function startDiscovery(){
+      if(discoveryTimer!==null)return;
+      void discover();
+      discoveryTimer=setInterval(()=>{void discover();},2000);
+    }
+    function stopDiscovery(){clearInterval(discoveryTimer);discoveryTimer=null;}
+    function context(m){
+      const next=m.palette?.editor||m.palette?.background||m.baseColor;
+      if(next&&next!==theme){theme=next;refreshPalette();}
+      startDiscovery();
+    }
+    window.addEventListener('focus',()=>{if(Date.now()-lastDiscovery>500)void discover();});
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='hidden'){stopDiscovery();setAvailable(false);}
+      else startDiscovery();
+    });
+    window.addEventListener('pagehide',()=>{stopDiscovery();setAvailable(false);});
     window.addEventListener('message',e=>{if(e.source!==parent)return;const m=e.data;if(m?.protocol!==protocol||m.type!=='response')return;const p=pending.get(m.requestId);if(!p)return;clearTimeout(p.timeout);pending.delete(m.requestId);if(m.ok)p.resolve(m.data);else p.reject(Error(m.error?.message||'Unavailable'));});
     function geometry(){
       const s=getComputedStyle(editor);
@@ -266,7 +298,7 @@
           colors(result.palette);const tokens=result.tokens.slice();for(let i=0;i<tokens.length;i+=3){tokens[i+2]=names.indexOf(result.types?.[tokens[i+2]]);if(tokens[i+2]<0)return;}
           const lines=[0];for(let i=0;i<text.length;i++)if(text.charCodeAt(i)===10)lines.push(i+1);
           data={generation:g,id,filename,text,tokens,lines};scroll();
-        }catch{if(g===generation){data=null;clear();}}finally{if(g===generation)active=null;}
+        }catch{if(g===generation){data=null;clear();setAvailable(false);}}finally{if(g===generation)active=null;}
       },delay);
     }
     editor.addEventListener('compositionstart',()=>{composing=true;generation++;clearTimeout(timer);active=null;data=null;clear();});
@@ -274,6 +306,7 @@
     new ResizeObserver(scroll).observe(editor);
     window.addEventListener('resize',scroll);
     document.fonts?.ready.then(scroll).catch(()=>{});
+    startDiscovery();
     return {schedule,scroll,context};
   })();
 
