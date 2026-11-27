@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "cluster.init-cluster",
   "name": "init_cluster",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Official plugin collection release authority",
   "entry": "index.html",
   "apiVersion": "1.0.0",
