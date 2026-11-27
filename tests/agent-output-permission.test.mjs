@@ -50,7 +50,7 @@ test('activity stores bounded PowerShell outputs and supports reload',()=>{
 test('both updated manifests match community index',()=>{
  const index=JSON.parse(read('community-index.json'));
  for(const [id,version] of [
-  ['cluster.powershell','0.7.5'],['cluster.ai-agent-mcp','0.3.3']
+  ['cluster.powershell','0.7.6'],['cluster.ai-agent-mcp','0.3.4']
  ]){
   const entry=index.plugins.find(p=>p.id===id);
   assert.ok(entry,id);
