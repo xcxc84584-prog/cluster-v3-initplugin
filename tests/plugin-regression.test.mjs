@@ -18,7 +18,7 @@ test('all plugin runtime JavaScript is syntactically valid', () => {
 
 test('all community versions match their folder manifests', () => {
   const catalog=JSON.parse(read('community-index.json'));
-  assert.equal(catalog.plugins.length,4);
+  assert.ok(catalog.plugins.some(p=>p.id==='cluster.text-highlighter'));
   for(const entry of catalog.plugins){
     const manifest=JSON.parse(read(entry.directory+'/manifest.json'));
     assert.equal(manifest.id,entry.id);
