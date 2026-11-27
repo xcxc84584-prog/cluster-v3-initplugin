@@ -127,7 +127,7 @@ test('browser-local restore has durable IndexedDB with localStorage fallback',()
   assert.match(editor,/indexedDB\.open\(SNAPSHOT_DB,1\)/);
   assert.match(explorer,/indexedDB\.open\(EXPLORER_DB,1\)/);
   assert.match(editor,/store=>store\.put\(snapshot,SESSION_KEY\)/);
-  assert.match(explorer,/store=>store\.put\(snapshot,EXPLORER_SESSION_KEY\)/);
+  assert.match(explorer,/store=>store\.put\(\{\.\.\.snapshot,diskRoots:\[\.\.\.diskRoots\],diskPaths:\[\.\.\.diskPaths\],diskSnapshots:\[\.\.\.diskSnapshots\]\},EXPLORER_SESSION_KEY\)/);
   assert.match(editor,/store=>store\.get\(SESSION_KEY\)/);
   assert.match(explorer,/store=>store\.get\(EXPLORER_SESSION_KEY\)/);
   assert.match(editor,/localStorage\.setItem\(SESSION_KEY/);
@@ -493,4 +493,12 @@ test('successful MCP/OAuth CMD verifies gateway and prints local tokens',()=>{
   'Show-Connection-Tokens.cjs','Wait-Cluster-Connection.ps1']){
   assert.ok(bootstrap.includes(file),file);
  }
+});
+
+test('empty editor hides editing surface and restores disk source intent',()=>{
+ assert.match(editor,/editor.hidden=!hasDocument/);
+ assert.match(editor,/lineNumbers'\)\.parentElement\.hidden=!hasDocument/);
+ assert.match(editor,/diskBacked:item.diskBacked===true/);
+ assert.match(explorer,/diskRoots.set\(root,handle\)/);
+ assert.match(explorer,/doc&&!doc.diskBacked\)sendWorkspace\('disk.reconnected'/);
 });
