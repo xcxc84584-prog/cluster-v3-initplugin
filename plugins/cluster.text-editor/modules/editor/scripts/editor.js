@@ -227,7 +227,7 @@
       return Math.abs(layer.scrollTop-editor.scrollTop)<=1&&Math.abs(layer.scrollLeft-editor.scrollLeft)<=1;
     }
     function paint(){
-      frame=0;if(!available||!data||composing||editor.value!==data.text){clear();return;}
+      frame=0;if(!available||!data||!data.tokens.length||composing||editor.value!==data.text){clear();return;}
       if(textNode.data!==data.text)textNode.data=data.text;
       if(!geometry()){clear();return;}
       const lineHeight=parseFloat(getComputedStyle(editor).lineHeight)||22;
@@ -240,7 +240,8 @@
         while(lo<hi){const mid=(lo+hi)>>1;if(t[mid*3+1]<=a)lo=mid+1;else hi=mid;}
         const ranges=names.map(()=>[]);
         for(let i=lo*3;i<t.length&&t[i]<b;i+=3){const start=t[i],end=t[i+1],kind=t[i+2];if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end>data.text.length||start>=end||!ranges[kind]){clear();return;}
-          const r=new Range();r.setStart(textNode,start);r.setEnd(textNode,end);ranges[kind].push(r);}
+          if(ranges[kind].length>=4096){clear();return;}
+          const r=new Range();r.setStart(textNode,Math.max(start,a));r.setEnd(textNode,Math.min(end,b));ranges[kind].push(r);}
         for(let i=0;i<names.length;i++)CSS.highlights.set('cluster-hl-'+i,new Highlight(...ranges[i]));
         paintedKey=key;
       }
@@ -256,14 +257,15 @@
       const id=tab.id,filename=tab.name,g=++generation;
       clearTimeout(timer);data=null;clear();active={text,id,filename};
       // Native text is always visible while pending. Complex shaping falls back safely.
-      if(!text||text.length>1024*1024||/[\u0300-\u036f\u0590-\u08ff\u200c\u200d\ud800-\udfff]/.test(text)){active=null;return;}
+      if(!text||text.length>1024*1024||/[\u0300-\u036f\u0590-\u08ff\u200c\u200d\ud800-\udfff]/.test(text)){active=null;data={id,filename,text,tokens:[]};return;}
       const delay=text.length<65536?50:text.length<262144?100:200;
       timer=setTimeout(async()=>{
         try{const result=await rpc('highlight.tokenize',{text,filename,revision:g});
-          if(g!==generation||!available||current()?.id!==id||editor.value!==text||result.revision!==g||result.degraded||!Array.isArray(result.tokens)||result.tokens.length%3!==0)return;
+          if(g!==generation||!available||current()?.id!==id||editor.value!==text||result.revision!==g)return;
+          if(result.degraded||!Array.isArray(result.tokens)||result.tokens.length%3!==0){data={id,filename,text,tokens:[]};return;}
           colors(result.palette);const tokens=result.tokens.slice();for(let i=0;i<tokens.length;i+=3){tokens[i+2]=names.indexOf(result.types?.[tokens[i+2]]);if(tokens[i+2]<0)return;}
           const lines=[0];for(let i=0;i<text.length;i++)if(text.charCodeAt(i)===10)lines.push(i+1);
-          if(!tokens.length)return;data={generation:g,id,filename,text,tokens,lines};scroll();
+          data={generation:g,id,filename,text,tokens,lines};scroll();
         }catch{if(g===generation){data=null;clear();}}finally{if(g===generation)active=null;}
       },delay);
     }
