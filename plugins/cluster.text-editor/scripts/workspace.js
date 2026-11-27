@@ -70,19 +70,19 @@
     }));}catch{}
   }
   const fileLocaleNames={
-    'zh-TW':['建立新文件','建立新檔（資料夾）','開啟舊文件','開啟舊檔（資料夾）','儲存','另存新檔','關閉文件','介面調色盤','插件','語言'],
-    en:['New file','New folder','Open file','Open folder','Save','Save as','Close file','Interface palette','Plugins','Language'],
-    fr:['Nouveau fichier','Nouveau dossier','Ouvrir fichier','Ouvrir dossier','Enregistrer','Enregistrer sous','Fermer','Palette','Plugins','Langue'],
-    ja:['新しいファイル','新しいフォルダー','ファイルを開く','フォルダーを開く','保存','名前を付けて保存','閉じる','配色','プラグイン','言語'],
-    es:['Nuevo archivo','Nueva carpeta','Abrir archivo','Abrir carpeta','Guardar','Guardar como','Cerrar','Paleta','Complementos','Idioma'],
-    hi:['नई फ़ाइल','नया फ़ोल्डर','फ़ाइल खोलें','फ़ोल्डर खोलें','सहेजें','इस रूप में सहेजें','बंद करें','रंग पैलेट','प्लगइन','भाषा']
+    'zh-TW':['建立新文件','建立新檔（資料夾）','開啟舊文件','開啟舊檔（資料夾）','儲存','另存新檔','關閉文件','關閉全部','介面調色盤','插件','語言'],
+    en:['New file','New folder','Open file','Open folder','Save','Save as','Close file','Close All','Interface palette','Plugins','Language'],
+    fr:['Nouveau fichier','Nouveau dossier','Ouvrir fichier','Ouvrir dossier','Enregistrer','Enregistrer sous','Fermer','Tout fermer','Palette','Plugins','Langue'],
+    ja:['新しいファイル','新しいフォルダー','ファイルを開く','フォルダーを開く','保存','名前を付けて保存','閉じる','すべて閉じる','配色','プラグイン','言語'],
+    es:['Nuevo archivo','Nueva carpeta','Abrir archivo','Abrir carpeta','Guardar','Guardar como','Cerrar','Cerrar todo','Paleta','Complementos','Idioma'],
+    hi:['नई फ़ाइल','नया फ़ोल्डर','फ़ाइल खोलें','फ़ोल्डर खोलें','सहेजें','इस रूप में सहेजें','बंद करें','सभी बंद करें','रंग पैलेट','प्लगइन','भाषा']
   };
   function applyMenuLocale(lang){
     updateDeleteLocale(lang);
     const labels=fileLocaleNames[lang] ||
       (String(lang).startsWith('zh')?fileLocaleNames['zh-TW']:fileLocaleNames.en);
     currentLocale=fileLocaleNames[lang]?lang:'en';
-    ['new','new-folder','open','open-folder','save','save-as','close','palette','plugin','language']
+    ['new','new-folder','open','open-folder','save','save-as','close','close-all','palette','plugin','language']
       .forEach((action,i)=>{
         const button=fileMenu.querySelector('[data-file-action="'+action+'"]');
         if(button)button.textContent=labels[i];
@@ -96,7 +96,7 @@
     document.getElementById('priorityInternalHint').textContent=more[3];
     document.getElementById('priorityExternalHint').textContent=more[4];
     document.getElementById('workspaceLanguageHint').textContent=more[5];
-    document.getElementById('workspaceLanguageTitle').textContent=labels[9];
+    document.getElementById('workspaceLanguageTitle').textContent=labels[10];
     languageMenu.querySelectorAll('[data-locale]').forEach(button=>
       button.setAttribute('aria-pressed',String(button.dataset.locale===currentLocale)));
     setProgress(currentStatus,currentPercent);
